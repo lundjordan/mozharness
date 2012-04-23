@@ -9,14 +9,14 @@ FTP = BASE + "/" + LOCATION + "/" + BRANCH + "-" + OS + TYPE + ID
 
 OS_ARCH = 'linux-x86_64'
 OS_EXTENSION = 'tar.bz2'
-BINARY = "firefox-{build_version}.en-US." + OS_ARCH + "." + OS_EXTENSION
-TESTS = "firefox-{build_version}.en-US." + OS_ARCH + ".tests.zip"
+BINARY = "firefox-{version}.en-US." + OS_ARCH + "." + OS_EXTENSION
+TESTS = "firefox-{version}.en-US." + OS_ARCH + ".tests.zip"
 
 config = {
         "branch" : BRANCH,
-        "ftp_base" : FTP,
-        "ftp_filenames" : [BINARY, TESTS],
-        "unzip_tool" : "tar -jxvf",
+        "url_base" : FTP,
+        "file_archives" : { "bin_archive" : BINARY, "tests_archive" :  TESTS},
+        "extract_tool" : {"tool" : "tar", "flags" : "-jxvf"},
         "appname" : "firefox/firefox",
 
         #global unittest params

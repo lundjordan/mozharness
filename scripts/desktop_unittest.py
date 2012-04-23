@@ -18,6 +18,7 @@ import os, sys
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
+from mozharness.base.errors import MakefileErrorList
 from mozharness.base.script import BaseScript
 
 # MobileSingleLocale {{{1
@@ -44,7 +45,7 @@ class DesktopUnittest(BaseScript):
             config_options=self.config_options,
             all_actions=[
                 # "clobber",
-                "wget",
+                # "wget",
                 "setup",
                 "mochitests",
                 "reftests",
@@ -56,10 +57,26 @@ class DesktopUnittest(BaseScript):
         self.repack_env = None
         self.version = None
         self.ID = None
+        self.file_archives = {}
 
     # helper methods
 
-    def query_version_and_id(self):
+    def query_download_filenames(self):
+        """queries full archive filenames needed for all tests"""
+        c = self.config
+        if self.file_archives:
+            return self.file_archives
+
+        version, ID = self._query_version_and_id()
+        file_archives = {"bin_archive" : c['file_archives']['bin_archive'],
+                "tests_archive" : c['file_archives']['tests_archive']}
+        for fi in file_archives:
+            file_archives[fi] = file_archives[fi].format(version=version.strip())
+
+        self.file_archives = file_archives
+        return self.file_archives
+
+    def _query_version_and_id(self):
         """find version and ID of application being tested"""
         c = self.config
         dirs = self.query_abs_dirs()
@@ -75,8 +92,8 @@ class DesktopUnittest(BaseScript):
         else:
             version = self.get_output_from_command(
                 # TODO Oh my what am I doing? Is there a better way I should do this?
-                "wget --quiet -O- http://hg.mozilla.org/{0}/raw-file/default" +
-                "/browser/config/version.txt".format(c['branch']),
+                "wget --quiet -O- http://hg.mozilla.org/{0}".format(c['branch']) +
+                "/raw-file/default/browser/config/version.txt",
                 cwd=dirs['abs_work_dir'],
                 env=env,
                 silent=True
@@ -99,14 +116,12 @@ class DesktopUnittest(BaseScript):
     def wget(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        ftp_base = c['ftp_base']
-        filenames = c['ftp_filenames']
-        version, ID = self.query_version_and_id()
+        url_base = c['url_base']
+        file_archives = self.query_download_filenames()
         download_count = 0
 
-        for file_name in filenames:
-            file_name = file_name.format(build_version=version.strip())
-            url = ftp_base + "/" + file_name
+        for file_name in file_archives.values():
+            url = url_base + "/" + file_name
             if not self.download_file(url, file_name,
                     parent_dir=dirs['abs_work_dir']):
 
@@ -114,24 +129,39 @@ class DesktopUnittest(BaseScript):
             else:
                 download_count += 1
         self.info("{0} of {1} files " +
-                "downloaded".format(download_count, len(filenames)))
+                "downloaded".format(download_count, len(file_archives)))
 
-        def setup(self):
-            """extract compressed files"""
-            pass
-            # for file_name in ftp_filenames:
+    def setup(self):
+        """extract compressed files"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        bin_archive = self.query_download_filenames()["bin_archive"]
+        test_archive = self.query_download_filenames()["tests_archive"]
+        extract_tool = c['extract_tool']['tool']
+        flags = c['extract_tool']['flags']
 
-        def mochitests(self):
-            """run tests for mochitests"""
-            pass
+        self.run_command([extract_tool, flags, bin_archive],
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
 
-        def reftests(self):
-            """run tests for reftests"""
-            pass
+        self.run_command(["unzip", "-o", test_archive],
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
 
-        def xpcshell(self):
-            """run tests for xpcshell"""
-            pass
+
+    def mochitests(self):
+        """run tests for mochitests"""
+        pass
+
+    def reftests(self):
+        """run tests for reftests"""
+        pass
+
+    def xpcshell(self):
+        """run tests for xpcshell"""
+        pass
 
 
 

@@ -59,7 +59,7 @@ class DesktopUnittest(BaseScript):
 
     # helper methods
 
-    def query_build_and_id(self):
+    def query_version_and_id(self):
         """find version and ID of application being tested"""
         c = self.config
         dirs = self.query_abs_dirs()
@@ -101,7 +101,7 @@ class DesktopUnittest(BaseScript):
         dirs = self.query_abs_dirs()
         ftp_base = c['ftp_base']
         filenames = c['ftp_filenames']
-        version, ID = self.query_build_and_id()
+        version, ID = self.query_version_and_id()
         download_count = 0
 
         for file_name in filenames:

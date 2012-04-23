@@ -6,9 +6,9 @@
 # ***** END LICENSE BLOCK *****
 """desktop_unittest.py
 
-The goal of this is to extract the work from buildbot's factory.py
-and run unittests for any Mozilla desktop applictation(my goal
-and subject to change upon review
+The goal of this is to extract the unittestng from buildbot's factory.py
+for any Mozilla desktop applictation(my goal
+and subject to change upon review)
 
 author: Jordan Lund
 """
@@ -18,8 +18,6 @@ import os, sys
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
-from mozharness.base.errors import MakefileErrorList
-from mozharness.base.log import OutputParser
 from mozharness.base.script import BaseScript
 
 # MobileSingleLocale {{{1
@@ -45,7 +43,7 @@ class DesktopUnittest(BaseScript):
         BaseScript.__init__(self,
             config_options=self.config_options,
             all_actions=[
-                "clobber",
+                # "clobber",
                 "wget",
                 "setup",
                 "mochitests",
@@ -54,54 +52,91 @@ class DesktopUnittest(BaseScript):
             ],
             require_config_file=require_config_file
         )
-        self.buildid = None
         self.make_ident_output = None
-        self.version = None
         self.repack_env = None
+        self.version = None
+        self.ID = None
+
+    # helper methods
+
+    def query_build_and_id(self):
+        """find version and ID of application being tested"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        env = self.query_env()
+
+        if self.version:
+            # TODO, check for ID as well instead of hard coding in config file
+            return self.version, self.ID
+
+        if False:
+            # TODO check for if user overides ID and version
+            pass
+        else:
+            version = self.get_output_from_command(
+                # TODO Oh my what am I doing? Is there a better way I should do this?
+                "wget --quiet -O- http://hg.mozilla.org/{0}/raw-file/default" +
+                "/browser/config/version.txt".format(c['branch']),
+                cwd=dirs['abs_work_dir'],
+                env=env,
+                silent=True
+                )
+            if version:
+                self.version, self.ID = version, None
+                return self.version, self.ID
+            else:
+                self.fatal("Can't determine version!")
 
     # Actions {{{2
 
     # clobber defined in BaseScript and deletes mozharness/build if exists
 
     def preflight_wget(self):
-        """create build dir"""
-        if 'clobber' not in self.actions:
-            dirs = self.query_abs_dirs()
-            self.mkdir_p(dirs['abs_work_dir'])
+        """make sure build dir is created since we are not using VCSMixin"""
+        dirs = self.query_abs_dirs()
+        self.mkdir_p(dirs['abs_work_dir'])
 
     def wget(self):
         c = self.config
-        env = self.query_env()
         dirs = self.query_abs_dirs()
-        ftp_base = []
-        ftp_filenames = []
-        zip_count = 0
-        version = self.get_output_from_command(
-            # TODO Oh my what am I doing? Is there a better way I should do this?
-            "wget --quiet -O- http://hg.mozilla.org/{0}/raw-file/default/browser/config/version.txt".format(c['branch']),
-            cwd=dirs['abs_work_dir'],
-            env=env,
-            silent=True
-        )
-        parser = OutputParser(config=self.config, log_obj=self.log_obj,
-                              error_list=MakefileErrorList)
-        parser.add_lines(version)
+        ftp_base = c['ftp_base']
+        filenames = c['ftp_filenames']
+        version, ID = self.query_build_and_id()
+        download_count = 0
 
-        if False:
-            #TODO check if user overrided FTP from config file (ID, version, app, OS)
-            ftp_base = "manual ftps"
-        else:
-            ftp_base = c['ftp_base']
-            ftp_filenames = c['ftp_filenames']
-        if version:
-            for ftp_file in ftp_filenames:
-                ftp_file = ftp_file.format(build_version=version.strip())
-                import pdb; pdb.set_trace()
-                if not self.download_file(ftp_base + "/" + ftp_file, ftp_file, parent_dir=dirs['abs_work_dir']):
-                    # could not download the file...
-                    self.fatal("Could not download file from {0}".format(ftp_base + "/" + ftp_file))
-        else:
-            self.fatal("Can't determine version!")
+        for file_name in filenames:
+            file_name = file_name.format(build_version=version.strip())
+            url = ftp_base + "/" + file_name
+            if not self.download_file(url, file_name,
+                    parent_dir=dirs['abs_work_dir']):
+
+                self.fatal("Could not download file from {0}".format(url))
+            else:
+                download_count += 1
+        self.info("{0} of {1} files " +
+                "downloaded".format(download_count, len(filenames)))
+
+        def setup(self):
+            """extract compressed files"""
+            pass
+            # for file_name in ftp_filenames:
+
+        def mochitests(self):
+            """run tests for mochitests"""
+            pass
+
+        def reftests(self):
+            """run tests for reftests"""
+            pass
+
+        def xpcshell(self):
+            """run tests for xpcshell"""
+            pass
+
+
+
+
+
 
 # main {{{1
 if __name__ == '__main__':

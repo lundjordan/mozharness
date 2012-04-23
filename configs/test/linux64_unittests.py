@@ -3,18 +3,19 @@ LOCATION = 'tinderbox-builds' # e.g. 'nightly', 'tryserver-builds', 'releases'
 BRANCH = 'mozilla-central'
 OS = 'linux64'
 TYPE = '' #TYPE='-debug'
-FTP = BASE + "/" + LOCATION + "/" + BRANCH + "-" + OS + TYPE + "/" + "%(buildid)s"
+#TODO ARRRGG get this ID dynamically...
+ID = '/1334848638'
+FTP = BASE + "/" + LOCATION + "/" + BRANCH + "-" + OS + TYPE + ID
 
 OS_ARCH = 'linux-x86_64'
 OS_EXTENSION = 'tar.bz2'
-BINARY = "firefox-%(build_version)s.en-US." + OS_ARCH + "." + OS_EXTENSION
-TESTS = "firefox-%(build_version)s.en-US." + OS_ARCH + ".tests.zip"
-
-FTP_BINARY = FTP + "/" + BINARY
-FTP_TESTS = FTP + "/" + TESTS
+BINARY = "firefox-{build_version}.en-US." + OS_ARCH + "." + OS_EXTENSION
+TESTS = "firefox-{build_version}.en-US." + OS_ARCH + ".tests.zip"
 
 config = {
-        "ftps" : [FTP_BINARY,  FTP_TESTS],
+        "branch" : BRANCH,
+        "ftp_base" : FTP,
+        "ftp_filenames" : [BINARY, TESTS],
         "unzip_tool" : "tar -jxvf",
         "appname" : "firefox/firefox",
 

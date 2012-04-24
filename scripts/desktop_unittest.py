@@ -21,6 +21,7 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import MakefileErrorList
 from mozharness.base.script import BaseScript
 
+
 # MobileSingleLocale {{{1
 class DesktopUnittest(BaseScript):
     config_options = [[
@@ -44,29 +45,30 @@ class DesktopUnittest(BaseScript):
         BaseScript.__init__(self,
             config_options=self.config_options,
             all_actions=[
-                # "clobber",
-                # "wget",
-                "setup",
+                #"clobber",
+                #"wget",
+                #"setup",
                 "mochitests",
                 "reftests",
                 "xpcshell",
             ],
             require_config_file=require_config_file
         )
-        self.make_ident_output = None
-        self.repack_env = None
+        self.abs_dirs = None
         self.version = None
         self.ID = None
         self.file_archives = {}
+        self.glob_test_options = []
+        self.glob_mochi_options = []
 
     # helper methods
 
     def query_download_filenames(self):
         """queries full archive filenames needed for all tests"""
-        c = self.config
         if self.file_archives:
             return self.file_archives
 
+        c = self.config
         version, ID = self._query_version_and_id()
         file_archives = {"bin_archive" : c['file_archives']['bin_archive'],
                 "tests_archive" : c['file_archives']['tests_archive']}
@@ -103,6 +105,23 @@ class DesktopUnittest(BaseScript):
                 return self.version, self.ID
             else:
                 self.fatal("Can't determine version!")
+
+    def query_abs_dirs(self):
+        if self.abs_dirs:
+            return self.abs_dirs
+        c = self.config
+        abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
+        dirs = {}
+
+        if 'mochitests' in self.actions and c['mochi_configs']:
+            dirs['abs_mochi_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
+                                                c['mochi_path'])
+        #TODO add reftests and xpcshell dirs to this
+
+        abs_dirs.update(dirs)
+
+        self.abs_dirs = abs_dirs
+        return self.abs_dirs
 
     # Actions {{{2
 
@@ -151,9 +170,73 @@ class DesktopUnittest(BaseScript):
                         halt_on_failure=True)
 
 
+    def query_glob_options(self, app_name=None, util_path="bin",
+            extra_prof_file="bin/plugins", symbols_path="symbols", **kwargs):
+        """return a list of options for all tests"""
+        if self.glob_test_options:
+            return self.glob_test_options
+
+        c = self.config
+
+        # TODO this app condition will say if a user at least supplies an
+        # 'os' key/value in self.config then some OS specific details will be
+        # defaulted appropriately. This probably will be expanded and
+        # given its own method in time
+        if not app_name:
+            if not c['app_name']:
+                if not c['os']:
+                    self.fatal("Could not determine app file name to run tests")
+                else:
+                    app_defaults = {"linux64" : "firefox", "linux" : "firefox",
+                            "win32" : "firefox.exe", "win64" : "firefox.exe",
+                            "macosx" : "firefox.app", "macosx64" : "firefox.app"}
+                    app_name = "firefox/" + app_defaults[c['os']]
+            else:
+                app_name = c['app_name']
+
+        self.glob_test_options  = [
+                "--appname={0}".format(app_name),
+                "--utility-path={0}".format(util_path),
+                "--extra-profile-file={0}".format(extra_prof_file),
+                "--symbols-paths={0}".format(symbols_path)
+                ]
+        return self.glob_test_options
+
+    def query_glob_mochi_options(self, cert_path="certs", console_level='INFO',
+            autorun=None, close_when_done=None, **kwargs):
+        """return a list of options for all mochi tests"""
+        if self.glob_mochi_options:
+            return self.glob_mochi_options
+
+        c = self.config
+        dirs = self.query_abs_dirs()
+        conditionals = []
+        if autorun:
+            conditionals.append(autorun)
+        if close_when_done:
+            conditionals.append(close_when_done)
+
+        # TODO look into console level integration w/ mozharness
+        self.glob_mochi_options  = [
+                "--certificate-path={0}".format(cert_path),
+                "--console-level={0}".format(console_level),
+                ] + conditionals
+        return self.glob_mochi_options
+
     def mochitests(self):
         """run tests for mochitests"""
-        pass
+        c = self.config
+        run_command = ["python", dirs["abs_mochi_runtest_path"]]
+        glob_test_options = self.query_glob_options(**c['unittest_paths'])
+        glob_mochi_options = self.query_glob_mochi_options(**c['mochi_configs'])
+        abs_base_command = run_command + glob_test_options + glob_mochi_options
+        individual_options = c['mochi_individual_options']
+        # if individual_options:
+        #     for num in len(individual_options):
+        #         self.run_command(abs_base_command.append(individual_options),
+        #                         cwd=dirs['abs_work_dir'],
+        #                         error_list=MakefileErrorList,
+        #                         halt_on_failure=True)
 
     def reftests(self):
         """run tests for reftests"""

@@ -4,7 +4,7 @@ BRANCH = 'mozilla-central'
 OS = 'linux64'
 TYPE = '' #TYPE='-debug'
 #TODO ARRRGG get this ID dynamically...
-ID = '/1334848638'
+ID = '/1335348407'
 FTP = BASE + "/" + LOCATION + "/" + BRANCH + "-" + OS + TYPE + ID
 
 OS_ARCH = 'linux-x86_64'
@@ -27,7 +27,7 @@ config = {
             "symbols_path" : "symbols"
             },
 
-        "mochi_path" : "mochitest/runtests.py",
+        "mochi_path" : "mochitest",
 
         #global mochitest options
         "mochi_configs" : {
@@ -60,6 +60,7 @@ config = {
                 "--extra-profile-file=jsreftest/tests/user.js",
             ]
 
-        }
+        },
+        "firefox_plugins_dir" : "firefox/plugins"
 
 }

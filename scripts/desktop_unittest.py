@@ -45,9 +45,9 @@ class DesktopUnittest(BaseScript):
         BaseScript.__init__(self,
             config_options=self.config_options,
             all_actions=[
-                "clobber",
-                "wget",
-                "setup",
+                # "clobber",
+                # "wget",
+                # "setup",
                 "mochitests",
                 "reftests",
                 "xpcshell",
@@ -122,6 +122,9 @@ class DesktopUnittest(BaseScript):
             dirs['reftest_layout_dir'] = c['reftest_configs']['reftest_layout_dir']
             dirs['jsreftest_test_dir'] = c['reftest_configs']['jsreftest_test_dir']
         #TODO add xpcshell dirs to this
+        if 'xpcshell' in self.actions and c['firefox_plugins_dir']:
+            dirs['abs_firefox_plugins_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+                                                c['firefox_plugins_dir'])
 
         abs_dirs.update(dirs)
 
@@ -156,7 +159,7 @@ class DesktopUnittest(BaseScript):
                 "--appname={0}".format(app_name),
                 "--utility-path={0}".format(util_path),
                 "--extra-profile-file={0}".format(extra_prof_file),
-                "--symbols-paths={0}".format(symbols_path)
+                "--symbols-path={0}".format(symbols_path)
                 ]
         return self.glob_test_options
 
@@ -231,7 +234,7 @@ class DesktopUnittest(BaseScript):
         """run tests for mochitests"""
         c = self.config
         dirs = self.query_abs_dirs()
-        run_command = ["python", dirs["abs_mochi_runtest_path"]  + "/reftests.py"]
+        run_command = ["python", dirs["abs_mochi_runtest_path"] + "/runtests.py"]
         glob_test_options = self.query_glob_options(**c['unittest_paths'])
         glob_mochi_options = self.query_glob_mochi_options(**c['mochi_configs'])
         abs_base_command = run_command + glob_test_options + glob_mochi_options
@@ -252,7 +255,7 @@ class DesktopUnittest(BaseScript):
         """run tests for reftests"""
         c = self.config
         dirs = self.query_abs_dirs()
-        run_command = ["python", dirs["abs_reftest_runtest_path"]]
+        run_command = ["python", dirs["abs_reftest_runtest_path"] + "/runreftest.py"]
         glob_test_options = self.query_glob_options(**c['unittest_paths'])
         abs_base_command = run_command + glob_test_options
         individual_ref_arguements = []
@@ -280,6 +283,12 @@ class DesktopUnittest(BaseScript):
 
         self.info("{0} of {1} tests completed".format(tests_complete,
             len(individual_ref_arguements)))
+
+    def xpcshell(self):
+        """docstring for xpcshell"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        self.mkdir_p(dirs['abs_work_dir'])
 
 
 # main {{{1

@@ -45,8 +45,21 @@ config = {
             # TODO pretify this last mochtest when you figure out what it does ;)
             ["--setpref='dom.ipc.plugins.enabled=false'",
                 "--test-path='modules/plugin/test'"]
-        ]
+        ],
 
         #global reftests params
+
+        "reftest_configs" : {
+            "reftest_path" : "reftest",
+            "reftest_layout_dir" : "reftest/tests/layout/reftests",
+            "jsreftest_test_dir" : "jsreftest/tests",
+
+            "reftest_list_options" : [],
+            "reftest_crashlist_options" : [],
+            "jstests_options" : [
+                "--extra-profile-file=jsreftest/tests/user.js",
+            ]
+
+        }
 
 }

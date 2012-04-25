@@ -45,9 +45,9 @@ class DesktopUnittest(BaseScript):
         BaseScript.__init__(self,
             config_options=self.config_options,
             all_actions=[
-                #"clobber",
-                #"wget",
-                #"setup",
+                "clobber",
+                "wget",
+                "setup",
                 "mochitests",
                 "reftests",
                 "xpcshell",
@@ -116,59 +116,17 @@ class DesktopUnittest(BaseScript):
         if 'mochitests' in self.actions and c['mochi_configs']:
             dirs['abs_mochi_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
                                                 c['mochi_path'])
-        #TODO add reftests and xpcshell dirs to this
+        if 'reftests' in self.actions and c['reftest_configs']:
+            dirs['abs_reftest_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
+                                                c['reftest_configs']['reftest_path'])
+            dirs['reftest_layout_dir'] = c['reftest_configs']['reftest_layout_dir']
+            dirs['jsreftest_test_dir'] = c['reftest_configs']['jsreftest_test_dir']
+        #TODO add xpcshell dirs to this
 
         abs_dirs.update(dirs)
 
         self.abs_dirs = abs_dirs
         return self.abs_dirs
-
-    # Actions {{{2
-
-    # clobber defined in BaseScript and deletes mozharness/build if exists
-
-    def preflight_wget(self):
-        """make sure build dir is created since we are not using VCSMixin"""
-        dirs = self.query_abs_dirs()
-        self.mkdir_p(dirs['abs_work_dir'])
-
-    def wget(self):
-        c = self.config
-        dirs = self.query_abs_dirs()
-        url_base = c['url_base']
-        file_archives = self.query_download_filenames()
-        download_count = 0
-
-        for file_name in file_archives.values():
-            url = url_base + "/" + file_name
-            if not self.download_file(url, file_name,
-                    parent_dir=dirs['abs_work_dir']):
-
-                self.fatal("Could not download file from {0}".format(url))
-            else:
-                download_count += 1
-        self.info("{0} of {1} files " +
-                "downloaded".format(download_count, len(file_archives)))
-
-    def setup(self):
-        """extract compressed files"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        bin_archive = self.query_download_filenames()["bin_archive"]
-        test_archive = self.query_download_filenames()["tests_archive"]
-        extract_tool = c['extract_tool']['tool']
-        flags = c['extract_tool']['flags']
-
-        self.run_command([extract_tool, flags, bin_archive],
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-
-        self.run_command(["unzip", "-o", test_archive],
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-
 
     def query_glob_options(self, app_name=None, util_path="bin",
             extra_prof_file="bin/plugins", symbols_path="symbols", **kwargs):
@@ -223,32 +181,105 @@ class DesktopUnittest(BaseScript):
                 ] + conditionals
         return self.glob_mochi_options
 
+    # Actions {{{2
+
+    # clobber defined in BaseScript and deletes mozharness/build if exists
+
+    def preflight_wget(self):
+        """make sure build dir is created since we are not using VCSMixin"""
+        dirs = self.query_abs_dirs()
+        self.mkdir_p(dirs['abs_work_dir'])
+
+    def wget(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        url_base = c['url_base']
+        file_archives = self.query_download_filenames()
+        download_count = 0
+
+        for file_name in file_archives.values():
+            url = url_base + "/" + file_name
+            if not self.download_file(url, file_name,
+                    parent_dir=dirs['abs_work_dir']):
+
+                self.fatal("Could not download file from {0}".format(url))
+            else:
+                download_count += 1
+        self.info("{0} of {1} files " +
+                "downloaded".format(download_count, len(file_archives)))
+
+    def setup(self):
+        """extract compressed files"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        bin_archive = self.query_download_filenames()["bin_archive"]
+        test_archive = self.query_download_filenames()["tests_archive"]
+        extract_tool = c['extract_tool']['tool']
+        flags = c['extract_tool']['flags']
+
+        self.run_command([extract_tool, flags, bin_archive],
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+
+        self.run_command(["unzip", "-o", test_archive],
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+
     def mochitests(self):
         """run tests for mochitests"""
         c = self.config
-        run_command = ["python", dirs["abs_mochi_runtest_path"]]
+        dirs = self.query_abs_dirs()
+        run_command = ["python", dirs["abs_mochi_runtest_path"]  + "/reftests.py"]
         glob_test_options = self.query_glob_options(**c['unittest_paths'])
         glob_mochi_options = self.query_glob_mochi_options(**c['mochi_configs'])
         abs_base_command = run_command + glob_test_options + glob_mochi_options
-        individual_options = c['mochi_individual_options']
-        # if individual_options:
-        #     for num in len(individual_options):
-        #         self.run_command(abs_base_command.append(individual_options),
-        #                         cwd=dirs['abs_work_dir'],
-        #                         error_list=MakefileErrorList,
-        #                         halt_on_failure=True)
+        individual_mochi_options = c['mochi_individual_options']
+        tests_complete = 0
+
+        if individual_mochi_options :
+            for num in range(len(individual_mochi_options)):
+                command =  abs_base_command + individual_mochi_options[num]
+                self.run_command(command,
+                                cwd=dirs['abs_work_dir'],
+                                error_list=MakefileErrorList,
+                                halt_on_failure=True)
+        self.info("{0} of {1} tests completed".format(tests_complete,
+            len(individual_mochi_options)))
 
     def reftests(self):
         """run tests for reftests"""
-        pass
+        c = self.config
+        dirs = self.query_abs_dirs()
+        run_command = ["python", dirs["abs_reftest_runtest_path"]]
+        glob_test_options = self.query_glob_options(**c['unittest_paths'])
+        abs_base_command = run_command + glob_test_options
+        individual_ref_arguements = []
+        individual_ref_arguements.append([
+                c["reftest_configs"]["reftest_list_options"],
+                dirs["reftest_layout_dir"] + "/reftest.list"
+        ])
+        individual_ref_arguements.append([
+                c["reftest_configs"]["reftest_list_options"],
+                dirs["reftest_layout_dir"] + "/crashtests.list"
+        ])
+        individual_ref_arguements.append([
+                c["reftest_configs"]["reftest_list_options"],
+                dirs["jsreftest_test_dir"] + "/jstests.list"
+        ])
+        tests_complete = 0
 
-    def xpcshell(self):
-        """run tests for xpcshell"""
-        pass
+        if individual_ref_arguements:
+            for num in range(len(individual_ref_arguements)):
+                command =  abs_base_command + individual_ref_arguements[num]
+                self.run_command(command,
+                                cwd=dirs['abs_work_dir'],
+                                error_list=MakefileErrorList,
+                                halt_on_failure=True)
 
-
-
-
+        self.info("{0} of {1} tests completed".format(tests_complete,
+            len(individual_ref_arguements)))
 
 
 # main {{{1

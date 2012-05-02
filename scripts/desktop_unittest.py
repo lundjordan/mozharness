@@ -13,7 +13,7 @@ and subject to change upon review)
 author: Jordan Lund
 """
 
-import os, sys
+import os, sys, platform
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -24,62 +24,130 @@ from mozharness.base.script import BaseScript
 
 # MobileSingleLocale {{{1
 class DesktopUnittest(BaseScript):
-    config_options = [[
-     ['--release-config-file',],
-     {"action": "store",
-      "dest": "release_config_file",
-      "type": "string",
-      "help": "Specify the release config file to use"
-     }
-     #TODO add more config options like...
-     # user ftp override
-     # id and version overide
-     # app option (firefox, thunderbird, seamonkey, .... mobile?)
-     # chunk prefrences
-     # close when done
-     # autorun
-     # and many others I have not looked at
-    ]]
+
+    config_options = [
+        [['--binary-url',],
+            {
+                "action": "store",
+                "dest": "binary_url",
+                "type": "string",
+                "help": "Specify the release config file to use"
+            }
+        ],
+        [['--mochi-suite',],
+            {
+                "action" : "append",
+                "dest" : "specified_mochi_suites",
+                "type": "string",
+                "help": """Specify which mochi suite to run.
+                Suites are defined in the config file.
+                Examples: 'plain1', 'plain5', 'chrome', or 'a11y'"""
+            }
+        ],
+    ]
 
     def __init__(self, require_config_file=True):
         BaseScript.__init__(self,
-            config_options=self.config_options,
-            all_actions=[
-                # "clobber",
-                # "wget",
-                # "setup",
-                "mochitests",
-                "reftests",
-                "xpcshell",
-            ],
-            require_config_file=require_config_file
-        )
-        self.abs_dirs = None
-        self.version = None
-        self.ID = None
-        self.file_archives = {}
+                config_options=self.config_options,
+                all_actions=[
+                    "clobber",
+                    "wget",
+                    "setup",
+                    "mochitests",
+                    "reftests",
+                    "xpcshell",
+                    ],
+                require_config_file=require_config_file
+                )
+
+        #### OS specifics
+        self.OS_name =  None
+        self.app_name = None,
+        self.archive_extension = None,
+        self.extract_tool = None,
+        self.query_OS_specifics()
+        #### ############
+
+        self.url_base = None
+        self.file_archives = None
         self.glob_test_options = []
         self.glob_mochi_options = []
 
+
     # helper methods
 
-    def query_download_filenames(self):
+    def query_OS_specifics(self):
+        """return current OS"""
+        system = platform.system() #eg 'Darwin', 'Linux', or 'Windows'
+        is_64bit = '64' in platform.architecture()[0]
+
+        if system == 'Linux':
+            if is_64bit:
+                OS_name = 'linux64'
+            else:
+                OS_name = 'linux'
+            app_name = 'firefox'
+            archive_extension = 'tar.bz2'
+            extract_tool = ['tar', '-jxvf']
+
+        elif system == 'Windows':
+            if is_64bit:
+                OS_name  = 'win64'
+            else:
+                OS_name = 'win32'
+            app_name = 'firefox.exe'
+            archive_extension = 'zip'
+            extract_tool = ['unzip', '-o']
+
+        elif system == 'Darwin':
+            OS_name =  'macosx64'
+            # TODO verify mac app_path, and extract tool/steps
+            app_name = 'firefox.app?'
+            archive_extension = 'dmg'
+            extract_tool = ['hdiutil?']
+
+        else:
+            self.fatal("A supported OS can not be determined")
+
+        self.OS_name =  OS_name,
+        self.app_name = app_name
+        self.archive_extension = archive_extension
+        self.extract_tool = extract_tool
+
+    def query_url_base(self):
+        """queries full archive filenames needed for all tests"""
+        if self.url_base:
+            return self.url_base
+
+        c = self.config
+        if c.get('binary_url'):
+            binary_file_index = c['binary_url'].find('firefox-')
+            self.url_base = "http://ftp.mozilla.org/pub/mozilla.org" + c['binary_url'][0:binary_file_index]
+        else:
+            self.fatal("binary_url was not found in self.config")
+        return self.url_base
+
+    def query_file_archives(self):
         """queries full archive filenames needed for all tests"""
         if self.file_archives:
             return self.file_archives
 
         c = self.config
-        version, ID = self._query_version_and_id()
-        file_archives = {"bin_archive" : c['file_archives']['bin_archive'],
-                "tests_archive" : c['file_archives']['tests_archive']}
-        for fi in file_archives:
-            file_archives[fi] = file_archives[fi].format(version=version.strip())
+        if c.get('binary_url'):
+            binary_file_index = c['binary_url'].find('firefox-')
+            binary_archive = c['binary_url'][binary_file_index:]
+            tests_archive = binary_archive.replace(self.archive_extension, 'tests.zip')
+        else:
+            self.fatal("binary_url was not found in self.config")
 
-        self.file_archives = file_archives
+        self.file_archives = {
+                "binary" : binary_archive,
+                "tests" : tests_archive
+                }
         return self.file_archives
 
-    def _query_version_and_id(self):
-        """find version and ID of application being tested"""
+    def _query_version(self):
+        """find version of application being tested"""
         c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_env()
@@ -93,13 +161,13 @@ class DesktopUnittest(BaseScript):
             pass
         else:
             version = self.get_output_from_command(
-                # TODO Oh my what am I doing? Is there a better way I should do this?
-                "wget --quiet -O- http://hg.mozilla.org/{0}".format(c['branch']) +
-                "/raw-file/default/browser/config/version.txt",
-                cwd=dirs['abs_work_dir'],
-                env=env,
-                silent=True
-                )
+                    # TODO Oh my what am I doing? Is there a better way I should do this?
+                    "wget --quiet -O- http://hg.mozilla.org/{0}".format(c['branch']) +
+                    "/raw-file/default/browser/config/version.txt",
+                    cwd=dirs['abs_work_dir'],
+                    env=env,
+                    silent=True
+                    )
             if version:
                 self.version, self.ID = version, None
                 return self.version, self.ID
@@ -113,76 +181,58 @@ class DesktopUnittest(BaseScript):
         abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
         dirs = {}
 
-        if 'mochitests' in self.actions and c['mochi_configs']:
+        if 'mochitests' in self.actions and c['mochi_path']:
             dirs['abs_mochi_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
-                                                c['mochi_path'])
-        if 'reftests' in self.actions and c['reftest_configs']:
-            dirs['abs_reftest_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
-                                                c['reftest_configs']['reftest_path'])
-            dirs['reftest_layout_dir'] = c['reftest_configs']['reftest_layout_dir']
-            dirs['jsreftest_test_dir'] = c['reftest_configs']['jsreftest_test_dir']
-        #TODO add xpcshell dirs to this
-        if 'xpcshell' in self.actions and c['firefox_plugins_dir']:
-            dirs['abs_firefox_plugins_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                                                c['firefox_plugins_dir'])
+                    c['mochi_path'])
+
+        # TODO come back to remaining dirs
+        # if 'reftests' in self.actions and c['reftest_configs']:
+        #     dirs['abs_reftest_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
+        #             c['reftest_configs']['reftest_path'])
+        #     dirs['reftest_layout_dir'] = c['reftest_configs']['reftest_layout_dir']
+        #     dirs['jsreftest_test_dir'] = c['reftest_configs']['jsreftest_test_dir']
+        # if 'xpcshell' in self.actions and c['firefox_plugins_dir']:
+        #     dirs['abs_firefox_plugins_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+        #             c['firefox_plugins_dir'])
 
         abs_dirs.update(dirs)
 
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 
-    def query_glob_options(self, app_name=None, util_path="bin",
-            extra_prof_file="bin/plugins", symbols_path="symbols", **kwargs):
+    def query_glob_options(self, **kwargs):
         """return a list of options for all tests"""
         if self.glob_test_options:
             return self.glob_test_options
 
-        c = self.config
+        if kwargs:
+            glob_test_options  = []
+            for key in kwargs.keys():
+                if key == 'app_path':
+                    kwargs[key] = kwargs[key].format(app_name=self.app_name)
+                glob_test_options.append(kwargs[key])
+            self.glob_test_options = glob_test_options
 
-        # TODO this app condition will say if a user at least supplies an
-        # 'os' key/value in self.config then some OS specific details will be
-        # defaulted appropriately. This probably will be expanded and
-        # given its own method in time
-        if not app_name:
-            if not c['app_name']:
-                if not c['os']:
-                    self.fatal("Could not determine app file name to run tests")
-                else:
-                    app_defaults = {"linux64" : "firefox", "linux" : "firefox",
-                            "win32" : "firefox.exe", "win64" : "firefox.exe",
-                            "macosx" : "firefox.app", "macosx64" : "firefox.app"}
-                    app_name = "firefox/" + app_defaults[c['os']]
-            else:
-                app_name = c['app_name']
+            return self.glob_test_options
+        else:
+            self.fatal("""No global test options could be found in self.config
+                    Please add them to your config file.""")
 
-        self.glob_test_options  = [
-                "--appname={0}".format(app_name),
-                "--utility-path={0}".format(util_path),
-                "--extra-profile-file={0}".format(extra_prof_file),
-                "--symbols-path={0}".format(symbols_path)
-                ]
-        return self.glob_test_options
-
-    def query_glob_mochi_options(self, cert_path="certs", console_level='INFO',
-            autorun=None, close_when_done=None, **kwargs):
+    def query_glob_mochi_options(self, **kwargs):
         """return a list of options for all mochi tests"""
         if self.glob_mochi_options:
             return self.glob_mochi_options
 
-        c = self.config
-        dirs = self.query_abs_dirs()
-        conditionals = []
-        if autorun:
-            conditionals.append(autorun)
-        if close_when_done:
-            conditionals.append(close_when_done)
+        if kwargs:
+            glob_test_options  = []
+            for key in kwargs.keys():
+                glob_test_options.append(kwargs[key])
+            self.glob_test_options = glob_test_options
 
-        # TODO look into console level integration w/ mozharness
-        self.glob_mochi_options  = [
-                "--certificate-path={0}".format(cert_path),
-                "--console-level={0}".format(console_level),
-                ] + conditionals
-        return self.glob_mochi_options
+            return self.glob_test_options
+        else:
+            self.fatal("""No global mochitest options could be found in self.config
+                    Please add them to your config file.""")
 
     # Actions {{{2
 
@@ -194,15 +244,14 @@ class DesktopUnittest(BaseScript):
         self.mkdir_p(dirs['abs_work_dir'])
 
     def wget(self):
-        c = self.config
         dirs = self.query_abs_dirs()
-        url_base = c['url_base']
-        file_archives = self.query_download_filenames()
+        url_base = self.query_url_base()
+        file_archives = self.query_file_archives()
         download_count = 0
 
-        for file_name in file_archives.values():
-            url = url_base + "/" + file_name
-            if not self.download_file(url, file_name,
+        for archive in file_archives.values():
+            url = url_base + archive
+            if not self.download_file(url, archive,
                     parent_dir=dirs['abs_work_dir']):
 
                 self.fatal("Could not download file from {0}".format(url))
@@ -213,82 +262,104 @@ class DesktopUnittest(BaseScript):
 
     def setup(self):
         """extract compressed files"""
-        c = self.config
         dirs = self.query_abs_dirs()
-        bin_archive = self.query_download_filenames()["bin_archive"]
-        test_archive = self.query_download_filenames()["tests_archive"]
-        extract_tool = c['extract_tool']['tool']
-        flags = c['extract_tool']['flags']
+        bin_archive = self.query_file_archives()["binary"]
+        tests_archive = self.query_file_archives()["tests"]
+        extract_binary_cmd = self.extract_tool + [bin_archive]
 
-        self.run_command([extract_tool, flags, bin_archive],
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
+        self.run_command(extract_binary_cmd,
+                cwd=dirs['abs_work_dir'],
+                error_list=MakefileErrorList,
+                halt_on_failure=True)
 
-        self.run_command(["unzip", "-o", test_archive],
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
+        self.run_command(["unzip", "-o", tests_archive],
+                cwd=dirs['abs_work_dir'],
+                error_list=MakefileErrorList,
+                halt_on_failure=True)
 
     def mochitests(self):
         """run tests for mochitests"""
         c = self.config
         dirs = self.query_abs_dirs()
-        run_command = ["python", dirs["abs_mochi_runtest_path"] + "/runtests.py"]
-        glob_test_options = self.query_glob_options(**c['unittest_paths'])
-        glob_mochi_options = self.query_glob_mochi_options(**c['mochi_configs'])
-        abs_base_command = run_command + glob_test_options + glob_mochi_options
-        individual_mochi_options = c['mochi_individual_options']
         tests_complete = 0
 
-        if individual_mochi_options :
-            for num in range(len(individual_mochi_options)):
-                command =  abs_base_command + individual_mochi_options[num]
-                self.run_command(command,
-                                cwd=dirs['abs_work_dir'],
-                                error_list=MakefileErrorList,
-                                halt_on_failure=True)
-        self.info("{0} of {1} tests completed".format(tests_complete,
-            len(individual_mochi_options)))
+        run_command = ["python", dirs["abs_mochi_runtest_path"] + "/runtests.py"]
+        glob_test_options = self.query_glob_options(**c['global_test_options'])
+        glob_mochi_options = self.query_glob_mochi_options(**c['global_mochi_options'])
+
+        abs_base_command = run_command + glob_test_options + glob_mochi_options
+
+        # logic goes: if at least one '--specify-mochi-suite' was given in the script
+        # then run only that(those) given mochi suite(s). Else, run all the mochi suites
+        all_mochi_suites = c.get('all_mochi_suites')
+        specified_mochi_suites = c.get('specified_mochi_suites')
+        if all_mochi_suites:
+            if specified_mochi_suites:
+                mochi_suites = [all_mochi_suites[key] for key in \
+                        all_mochi_suites.keys() if key in specified_mochi_suites]
+            else:
+                mochi_suites = [value for value in  \
+                        all_mochi_suites.values()]
+        else:
+            self.fatal("No mochi suites could be found in self.config")
+
+        if mochi_suites :
+            for num in range(len(mochi_suites)):
+                command =  abs_base_command + mochi_suites[num]
+                import pprint
+                print command
+            #     self.run_command(command,
+            #             cwd=dirs['abs_work_dir'],
+            #             error_list=MakefileErrorList,
+            #             halt_on_failure=True)
+            # self.info("{0} of {1} tests completed".format(tests_complete,
+            #     len(mochi_suites)))
+        else:
+            self.fatal("""'mochi_suites' could be determined.
+                    If you supplied at least one '--mochitest-suite'
+                    when running this script, make sure the value(s) you gave
+                    matches the key(s) from 'all_mochi_suites' in your config file.""")
+
 
     def reftests(self):
         """run tests for reftests"""
+        # TODO WIP, not to be run
         c = self.config
         dirs = self.query_abs_dirs()
         run_command = ["python", dirs["abs_reftest_runtest_path"] + "/runreftest.py"]
-        glob_test_options = self.query_glob_options(**c['unittest_paths'])
+        glob_test_options = self.query_glob_options(**c['global_test_options'])
         abs_base_command = run_command + glob_test_options
         individual_ref_arguements = []
         individual_ref_arguements.append([
-                c["reftest_configs"]["reftest_list_options"],
-                dirs["reftest_layout_dir"] + "/reftest.list"
-        ])
+            c["reftest_configs"]["reftest_list_options"],
+            dirs["reftest_layout_dir"] + "/reftest.list"
+            ])
         individual_ref_arguements.append([
-                c["reftest_configs"]["reftest_list_options"],
-                dirs["reftest_layout_dir"] + "/crashtests.list"
-        ])
+            c["reftest_configs"]["reftest_list_options"],
+            dirs["reftest_layout_dir"] + "/crashtests.list"
+            ])
         individual_ref_arguements.append([
-                c["reftest_configs"]["reftest_list_options"],
-                dirs["jsreftest_test_dir"] + "/jstests.list"
-        ])
+            c["reftest_configs"]["reftest_list_options"],
+            dirs["jsreftest_test_dir"] + "/jstests.list"
+            ])
         tests_complete = 0
 
         if individual_ref_arguements:
             for num in range(len(individual_ref_arguements)):
                 command =  abs_base_command + individual_ref_arguements[num]
                 self.run_command(command,
-                                cwd=dirs['abs_work_dir'],
-                                error_list=MakefileErrorList,
-                                halt_on_failure=True)
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
 
-        self.info("{0} of {1} tests completed".format(tests_complete,
-            len(individual_ref_arguements)))
+                self.info("{0} of {1} tests completed".format(tests_complete,
+                    len(individual_ref_arguements)))
 
-    def xpcshell(self):
-        """docstring for xpcshell"""
+                def xpcshell(self):
+                    """docstring for xpcshell"""
         c = self.config
         dirs = self.query_abs_dirs()
-        self.mkdir_p(dirs['abs_work_dir'])
+        self.mkdir_p(dirs['abs_firefox_plugins_dir'])
 
 
 # main {{{1

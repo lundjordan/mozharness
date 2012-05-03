@@ -61,9 +61,9 @@ class DesktopUnittest(BaseScript):
         BaseScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    # "clobber",
-                    # "wget",
-                    # "setup",
+                    "clobber",
+                    "wget",
+                    "setup",
                     "mochitests",
                     "reftests",
                     "xpcshell",
@@ -133,7 +133,7 @@ class DesktopUnittest(BaseScript):
         c = self.config
         if c.get('binary_url'):
             binary_file_index = c['binary_url'].find('firefox-')
-            self.url_base = "http://ftp.mozilla.org/pub/mozilla.org" + c['binary_url'][0:binary_file_index]
+            self.url_base = "http://ftp.mozilla.org/pub/mozilla.org/" + c['binary_url'][0:binary_file_index]
         else:
             self.fatal("binary_url was not found in self.config")
         return self.url_base

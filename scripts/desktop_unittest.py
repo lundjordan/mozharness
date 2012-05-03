@@ -44,15 +44,26 @@ class DesktopUnittest(BaseScript):
                 Examples: 'plain1', 'plain5', 'chrome', or 'a11y'"""
             }
         ],
+
+        [['--reftest-suite',],
+            {
+                "action" : "append",
+                "dest" : "specified_reftest_suites",
+                "type": "string",
+                "help": """Specify which reftest suite to run.
+                Suites are defined in the config file.
+                Examples: 'plain1', 'plain5', 'chrome', or 'a11y'"""
+            }
+        ],
     ]
 
     def __init__(self, require_config_file=True):
         BaseScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    "clobber",
-                    "wget",
-                    "setup",
+                    # "clobber",
+                    # "wget",
+                    # "setup",
                     "mochitests",
                     "reftests",
                     "xpcshell",
@@ -181,16 +192,15 @@ class DesktopUnittest(BaseScript):
         abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
         dirs = {}
 
-        if 'mochitests' in self.actions and c['mochi_path']:
-            dirs['abs_mochi_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
-                    c['mochi_path'])
+        if 'mochitests' in self.actions:
+            dirs['abs_mochi_runtest_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+                    c['mochi_run_dir'])
+
+        if 'reftests' in self.actions:
+            dirs['abs_reftest_runtest_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+                    c['reftest_run_dir'])
 
         # TODO come back to remaining dirs
-        # if 'reftests' in self.actions and c['reftest_configs']:
-        #     dirs['abs_reftest_runtest_path'] = os.path.join(abs_dirs['abs_work_dir'],
-        #             c['reftest_configs']['reftest_path'])
-        #     dirs['reftest_layout_dir'] = c['reftest_configs']['reftest_layout_dir']
-        #     dirs['jsreftest_test_dir'] = c['reftest_configs']['jsreftest_test_dir']
         # if 'xpcshell' in self.actions and c['firefox_plugins_dir']:
         #     dirs['abs_firefox_plugins_dir'] = os.path.join(abs_dirs['abs_work_dir'],
         #             c['firefox_plugins_dir'])
@@ -233,6 +243,23 @@ class DesktopUnittest(BaseScript):
         else:
             self.fatal("""No global mochitest options could be found in self.config
                     Please add them to your config file.""")
+
+    def query_specified_suites(self, category):
+        """return the suites to run depending on a given category """
+
+        # logic goes: if at least one '--specify-{category}-suite' was given in the script
+        # then run only that(those) given suite(s). Else, run all the
+        # {category} suites
+        c = self.config
+        all_suites = c.get('all_{0}_suites'.format(category))
+        specified_suites = c.get('specified_{0}_suites'.format(category))
+        if specified_suites:
+            suites = [all_suites[key] for key in \
+                    all_suites.keys() if key in specified_suites]
+        else:
+            suites = [value for value in all_suites.values()]
+
+        return suites
 
     # Actions {{{2
 
@@ -283,30 +310,16 @@ class DesktopUnittest(BaseScript):
         dirs = self.query_abs_dirs()
         tests_complete = 0
 
-        run_command = ["python", dirs["abs_mochi_runtest_path"] + "/runtests.py"]
+        run_command = ["python", dirs["abs_mochi_runtest_dir"] + "/runtests.py"]
         glob_test_options = self.query_glob_options(**c['global_test_options'])
         glob_mochi_options = self.query_glob_mochi_options(**c['global_mochi_options'])
 
         abs_base_command = run_command + glob_test_options + glob_mochi_options
-
-        # logic goes: if at least one '--specify-mochi-suite' was given in the script
-        # then run only that(those) given mochi suite(s). Else, run all the mochi suites
-        all_mochi_suites = c.get('all_mochi_suites')
-        specified_mochi_suites = c.get('specified_mochi_suites')
-        if all_mochi_suites:
-            if specified_mochi_suites:
-                mochi_suites = [all_mochi_suites[key] for key in \
-                        all_mochi_suites.keys() if key in specified_mochi_suites]
-            else:
-                mochi_suites = [value for value in  \
-                        all_mochi_suites.values()]
-        else:
-            self.fatal("No mochi suites could be found in self.config")
+        mochi_suites = self.query_specified_suites("mochi")
 
         if mochi_suites :
             for num in range(len(mochi_suites)):
                 command =  abs_base_command + mochi_suites[num]
-                import pprint
                 print command
             #     self.run_command(command,
             #             cwd=dirs['abs_work_dir'],
@@ -321,45 +334,33 @@ class DesktopUnittest(BaseScript):
                     matches the key(s) from 'all_mochi_suites' in your config file.""")
 
 
+
     def reftests(self):
         """run tests for reftests"""
-        # TODO WIP, not to be run
         c = self.config
         dirs = self.query_abs_dirs()
-        run_command = ["python", dirs["abs_reftest_runtest_path"] + "/runreftest.py"]
+        run_command = ["python", dirs["abs_reftest_runtest_dir"] + "/runreftest.py"]
         glob_test_options = self.query_glob_options(**c['global_test_options'])
-        abs_base_command = run_command + glob_test_options
-        individual_ref_arguements = []
-        individual_ref_arguements.append([
-            c["reftest_configs"]["reftest_list_options"],
-            dirs["reftest_layout_dir"] + "/reftest.list"
-            ])
-        individual_ref_arguements.append([
-            c["reftest_configs"]["reftest_list_options"],
-            dirs["reftest_layout_dir"] + "/crashtests.list"
-            ])
-        individual_ref_arguements.append([
-            c["reftest_configs"]["reftest_list_options"],
-            dirs["jsreftest_test_dir"] + "/jstests.list"
-            ])
         tests_complete = 0
 
-        if individual_ref_arguements:
-            for num in range(len(individual_ref_arguements)):
-                command =  abs_base_command + individual_ref_arguements[num]
-                self.run_command(command,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
+        abs_base_command = run_command + glob_test_options
+        reftest_suites = self.query_specified_suites("reftest")
 
-                self.info("{0} of {1} tests completed".format(tests_complete,
-                    len(individual_ref_arguements)))
-
-                def xpcshell(self):
-                    """docstring for xpcshell"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        self.mkdir_p(dirs['abs_firefox_plugins_dir'])
+        if reftest_suites :
+            for num in range(len(reftest_suites)):
+                command =  abs_base_command + reftest_suites[num]
+                print command
+            #     self.run_command(command,
+            #             cwd=dirs['abs_work_dir'],
+            #             error_list=MakefileErrorList,
+            #             halt_on_failure=True)
+            # self.info("{0} of {1} tests completed".format(tests_complete,
+            #     len(reftest_suites)))
+        else:
+            self.fatal("""'reftest_suites' could be determined.
+                    If you supplied at least one '--reftest-suite'
+                    when running this script, make sure the value(s) you gave
+                    matches the key(s) from 'all_reftest_suites' in your config file.""")
 
 
 # main {{{1

@@ -29,7 +29,7 @@ config = {
             },
 
         #global mochitest options
-        "mochi_path" : "mochitest",
+        "mochi_run_dir" : "mochitest",
         "global_mochi_options" : {
             "cert_dir" : "--certificate-path=certs",
             "autorun" : "--autorun",
@@ -53,18 +53,16 @@ config = {
         },
 
         #global reftests params
-        "reftest_configs" : {
-            "reftest_path" : "reftest",
-            "reftest_layout_dir" : "reftest/tests/layout/reftests",
-            "jsreftest_test_dir" : "jsreftest/tests",
+        "reftest_run_dir" : "reftest",
 
-            "reftest_list_options" : [],
-            "reftest_crashlist_options" : [],
-            "jstests_options" : [
-                "--extra-profile-file=jsreftest/tests/user.js",
-            ]
-
+        "all_reftest_suites" :
+        {
+            'reftest' : ["reftest/tests/layout/reftests/reftest.list"],
+            'crashtest' : ["reftest/tests/layout/reftests/crashtests.list"],
+            'jsreftest' : ["--extra-profile-file=jsreftest/tests/user.js", "jsreftests/jstests.list"],
         },
-        "firefox_plugins_dir" : "firefox/plugins"
+
+        # TODO xpcshell
+        # "firefox_plugins_dir" : "firefox/plugins"
 
 }

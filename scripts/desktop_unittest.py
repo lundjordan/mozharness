@@ -157,34 +157,6 @@ class DesktopUnittest(BaseScript):
                 }
         return self.file_archives
 
-    def _query_version(self):
-        """find version of application being tested"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        env = self.query_env()
-
-        if self.version:
-            # TODO, check for ID as well instead of hard coding in config file
-            return self.version, self.ID
-
-        if False:
-            # TODO check for if user overides ID and version
-            pass
-        else:
-            version = self.get_output_from_command(
-                    # TODO Oh my what am I doing? Is there a better way I should do this?
-                    "wget --quiet -O- http://hg.mozilla.org/{0}".format(c['branch']) +
-                    "/raw-file/default/browser/config/version.txt",
-                    cwd=dirs['abs_work_dir'],
-                    env=env,
-                    silent=True
-                    )
-            if version:
-                self.version, self.ID = version, None
-                return self.version, self.ID
-            else:
-                self.fatal("Can't determine version!")
-
     def query_abs_dirs(self):
         if self.abs_dirs:
             return self.abs_dirs

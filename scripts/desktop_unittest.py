@@ -59,12 +59,23 @@ class DesktopUnittest(MercurialScript):
     ]
 
     def __init__(self, require_config_file=True):
+
+        #### OS specifics which methods like query_abs_dirs() depends on
+        self.OS_name =  None
+        self.xpcshell_name = None,
+        self.app_name = None,
+        self.app_dir = None,
+        self.archive_extension = None,
+        self.extract_tool = None,
+        self.query_OS_specifics()
+        #### ############
+
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    "clobber",
-                    "pull",
-                    "setup",
+                    # "clobber",
+                    # "pull",
+                    # "setup",
                     "mochitests",
                     "reftests",
                     "xpcshell",
@@ -72,15 +83,6 @@ class DesktopUnittest(MercurialScript):
                 require_config_file=require_config_file
                 )
 
-        #### OS specifics
-        self.OS_name =  None
-        self.xpcshell_name = None,
-        self.app_name = None,
-        self.abs_app_dir = None,
-        self.archive_extension = None,
-        self.extract_tool = None,
-        self.query_OS_specifics()
-        #### ############
 
         self.url_base = None
         self.file_archives = {}
@@ -93,7 +95,6 @@ class DesktopUnittest(MercurialScript):
 
     def query_OS_specifics(self):
         """return current OS"""
-        dirs = self.query_abs_dirs()
         system = platform.system() #eg 'Darwin', 'Linux', or 'Windows'
         is_64bit = '64' in platform.architecture()[0]
 
@@ -121,12 +122,11 @@ class DesktopUnittest(MercurialScript):
 
         elif system == 'Darwin':
             OS_name =  'macosx64'
-            # TODO verify mac app_dir, and extract tool/steps
             xpcshell_name = 'xpcshell'
             app_name = 'firefox-bin'
             app_dir = './FirefoxNightly.app/Contents/MacOS/firefox-bin'
             archive_extension = 'dmg'
-            extract_tool = ['hdiutil?']
+            extract_tool = ['bash' 'tools/buildfarm/utils/installdmg.sh']
 
         else:
             self.fatal("A supported OS can not be determined")
@@ -134,7 +134,7 @@ class DesktopUnittest(MercurialScript):
         self.OS_name =  OS_name,
         self.xpcshell_name = xpcshell_name
         self.app_name = app_name
-        self.abs_app_dir = os.path.join(dirs['abs_work_dir'], app_dir)
+        self.app_dir = app_dir
         self.archive_extension = archive_extension
         self.extract_tool = extract_tool
 
@@ -194,10 +194,17 @@ class DesktopUnittest(MercurialScript):
             dirs['abs_xpcshell_dir'] = os.path.join(abs_dirs['abs_work_dir'],
                     c['dirs']['xpcshell_dir'])
 
+        dirs['abs_app_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+                self.app_dir)
         dirs['abs_bin_dir'] = os.path.join(abs_dirs['abs_work_dir'],
                 c['dirs']['bin_dir'])
         dirs['abs_tools_dir'] = os.path.join(abs_dirs['abs_work_dir'],
                 c['dirs']['tools_dir'])
+
+        dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
+        dirs['abs_bin_plugins_dir'] = os.path.join(dirs['abs_bin_dir'], 'plugins')
+        dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
+        dirs['abs_bin_components_dir'] = os.path.join(dirs['abs_bin_dir'], 'components')
 
         abs_dirs.update(dirs)
 
@@ -214,7 +221,7 @@ class DesktopUnittest(MercurialScript):
             glob_test_options  = []
             for key in kwargs.keys():
                 kwargs[key] = kwargs[key].format(
-                        app_dir=self.abs_app_dir + '/',
+                        app_dir=dirs['abs_app_dir'] + '/',
                         app_name=self.app_name,
                         bin_dir=dirs['abs_bin_dir'],
                         symbols_path=self.query_file_archives()['symbols'])
@@ -278,6 +285,43 @@ class DesktopUnittest(MercurialScript):
 
         return suites
 
+    def copy_tree(self, src, dest, log_level='info', error_level='error'):
+        """an implementation of shutil.copytree however it allows
+        you to copy to a 'dest' that already exists"""
+        self.log("Copying contents from %s to %s" % (src, dest), level=log_level)
+        try:
+            files = os.listdir(src)
+            files.sort()
+            for f in files:
+                abs_src_f = os.path.join(src, f)
+                abs_dest_f = os.path.join(dest, f)
+                self.copyfile(abs_src_f , abs_dest_f)
+        except (IOError, shutil.Error):
+            self.dump_exception("Can't copy %s to %s!" % (src, dest),
+                    level=error_level)
+            return -1
+
+    def preflight_all_tests(self, OS):
+        """preflight commands for all tests if host OS is 'linux' or 'mac'"""
+        if 'linux' or 'mac' in OS:
+            dirs = self.query_abs_dirs()
+            if 'linux' in OS:
+                # turn off screensaver
+                cmd = ['xset', 's', 'reset']
+            else: # mac
+                # adjust screen resolution
+                cmd = [
+                        'bash', '-c', 'screenresolution', 'get', '&&',
+                        'screenresolution', 'list', '&&', 'system_profiler',
+                        'SPDisplaysDataType'
+                        ]
+            self.run_command(cmd,
+                    cwd=dirs['abs_work_dir'],
+                    error_list=MakefileErrorList,
+                    halt_on_failure=True)
+        else:
+            pass
+
 
     # Actions {{{2
 
@@ -327,6 +371,9 @@ class DesktopUnittest(MercurialScript):
                 error_list=MakefileErrorList,
                 halt_on_failure=True)
 
+    def preflight_mochitests(self):
+        self.preflight_all_tests(self.OS_name)
+
     def mochitests(self):
         """run tests for mochitests"""
         c = self.config
@@ -357,6 +404,8 @@ class DesktopUnittest(MercurialScript):
                     matches the key(s) from 'all_mochi_suites' in your config file.""")
 
 
+    def preflight_reftests(self):
+        self.preflight_all_tests(self.OS_name)
 
     def reftests(self):
         """run tests for reftests"""
@@ -385,42 +434,25 @@ class DesktopUnittest(MercurialScript):
                     when running this script, make sure the value(s) you gave
                     matches the key(s) from 'all_reftest_suites' in your config file.""")
 
-    def copy_tree(self, src, dest, log_level='info', error_level='error'):
-        """an implementation of shutil.copytree however it allows
-        you to copy to a 'dest' that already exists"""
-        self.log("Copying contents from %s to %s" % (src, dest), level=log_level)
-        try:
-            files = os.listdir(src)
-            files.sort()
-            for f in files:
-                abs_src_f = os.path.join(src, f)
-                abs_dest_f = os.path.join(dest, f)
-                self.copyfile(abs_src_f , abs_dest_f)
-        except (IOError, shutil.Error):
-            self.dump_exception("Can't copy %s to %s!" % (src, dest),
-                    level=error_level)
-            return -1
+
+    def preflight_xpcshell(self):
+        self.preflight_all_tests(self.OS_name)
 
     def xpcshell(self):
         """run tests for xpcshell"""
         c = self.config
         dirs = self.query_abs_dirs()
-        app_plugins_dir = os.path.join(self.abs_app_dir, 'plugins')
-        bin_plugins_dir = os.path.join(dirs['abs_bin_dir'], 'plugins')
-        app_components_dir = os.path.join(self.abs_app_dir, 'components')
-        bin_components_dir = os.path.join(dirs['abs_bin_dir'], 'components')
-        app_xpcshell_path = os.path.join(self.abs_app_dir, self.xpcshell_name)
+        app_xpcshell_path = os.path.join(dirs['abs_app_dir'], self.xpcshell_name)
         bin_xpcshell_path = os.path.join(dirs['abs_bin_dir'], self.xpcshell_name)
 
         base_cmd = ["python", dirs["abs_xpcshell_dir"] + "/runxpcshelltests.py"]
         glob_xpcshell_options = self.query_glob_xpcshell_options(**c['global_xpcshell_options'])
         abs_base_cmd = base_cmd + glob_xpcshell_options
 
-        import pdb; pdb.set_trace()
-        self.mkdir_p(app_plugins_dir)
+        self.mkdir_p(dirs['abs_app_plugins_dir'])
         self.copyfile(bin_xpcshell_path, app_xpcshell_path)
-        self.copy_tree(bin_components_dir, app_components_dir)
-        self.copy_tree(bin_plugins_dir, app_plugins_dir)
+        self.copy_tree(dirs['abs_bin_components_dir'], dirs['abs_app_components_dir'])
+        self.copy_tree(dirs['abs_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
 
         print abs_base_cmd
 

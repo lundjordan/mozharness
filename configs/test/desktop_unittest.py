@@ -5,7 +5,6 @@ BASE = 'http://ftp.mozilla.org/pub/mozilla.org/firefox'
 # TYPE = '' #TYPE='-debug'
 # ID = '/1335348407'
 
-# TODO support all FTPS: right now this format is for tinderbox-builds
 # eg: http://ftp.mozilla.org/pub/mozilla.org/firefox/tinderbox-builds/mozilla-central-linux64/1335797980/
 FTP = BASE + "/{LOCATION}/{BRANCH}-{OS}{TYPE}{ID}"
 
@@ -20,23 +19,46 @@ config = {
         "url_base" : FTP,
         "file_archives" : {"bin_archive" : BINARY, "tests_archive" :  TESTS},
 
+        "repos": [{
+            "repo": "http://hg.mozilla.org/build/tools",
+            "revision": "default",
+            "dest": "tools"
+        }],
+
+        # I will put these in configs in the case that someone wants to try one
+        # of there own dirs
+        "dirs" : {
+            "reftest_dir" : "reftest",
+            "mochi_dir" : "mochitest",
+            "xpcshell_dir" : "xpcshell",
+            "bin_dir" : "bin",
+            "tools_dir" : "tools",
+        },
+
         #global unittest options
         "global_test_options" : {
-            "app_path" : "--appname=firefox/{app_name}",
-            "util_path" : "--utility-path=bin",
-            "extra_prof_path" : "--extra-profile-file=bin/plugins",
-            "symbols_path" : "--symbols-path=symbols"
-            },
+            "app_name" : "--appname={app_dir}{app_name}",
+            "util_path" : "--utility-path={bin_dir}",
+            "extra_prof_path" : "--extra-profile-file={bin_dir}/plugins",
+            "symbols_path" : "--symbols-path={symbols_path}"
+        },
 
         #global mochitest options
-        "mochi_run_dir" : "mochitest",
         "global_mochi_options" : {
-            "cert_dir" : "--certificate-path=certs",
+            "cert_path" : "--certificate-path=certs",
             "autorun" : "--autorun",
             "close_when_done" : "--close-when-done",
             "console_level" : "--console-level=INFO",
-            },
-        #local mochi tests
+        },
+
+        #global xpcshell options
+        'global_xpcshell_options' : {
+            'symbols_path' : '--symbols-path={symbols_path}',
+            'manifest' : '--manifest=xpcshell/tests/all-test-dirs.list',
+            'xpcshell_name' : 'firefox/{xpcshell_name}'
+        },
+
+        #local mochi suites
         "all_mochi_suites" :
         {
             'plain1' : ["--total-chunks=5", "--this-chunk=1", "--chunk-by-dir=4"],
@@ -47,14 +69,11 @@ config = {
             'chrome' : ["--chrome"],
             'browser-chrome' : ["--browser-chrome"],
             'a11y' : ["--a11y"],
-            # TODO pretify this last mochtest when you figure out what it does ;)
             'plugins' : ["--setpref='dom.ipc.plugins.enabled=false'",
                 "--test-path='modules/plugin/test'"]
         },
 
-        #global reftests params
-        "reftest_run_dir" : "reftest",
-
+        #local reftests suites
         "all_reftest_suites" :
         {
             'reftest' : ["reftest/tests/layout/reftests/reftest.list"],
@@ -62,7 +81,5 @@ config = {
             'jsreftest' : ["--extra-profile-file=jsreftest/tests/user.js", "jsreftests/jstests.list"],
         },
 
-        # TODO xpcshell
-        # "firefox_plugins_dir" : "firefox/plugins"
 
 }

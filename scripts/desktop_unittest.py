@@ -20,7 +20,6 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import MakefileErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
-import logging
 
 
 # MobileSingleLocale {{{1
@@ -73,9 +72,9 @@ class DesktopUnittest(MercurialScript):
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    # "clobber",
-                    # "pull",
-                    # "setup",
+                    "clobber",
+                    "pull",
+                    "setup",
                     "mochitests",
                     "reftests",
                     "xpcshell",
@@ -131,7 +130,7 @@ class DesktopUnittest(MercurialScript):
         else:
             self.fatal("A supported OS can not be determined")
 
-        self.OS_name =  OS_name,
+        self.OS_name =  OS_name
         self.xpcshell_name = xpcshell_name
         self.app_name = app_name
         self.app_dir = app_dir
@@ -304,6 +303,7 @@ class DesktopUnittest(MercurialScript):
     def preflight_all_tests(self, OS):
         """preflight commands for all tests if host OS is 'linux' or 'mac'"""
         if 'linux' or 'mac' in OS:
+            import pdb; pdb.set_trace()
             dirs = self.query_abs_dirs()
             if 'linux' in OS:
                 # turn off screensaver
@@ -391,12 +391,12 @@ class DesktopUnittest(MercurialScript):
             for num in range(len(mochi_suites)):
                 cmd =  abs_base_cmd + mochi_suites[num]
                 print cmd
-            #     self.run_command(cmd,
-            #             cwd=dirs['abs_work_dir'],
-            #             error_list=MakefileErrorList,
-            #             halt_on_failure=True)
-            # self.info("{0} of {1} tests completed".format(tests_complete,
-            #     len(mochi_suites)))
+                self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+            self.info("{0} of {1} tests completed".format(tests_complete,
+                len(mochi_suites)))
         else:
             self.fatal("""'mochi_suites' could not be determined.
                     If you supplied at least one '--mochitest-suite'
@@ -422,12 +422,12 @@ class DesktopUnittest(MercurialScript):
             for num in range(len(reftest_suites)):
                 cmd =  abs_base_cmd + reftest_suites[num]
                 print cmd
-            #     self.run_command(cmd,
-            #             cwd=dirs['abs_work_dir'],
-            #             error_list=MakefileErrorList,
-            #             halt_on_failure=True)
-            # self.info("{0} of {1} tests completed".format(tests_complete,
-            #     len(reftest_suites)))
+                self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+            self.info("{0} of {1} tests completed".format(tests_complete,
+                len(reftest_suites)))
         else:
             self.fatal("""'reftest_suites' could not be determined.
                     If you supplied at least one '--reftest-suite'
@@ -456,11 +456,11 @@ class DesktopUnittest(MercurialScript):
 
         print abs_base_cmd
 
-        # self.run_command(abs_base_cmd,
-        #         cwd=dirs['abs_work_dir'],
-        #         error_list=MakefileErrorList,
-        #         halt_on_failure=True)
-        # self.info("xpcshell test completed")
+        self.run_command(abs_base_cmd,
+                cwd=dirs['abs_work_dir'],
+                error_list=MakefileErrorList,
+                halt_on_failure=True)
+        self.info("xpcshell test completed")
 
 # main {{{1
 if __name__ == '__main__':

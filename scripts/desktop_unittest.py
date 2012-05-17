@@ -82,7 +82,6 @@ class DesktopUnittest(MercurialScript):
                 require_config_file=require_config_file
                 )
 
-
         self.url_base = None
         self.file_archives = {}
         self.glob_test_options = []
@@ -303,7 +302,6 @@ class DesktopUnittest(MercurialScript):
     def preflight_all_tests(self, OS):
         """preflight commands for all tests if host OS is 'linux' or 'mac'"""
         if 'linux' or 'mac' in OS:
-            import pdb; pdb.set_trace()
             dirs = self.query_abs_dirs()
             if 'linux' in OS:
                 # turn off screensaver
@@ -395,6 +393,7 @@ class DesktopUnittest(MercurialScript):
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList,
                         halt_on_failure=True)
+                tests_complete += 1
             self.info("{0} of {1} tests completed".format(tests_complete,
                 len(mochi_suites)))
         else:
@@ -426,6 +425,7 @@ class DesktopUnittest(MercurialScript):
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList,
                         halt_on_failure=True)
+                tests_complete += 1
             self.info("{0} of {1} tests completed".format(tests_complete,
                 len(reftest_suites)))
         else:
@@ -453,8 +453,6 @@ class DesktopUnittest(MercurialScript):
         self.copyfile(bin_xpcshell_path, app_xpcshell_path)
         self.copy_tree(dirs['abs_bin_components_dir'], dirs['abs_app_components_dir'])
         self.copy_tree(dirs['abs_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
-
-        print abs_base_cmd
 
         self.run_command(abs_base_cmd,
                 cwd=dirs['abs_work_dir'],

@@ -52,7 +52,7 @@ class DesktopUnittest(MercurialScript):
                 "type": "string",
                 "help": """Specify which reftest suite to run.
                 Suites are defined in the config file.
-                Examples: 'plain1', 'plain5', 'chrome', or 'a11y'"""
+                Examples: 'crashplan', or 'jsreftest'"""
             }
         ],
     ]
@@ -144,7 +144,8 @@ class DesktopUnittest(MercurialScript):
         c = self.config
         if c.get('binary_url'):
             binary_file_index = c['binary_url'].find('firefox-')
-            self.url_base = "http://ftp.mozilla.org/pub/mozilla.org/" + c['binary_url'][0:binary_file_index]
+            # self.url_base = "http://ftp.mozilla.org/pub/mozilla.org/" + c['binary_url'][0:binary_file_index]
+            self.url_base = c['binary_url'][0:binary_file_index]
         else:
             self.fatal("binary_url was not found in self.config")
         return self.url_base
@@ -389,13 +390,12 @@ class DesktopUnittest(MercurialScript):
             for num in range(len(mochi_suites)):
                 cmd =  abs_base_cmd + mochi_suites[num]
                 print cmd
-                self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-                tests_complete += 1
-            self.info("{0} of {1} tests completed".format(tests_complete,
-                len(mochi_suites)))
+            #     self.run_command(cmd,
+            #             cwd=dirs['abs_work_dir'],
+            #             error_list=MakefileErrorList,
+            #             halt_on_failure=True)
+            # self.info("{0} of {1} tests completed".format(tests_complete,
+            #     len(mochi_suites)))
         else:
             self.fatal("""'mochi_suites' could not be determined.
                     If you supplied at least one '--mochitest-suite'
@@ -421,13 +421,12 @@ class DesktopUnittest(MercurialScript):
             for num in range(len(reftest_suites)):
                 cmd =  abs_base_cmd + reftest_suites[num]
                 print cmd
-                self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-                tests_complete += 1
-            self.info("{0} of {1} tests completed".format(tests_complete,
-                len(reftest_suites)))
+            #     self.run_command(cmd,
+            #             cwd=dirs['abs_work_dir'],
+            #             error_list=MakefileErrorList,
+            #             halt_on_failure=True)
+            # self.info("{0} of {1} tests completed".format(tests_complete,
+            #     len(reftest_suites)))
         else:
             self.fatal("""'reftest_suites' could not be determined.
                     If you supplied at least one '--reftest-suite'
@@ -454,10 +453,12 @@ class DesktopUnittest(MercurialScript):
         self.copy_tree(dirs['abs_bin_components_dir'], dirs['abs_app_components_dir'])
         self.copy_tree(dirs['abs_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
 
-        self.run_command(abs_base_cmd,
-                cwd=dirs['abs_work_dir'],
-                error_list=MakefileErrorList,
-                halt_on_failure=True)
+        print abs_base_cmd
+
+        # self.run_command(abs_base_cmd,
+        #         cwd=dirs['abs_work_dir'],
+        #         error_list=MakefileErrorList,
+        #         halt_on_failure=True)
         self.info("xpcshell test completed")
 
 # main {{{1

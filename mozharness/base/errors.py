@@ -56,6 +56,7 @@ SSHErrorList = BaseErrorList + [
 HgErrorList = BaseErrorList + [
  {'regex': re.compile(r'''^abort:'''), 'level': ERROR},
  {'substr': r'''unknown exception encountered''', 'level': ERROR},
+ {'substr': r'''failed to import extension''', 'level': WARNING},
 ]
 
 PythonErrorList = BaseErrorList + [
@@ -67,6 +68,13 @@ PythonErrorList = BaseErrorList + [
  {'regex': re.compile(r'''raise \w*Exception: '''), 'level': CRITICAL},
  {'regex': re.compile(r'''raise \w*Error: '''), 'level': CRITICAL},
 ]
+
+VirtualenvErrorList = [
+ {'substr': r'''not found or a compiler error:''', 'level': ERROR},
+ {'regex': re.compile('''\d+: error: '''), 'level': ERROR},
+ {'regex': re.compile('''\d+: warning: '''), 'level': WARNING},
+] + PythonErrorList
+
 
 # We may need to have various MakefileErrorLists for differing amounts of
 # warning-ignoring-ness.

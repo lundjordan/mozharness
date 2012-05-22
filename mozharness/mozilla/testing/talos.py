@@ -13,8 +13,8 @@ import re
 
 from mozharness.base.errors import PythonErrorList
 from mozharness.base.log import DEBUG, ERROR, CRITICAL
-from mozharness.base.python import virtualenv_config_options, VirtualenvMixin
 from mozharness.base.script import BaseScript
+from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 
 TalosErrorList = PythonErrorList + [
  {'regex': re.compile(r'''run-as: Package '.*' is unknown'''), 'level': DEBUG},
@@ -31,7 +31,7 @@ TalosErrorList = PythonErrorList + [
 
 # TODO: check for running processes on script invocation
 
-class Talos(VirtualenvMixin, BaseScript):
+class Talos(TestingMixin, BaseScript):
     """
     install and run Talos tests:
     https://wiki.mozilla.org/Buildbot/Talos
@@ -43,12 +43,6 @@ class Talos(VirtualenvMixin, BaseScript):
           "dest": "tests",
           "default": [],
           "help": "Specify the tests to run"
-          }],
-        [["-e", "--binary"],
-         {"action": "store",
-          "dest": "binary",
-          "default": None,
-          "help": "Path to the binary to run tests on",
           }],
         [["--results-url"],
          {'action': 'store',
@@ -71,34 +65,40 @@ class Talos(VirtualenvMixin, BaseScript):
            "default": None,
            "help": "extra options to PerfConfigurator"
            }],
-        ] + talos_options + virtualenv_config_options
-
-    actions = ['clobber',
-               'create-virtualenv',
-               'generate-config',
-               'run-tests'
-               ]
+        ] + talos_options + testing_config_options
 
     def __init__(self, **kwargs):
         kwargs.setdefault('config_options', self.config_options)
-        kwargs.setdefault('all_actions', self.actions)
-        kwargs.setdefault('default_actions', self.actions)
+        kwargs.setdefault('all_actions', ['clobber',
+                                          'read-buildbot-config',
+                                          'download-and-extract',
+                                          'create-virtualenv',
+                                          'install',
+                                          'generate-config',
+                                          'run-tests',
+                                         ])
+        kwargs.setdefault('default_actions', ['clobber',
+                                              'download-and-extract',
+                                              'create-virtualenv',
+                                              'install',
+                                              'generate-config',
+                                              'run-tests',
+                                             ])
         kwargs.setdefault('config', {})
         kwargs['config'].setdefault('virtualenv_modules', ["talos", "mozinstall"])
         BaseScript.__init__(self, **kwargs)
 
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
-        self.check()
-
         # results output
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
             # use a results_url by default based on the class name in the working directory
             self.results_url = 'file://%s' % os.path.join(self.workdir, self.__class__.__name__.lower() + '.txt')
+        self.installer_url = self.config.get("installer_url")
 
-    def check(self):
-        """sanity check on initialization"""
+    def _pre_config_lock(self, rw_config):
+        """setup and sanity check"""
 
         if 'generate-config' in self.actions:
             self.preflight_generate_config()
@@ -106,11 +106,15 @@ class Talos(VirtualenvMixin, BaseScript):
     def PerfConfigurator_options(self, args=None, **kw):
         """return options to PerfConfigurator"""
 
-        # TODO: do something about short options
+        # binary path
+        binary_path = self.binary_path or self.config.get('binary_path')
+        if not binary_path:
+            self.fatal("Talos requires a path to the binary")
 
+        # talos options
         options = ['-v', '--develop'] # hardcoded options (for now)
         kw_options = {'output': 'talos.yml', # options overwritten from **kw
-                      'executablePath': self.binary,
+                      'executablePath': binary_path,
                       'activeTests': self.tests,
                       'results_url': self.results_url}
         if self.config.get('title'):
@@ -128,7 +132,7 @@ class Talos(VirtualenvMixin, BaseScript):
 
         # extra arguments
         if args is None:
-            args = self.config.get('perfconfigurator_options', [])
+            args = self.config.get('talos_options', [])
         options += args
 
         return options
@@ -141,15 +145,6 @@ class Talos(VirtualenvMixin, BaseScript):
 
     def preflight_generate_config(self):
 
-        # path to browser
-        self.binary = self.config.get('binary')
-        if self.binary:
-            self.binary = os.path.abspath(self.binary)
-            if not os.path.exists(self.binary):
-                self.fatal("Path to binary does not exist: %s" % self.binary)
-        else:
-            self.fatal("No path to binary specified; please specify --binary")
-
         # Talos tests to run
         self.tests = self.config['tests']
         if not self.tests:
@@ -157,7 +152,6 @@ class Talos(VirtualenvMixin, BaseScript):
 
     def generate_config(self, conf='talos.yml', options=None):
         """generate talos configuration"""
-
         # XXX note: conf *must* match what is in options, if the latter is given
 
         # find the path to the talos .yml configuration

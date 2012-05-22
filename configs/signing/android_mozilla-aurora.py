@@ -38,21 +38,18 @@ JARSIGNER = "%s/bin/jarsigner" % JAVA_HOME
 KEY_ALIAS = "release"
 
 config = {
-    "log_name": "sign_android_release",
-    "work_dir": "release",
+    "log_name": "sign_android_aurora",
+    "work_dir": "aurora",
 
     "additional_locales": ADDITIONAL_LOCALES,
-    "locales_file": "buildbot-configs/mozilla/l10n-changesets_mobile-release.json",
-    "release_config_file": "buildbot-configs/mozilla/release-fennec-mozilla-release.py",
+    "locales_file": "buildbot-configs/mozilla/l10n-changesets_mobile-aurora.json",
+    "release_config_file": "buildbot-configs/mozilla/release-fennec-mozilla-aurora.py",
 
-    "platforms": ['android-xul'],
-    "update_platforms": [],
+    "platforms": ['android', 'android-xul'],
+    "update_platforms": ['android'],
     "update_platform_map": {
         'android': 'Android_arm-eabi-gcc3',
     },
-    "enable_partner_repacks": False,
-    "partner_platforms": ['android'],
-    "partners": ['google-play'],
     "update_channels": {
         'release': {
             'url': RELEASE_UPDATE_URL,

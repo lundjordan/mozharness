@@ -13,27 +13,20 @@ and subject to change upon review)
 author: Jordan Lund
 """
 
-import os, sys, platform, shutil
+import os, sys, platform, shutil, copy
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import MakefileErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 
 
 # MobileSingleLocale {{{1
-class DesktopUnittest(MercurialScript):
+class DesktopUnittest(TestingMixin, MercurialScript):
 
     config_options = [
-        [['--binary-url',],
-            {
-                "action": "store",
-                "dest": "binary_url",
-                "type": "string",
-                "help": "Specify the release config file to use"
-            }
-        ],
         [['--mochi-suite',],
             {
                 "action" : "append",
@@ -55,6 +48,19 @@ class DesktopUnittest(MercurialScript):
                 Examples: 'crashplan', or 'jsreftest'"""
             }
         ],
+    ] + copy.deepcopy(testing_config_options)
+
+    virtualenv_modules = [
+     'simplejson',
+     {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
+     {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
+     {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},
+     {'mozinstall': os.path.join('tests', 'mozbase', 'mozinstall')},
+     {'manifestdestiny': os.path.join('tests', 'mozbase', 'manifestdestiny')},
+     {'mozprofile': os.path.join('tests', 'mozbase', 'mozprofile')},
+     {'mozprocess': os.path.join('tests', 'mozbase', 'mozprocess')},
+     {'mozrunner': os.path.join('tests', 'mozbase', 'mozrunner')},
+     {'peptest': os.path.join('tests', 'peptest')},
     ]
 
     def __init__(self, require_config_file=True):
@@ -72,22 +78,32 @@ class DesktopUnittest(MercurialScript):
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    "clobber",
-                    "pull",
-                    "setup",
-                    "mochitests",
-                    "reftests",
-                    "xpcshell",
+                    # 'clobber',
+                    # 'read-buildbot-config',
+                    # 'download-and-extract',
+                    # 'pull',
+                    # 'create-virtualenv',
+                    'install',
+                    # 'setup',
+                    # 'mochitests',
+                    # 'reftests',
+                    # 'xpcshell',
                     ],
-                require_config_file=require_config_file
+                require_config_file=require_config_file,
+                config={'virtualenv_modules': self.virtualenv_modules}
                 )
 
+        c = self.config
         self.url_base = None
         self.file_archives = {}
         self.glob_test_options = []
         self.glob_mochi_options = []
         self.xpcshell_options = []
+        self.abs_dirs = None
 
+        self.installer_url = c.get('installer_url')
+        self.test_url = self.config.get('test_url')
+        self.installer_path = c.get('installer_path')
 
     # helper methods
 
@@ -136,79 +152,68 @@ class DesktopUnittest(MercurialScript):
         self.archive_extension = archive_extension
         self.extract_tool = extract_tool
 
-    def query_url_base(self):
-        """queries full archive filenames needed for all tests"""
-        if self.url_base:
-            return self.url_base
-
-        c = self.config
-        if c.get('binary_url'):
-            binary_file_index = c['binary_url'].find('firefox-')
-            # self.url_base = "http://ftp.mozilla.org/pub/mozilla.org/" + c['binary_url'][0:binary_file_index]
-            self.url_base = c['binary_url'][0:binary_file_index]
-        else:
-            self.fatal("binary_url was not found in self.config")
-        return self.url_base
-
-    def query_file_archives(self):
-        """queries full archive filenames needed for all tests"""
-        if self.file_archives:
-            return self.file_archives
-
-        c = self.config
-        if c.get('binary_url'):
-            binary_file_index = c['binary_url'].find('firefox-')
-
-            binary_archive = c['binary_url'][binary_file_index:]
-            tests_archive = binary_archive.replace(self.archive_extension, 'tests.zip')
-            symbols_archive = binary_archive.replace(self.archive_extension,
-                    'crashreporter-symbols.zip')
-        else:
-            self.fatal("binary_url was not found in self.config")
-
-        self.file_archives = {
-                "binary" : binary_archive,
-                "tests" : tests_archive,
-                "symbols" : symbols_archive
-                }
-        return self.file_archives
-
     def query_abs_dirs(self):
         if self.abs_dirs:
             return self.abs_dirs
-
-        c = self.config
         abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
+        c = self.config
         dirs = {}
-
-        dirs.update(c['dirs'])
-
-        if 'mochitests' in self.actions:
-            dirs['abs_mochi_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                    c['dirs']['mochi_dir'])
-        if 'reftests' in self.actions:
-            dirs['abs_reftest_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                    c['dirs']['reftest_dir'])
-        if 'xpcshell' in self.actions:
-            dirs['abs_xpcshell_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                    c['dirs']['xpcshell_dir'])
-
-        dirs['abs_app_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                self.app_dir)
-        dirs['abs_bin_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                c['dirs']['bin_dir'])
-        dirs['abs_tools_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                c['dirs']['tools_dir'])
-
-        dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
-        dirs['abs_bin_plugins_dir'] = os.path.join(dirs['abs_bin_dir'], 'plugins')
-        dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
-        dirs['abs_bin_components_dir'] = os.path.join(dirs['abs_bin_dir'], 'components')
-
-        abs_dirs.update(dirs)
-
+        dirs['abs_test_install_dir'] = os.path.join(
+            abs_dirs['abs_work_dir'], 'tests')
+        dirs['abs_app_install_dir'] = os.path.join(
+            abs_dirs['abs_work_dir'], 'application')
+        dirs['abs_mozbase_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], "mozbase")
+        # dirs['abs_peptest_dir'] = os.path.join(
+        #     dirs['abs_test_install_dir'], "peptest")
+        if os.path.isabs(c['virtualenv_path']):
+            dirs['abs_virtualenv_dir'] = c['virtualenv_path']
+        else:
+            dirs['abs_virtualenv_dir'] = os.path.join(
+                abs_dirs['abs_work_dir'],
+                c['virtualenv_path'])
+        for key in dirs.keys():
+            if key not in abs_dirs:
+                abs_dirs[key] = dirs[key]
         self.abs_dirs = abs_dirs
         return self.abs_dirs
+
+    # def query_abs_dirs(self):
+    #     if self.abs_dirs:
+    #         return self.abs_dirs
+
+    #     c = self.config
+    #     abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
+    #     dirs = {}
+
+    #     dirs.update(c['dirs'])
+
+    #     if 'mochitests' in self.actions:
+    #         dirs['abs_mochi_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #                 c['dirs']['mochi_dir'])
+    #     if 'reftests' in self.actions:
+    #         dirs['abs_reftest_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #                 c['dirs']['reftest_dir'])
+    #     if 'xpcshell' in self.actions:
+    #         dirs['abs_xpcshell_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #                 c['dirs']['xpcshell_dir'])
+
+    #     dirs['abs_app_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #             self.app_dir)
+    #     dirs['abs_bin_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #             c['dirs']['bin_dir'])
+    #     dirs['abs_tools_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+    #             c['dirs']['tools_dir'])
+
+    #     dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
+    #     dirs['abs_bin_plugins_dir'] = os.path.join(dirs['abs_bin_dir'], 'plugins')
+    #     dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
+    #     dirs['abs_bin_components_dir'] = os.path.join(dirs['abs_bin_dir'], 'components')
+
+    #     abs_dirs.update(dirs)
+
+    #     self.abs_dirs = abs_dirs
+    #     return self.abs_dirs
 
     def query_glob_options(self, **kwargs):
         """return a list of options for all tests"""
@@ -326,32 +331,34 @@ class DesktopUnittest(MercurialScript):
 
     # clobber defined in BaseScript and deletes mozharness/build if exists
 
-    def preflight_pull(self):
-        """make sure build dir is created since we are not using VCSMixin"""
-        dirs = self.query_abs_dirs()
-        self.mkdir_p(dirs['abs_work_dir'])
+    # def preflight_pull(self):
+    #     """make sure build dir is created since we are not using VCSMixin"""
+    #     dirs = self.query_abs_dirs()
+    #     self.mkdir_p(dirs['abs_work_dir'])
 
     def pull(self):
-        c = self.config
         dirs = self.query_abs_dirs()
-        url_base = self.query_url_base()
-        file_archives = self.query_file_archives()
-        repos = c['repos']
-        download_count = 0
+        # c = self.config
+        # repos = c['repos']
+        # url_base = self.query_url_base()
+        # file_archives = self.query_file_archives()
+        # download_count = 0
 
-        for archive in file_archives.values():
-            url = url_base + archive
-            if not self.download_file(url, archive,
-                    parent_dir=dirs['abs_work_dir']):
+        # for archive in file_archives.values():
+        #     url = url_base + archive
+        #     if not self.download_file(url, archive,
+        #             parent_dir=dirs['abs_work_dir']):
 
-                self.fatal("Could not download file from {0}".format(url))
-            else:
-                download_count += 1
-        self.info("{0} of {1} files " +
-                "downloaded".format(download_count, len(file_archives)))
+        #         self.fatal("Could not download file from {0}".format(url))
+        #     else:
+        #         download_count += 1
+        # self.info("{0} of {1} files " +
+        #         "downloaded".format(download_count, len(file_archives)))
 
-        #lets clone the tools repo as well
-        self.vcs_checkout_repos(repos, parent_dir=dirs['abs_work_dir'])
+        if self.config.get('repos'):
+            dirs = self.query_abs_dirs()
+            self.vcs_checkout_repos(self.config['repos'],
+                                    parent_dir=dirs['abs_work_dir'])
 
     def setup(self):
         """extract compressed files"""

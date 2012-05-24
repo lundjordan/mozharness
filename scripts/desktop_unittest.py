@@ -113,6 +113,8 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         if self.abs_dirs:
             return self.abs_dirs
         abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
+
+        # TODO not make this so ugly
         c = self.config
         dirs = {}
         dirs['abs_app_install_dir'] = os.path.join(
@@ -150,43 +152,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 abs_dirs[key] = dirs[key]
         self.abs_dirs = abs_dirs
         return self.abs_dirs
-
-    # def query_abs_dirs(self):
-    #     if self.abs_dirs:
-    #         return self.abs_dirs
-
-    #     c = self.config
-    #     abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
-    #     dirs = {}
-
-    #     dirs.update(c['dirs'])
-
-    #     if 'mochitests' in self.actions:
-    #         dirs['abs_mochi_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #                 c['dirs']['mochi_dir'])
-    #     if 'reftests' in self.actions:
-    #         dirs['abs_reftest_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #                 c['dirs']['reftest_dir'])
-    #     if 'xpcshell' in self.actions:
-    #         dirs['abs_xpcshell_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #                 c['dirs']['xpcshell_dir'])
-
-    #     dirs['abs_app_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #             self.app_dir)
-    #     dirs['abs_bin_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #             c['dirs']['bin_dir'])
-    #     dirs['abs_tools_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-    #             c['dirs']['tools_dir'])
-
-    #     dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
-    #     dirs['abs_bin_plugins_dir'] = os.path.join(dirs['abs_bin_dir'], 'plugins')
-    #     dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
-    #     dirs['abs_bin_components_dir'] = os.path.join(dirs['abs_bin_dir'], 'components')
-
-    #     abs_dirs.update(dirs)
-
-    #     self.abs_dirs = abs_dirs
-    #     return self.abs_dirs
 
     def guess_installer_path(self):
         """uses regex to guess installer path name based on installer_url.
@@ -342,10 +307,10 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     self.info("Running pre test command {name} with '{cmd}'".format(
                         name=suite['name'],
                         cmd=' '.join(suite['cmd'])))
-                    # self.run_command(suite['cmd'],
-                    #         cwd=dirs['abs_work_dir'],
-                    #         error_list=MakefileErrorList,
-                    #         halt_on_failure=True)
+                    self.run_command(suite['cmd'],
+                            cwd=dirs['abs_work_dir'],
+                            error_list=MakefileErrorList,
+                            halt_on_failure=True)
         else:
             self.warning("""Proceeding without running prerun test commands.
             These are often OS specific and disabling them may result in spurious test results!""")
@@ -392,13 +357,13 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         if mochi_suites :
             for num in range(len(mochi_suites)):
                 cmd =  abs_base_cmd + mochi_suites[num]
-                print cmd
-            #     self.run_command(cmd,
-            #             cwd=dirs['abs_work_dir'],
-            #             error_list=MakefileErrorList,
-            #             halt_on_failure=True)
-            # self.info("{0} of {1} tests completed".format(tests_complete,
-            #     len(mochi_suites)))
+                # print cmd
+                self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+            self.info("{0} of {1} tests completed".format(tests_complete,
+                len(mochi_suites)))
         else:
             self.fatal("""'mochi_suites' could not be determined.
                     If you supplied at least one '--mochitest-suite'
@@ -423,13 +388,13 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         if reftest_suites :
             for num in range(len(reftest_suites)):
                 cmd =  abs_base_cmd + reftest_suites[num]
-                print cmd
-            #     self.run_command(cmd,
-            #             cwd=dirs['abs_work_dir'],
-            #             error_list=MakefileErrorList,
-            #             halt_on_failure=True)
-            # self.info("{0} of {1} tests completed".format(tests_complete,
-            #     len(reftest_suites)))
+                # print cmd
+                self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+            self.info("{0} of {1} tests completed".format(tests_complete,
+                len(reftest_suites)))
         else:
             self.fatal("""'reftest_suites' could not be determined.
                     If you supplied at least one '--reftest-suite'
@@ -456,12 +421,12 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
         self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
 
-        print abs_base_cmd
+        # print abs_base_cmd
 
-        # self.run_command(abs_base_cmd,
-        #         cwd=dirs['abs_work_dir'],
-        #         error_list=MakefileErrorList,
-        #         halt_on_failure=True)
+        self.run_command(abs_base_cmd,
+                cwd=dirs['abs_work_dir'],
+                error_list=MakefileErrorList,
+                halt_on_failure=True)
         self.info("xpcshell test completed")
 
 # main {{{1

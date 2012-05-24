@@ -13,7 +13,7 @@ and subject to change upon review)
 author: Jordan Lund
 """
 
-import os, sys, platform, shutil, copy
+import os, sys, shutil, copy
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -48,6 +48,15 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 Examples: 'crashplan', or 'jsreftest'"""
             }
         ],
+        [['--disable-preflight-run-commands',],
+            {
+                "action": "store_true",
+                "dest": "preflight_run_commands_disabled",
+                "default": True,
+                "help": """This will disable any run commands that are specified
+                        in the config file under: preflight_run_cmd_suites""",
+            }
+        ],
     ] + copy.deepcopy(testing_config_options)
 
     virtualenv_modules = [
@@ -65,92 +74,39 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
     def __init__(self, require_config_file=True):
 
-        #### OS specifics which methods like query_abs_dirs() depends on
-        self.OS_name =  None
-        self.xpcshell_name = None,
-        self.app_name = None,
-        self.app_dir = None,
-        self.archive_extension = None,
-        self.extract_tool = None,
-        self.query_OS_specifics()
-        #### ############
-
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
                     # 'clobber',
                     # 'read-buildbot-config',
-                    # 'download-and-extract',
-                    # 'pull',
                     # 'create-virtualenv',
-                    'install',
-                    # 'setup',
-                    # 'mochitests',
-                    # 'reftests',
-                    # 'xpcshell',
+                    # 'download-and-extract',
+                    # 'pull_other_repos',
+                    # 'install',
+                    'mochitests',
+                    'reftests',
+                    'xpcshell',
                     ],
                 require_config_file=require_config_file,
                 config={'virtualenv_modules': self.virtualenv_modules}
                 )
 
         c = self.config
-        self.url_base = None
-        self.file_archives = {}
         self.glob_test_options = []
         self.glob_mochi_options = []
         self.xpcshell_options = []
+        self.ran_preflight_run_commands = False
         self.abs_dirs = None
 
         self.installer_url = c.get('installer_url')
         self.test_url = self.config.get('test_url')
-        self.installer_path = c.get('installer_path')
+        self.installer_path = c.get('installer_path', self.guess_installer_path())
+        self.binary_path = c.get('binary_path')
+        self.symbols_url = c.get('symbols_url')
 
-    # helper methods
 
-    def query_OS_specifics(self):
-        """return current OS"""
-        system = platform.system() #eg 'Darwin', 'Linux', or 'Windows'
-        is_64bit = '64' in platform.architecture()[0]
+    ###### helper methods
 
-        if system == 'Linux':
-            if is_64bit:
-                OS_name = 'linux64'
-            else:
-                OS_name = 'linux'
-            xpcshell_name = 'xpcshell'
-            app_name = 'firefox-bin'
-            app_dir = 'firefox'
-            archive_extension = 'tar.bz2'
-            extract_tool = ['tar', '-jxvf']
-
-        elif system == 'Windows':
-            if is_64bit:
-                OS_name  = 'win64'
-            else:
-                OS_name = 'win32'
-            xpcshell_name = 'xpcshell.exe'
-            app_name = 'firefox.exe'
-            app_dir = 'firefox'
-            archive_extension = 'zip'
-            extract_tool = ['unzip', '-o']
-
-        elif system == 'Darwin':
-            OS_name =  'macosx64'
-            xpcshell_name = 'xpcshell'
-            app_name = 'firefox-bin'
-            app_dir = './FirefoxNightly.app/Contents/MacOS/firefox-bin'
-            archive_extension = 'dmg'
-            extract_tool = ['bash' 'tools/buildfarm/utils/installdmg.sh']
-
-        else:
-            self.fatal("A supported OS can not be determined")
-
-        self.OS_name =  OS_name
-        self.xpcshell_name = xpcshell_name
-        self.app_name = app_name
-        self.app_dir = app_dir
-        self.archive_extension = archive_extension
-        self.extract_tool = extract_tool
 
     def query_abs_dirs(self):
         if self.abs_dirs:
@@ -158,14 +114,30 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         abs_dirs = super(DesktopUnittest, self).query_abs_dirs()
         c = self.config
         dirs = {}
-        dirs['abs_test_install_dir'] = os.path.join(
-            abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_app_install_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'application')
-        dirs['abs_mozbase_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], "mozbase")
-        # dirs['abs_peptest_dir'] = os.path.join(
-        #     dirs['abs_test_install_dir'], "peptest")
+
+        dirs['abs_app_dir'] = os.path.join(
+            dirs['abs_app_install_dir'], 'firefox')
+        dirs['abs_app_plugins_dir'] = os.path.join(
+            dirs['abs_app_dir'], 'plugins')
+        dirs['abs_app_components_dir'] = os.path.join(
+            dirs['abs_app_dir'], 'components')
+
+        dirs['abs_test_install_dir'] = os.path.join(
+            abs_dirs['abs_work_dir'], 'tests')
+        dirs['abs_test_bin_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], 'bin')
+        dirs['abs_test_bin_plugins_dir'] = os.path.join(
+            dirs['abs_test_bin_dir'], 'plugins')
+        dirs['abs_test_bin_components_dir'] = os.path.join(
+            dirs['abs_test_bin_dir'], 'components')
+        dirs['abs_mochitest_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], "mochitest")
+        dirs['abs_reftest_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], "reftest")
+        dirs['abs_xpcshell_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], "xpcshell")
         if os.path.isabs(c['virtualenv_path']):
             dirs['abs_virtualenv_dir'] = c['virtualenv_path']
         else:
@@ -215,6 +187,54 @@ class DesktopUnittest(TestingMixin, MercurialScript):
     #     self.abs_dirs = abs_dirs
     #     return self.abs_dirs
 
+    def guess_installer_path(self):
+        """uses regex to guess installer path name based on installer_url.
+        Returns None if can't guess or install is in actions(as this will set installer_path"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+
+        if 'install' in self.actions:
+            return None
+        elif c.get('installer_url'):
+            installer_file_index = c['installer_url'].find('firefox-')
+            if installer_file_index != -1:
+                installer_path = os.path.join(dirs['abs_work_dir'],
+                        c['installer_url'][installer_file_index:])
+                self.info('storing installer_path as {0} based upon installer_url'.format(installer_path))
+                return installer_path
+            else:
+                self.fatal("""Could not determine installer_path based on installer_url. Please:
+                    (1) verify installer_url path is correct
+                    or
+                    (2) specify installer_path explicitly with --installer-path instead of --installer-url
+                """)
+
+        else:
+            self.fatal("installer_url was not found in self.config")
+
+    def _query_symbols_url(self):
+        """query the full symbols URL based upon binary URL"""
+        # XXX may break with name convention changes but is one less 'input' for script
+        if self.symbols_url:
+            return self.symbols_url
+
+        installer_url = self.config.get('installer_url')
+        symbols_url = None
+        self.info("finding symbols_url based upon self.config['installer_url']")
+        if installer_url:
+            for ext in ['.zip', '.dmg', '.tar.bz2']:
+                if ext in installer_url:
+                    symbols_url = installer_url.replace(ext, '.crashreporter-symbols.zip')
+            if not symbols_url:
+                self.fatal("installer_url was found but symbols_url could not be determined")
+        else:
+            self.fatal("installer_url was not found in self.config")
+
+        self.info("setting symbols_url as {0}".format(symbols_url))
+        self.symbols_url = symbols_url
+        return self.symbols_url
+
+
     def query_glob_options(self, **kwargs):
         """return a list of options for all tests"""
         if self.glob_test_options:
@@ -225,10 +245,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             glob_test_options  = []
             for key in kwargs.keys():
                 kwargs[key] = kwargs[key].format(
-                        app_dir=dirs['abs_app_dir'] + '/',
-                        app_name=self.app_name,
-                        bin_dir=dirs['abs_bin_dir'],
-                        symbols_path=self.query_file_archives()['symbols'])
+                        binary_path=self.binary_path,
+                        bin_dir=dirs['abs_test_bin_dir'],
+                        symbols_path=self._query_symbols_url())
                 glob_test_options.append(kwargs[key])
             self.glob_test_options = glob_test_options
 
@@ -254,16 +273,13 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     Please add them to your config file.""")
 
     def query_glob_xpcshell_options(self, **kwargs):
-        """return a list of options for all tests"""
+        """return a list of options for all xpcshell tests"""
         if self.xpcshell_options:
             return self.xpcshell_options
 
         if kwargs:
             xpcshell_options  = []
             for key in kwargs.keys():
-                kwargs[key] = kwargs[key].format(
-                        symbols_path=self.query_file_archives()['symbols'],
-                        xpcshell_name=self.xpcshell_name)
                 xpcshell_options.append(kwargs[key])
             self.xpcshell_options = xpcshell_options
 
@@ -272,8 +288,8 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.fatal("""No xpcshell options could be found in self.config
                     Please add them to your config file.""")
 
-    def query_specified_suites(self, category):
-        """return the suites to run depending on a given category """
+    def _query_specified_suites(self, category):
+        """return the suites to run depending on a given category"""
 
         # logic goes: if at least one '--{category}-suite' was given in the script
         # then run only that(those) given suite(s). Else, run all the
@@ -305,80 +321,50 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     level=error_level)
             return -1
 
-    def preflight_all_tests(self, OS):
-        """preflight commands for all tests if host OS is 'linux' or 'mac'"""
-        if 'linux' or 'mac' in OS:
-            dirs = self.query_abs_dirs()
-            if 'linux' in OS:
-                # turn off screensaver
-                cmd = ['xset', 's', 'reset']
-            else: # mac
-                # adjust screen resolution
-                cmd = [
-                        'bash', '-c', 'screenresolution', 'get', '&&',
-                        'screenresolution', 'list', '&&', 'system_profiler',
-                        'SPDisplaysDataType'
-                        ]
-            self.run_command(cmd,
-                    cwd=dirs['abs_work_dir'],
-                    error_list=MakefileErrorList,
-                    halt_on_failure=True)
-        else:
+    def _run_preflight_run_commands(self):
+        """preflight commands for all tests"""
+        if self.ran_preflight_run_commands:
             pass
+
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('preflight_run_commands_disabled'):
+            for suite in c['preflight_test_commands']:
+                if suite['enabled']:
+                    self.info("Running pre test command {name}".format(suite['name']))
+                    self.info("Running command " + suite['cmd'])
+                    # self.run_command(suite['cmd'],
+                    #         cwd=dirs['abs_work_dir'],
+                    #         error_list=MakefileErrorList,
+                    #         halt_on_failure=True)
+            self.ran_preflight_run_commands = True
+        else:
+            self.warning("""Proceeding without running pretest commands. These are often
+                OS specific and disabling them may result in spurious test results!""")
 
 
     # Actions {{{2
 
     # clobber defined in BaseScript and deletes mozharness/build if exists
+    # read_buildbot_config is in BuildbotMixin.
+    # postflight_read_buildbot_config is in TestingMixin.
+    # preflight_download_and_extract is in TestingMixin.
+    # download_and_extract is in TestingMixin.
+    # create_virtualenv is in VirtualenvMixin.
+    # preflight_install is in TestingMixin.
+    # install is in TestingMixin.
 
-    # def preflight_pull(self):
-    #     """make sure build dir is created since we are not using VCSMixin"""
-    #     dirs = self.query_abs_dirs()
-    #     self.mkdir_p(dirs['abs_work_dir'])
-
-    def pull(self):
+    def pull_other_repos(self):
         dirs = self.query_abs_dirs()
-        # c = self.config
-        # repos = c['repos']
-        # url_base = self.query_url_base()
-        # file_archives = self.query_file_archives()
-        # download_count = 0
-
-        # for archive in file_archives.values():
-        #     url = url_base + archive
-        #     if not self.download_file(url, archive,
-        #             parent_dir=dirs['abs_work_dir']):
-
-        #         self.fatal("Could not download file from {0}".format(url))
-        #     else:
-        #         download_count += 1
-        # self.info("{0} of {1} files " +
-        #         "downloaded".format(download_count, len(file_archives)))
 
         if self.config.get('repos'):
             dirs = self.query_abs_dirs()
             self.vcs_checkout_repos(self.config['repos'],
-                                    parent_dir=dirs['abs_work_dir'])
+                                    parent_dir=dirs['abs_test_install_dir'])
 
-    def setup(self):
-        """extract compressed files"""
-        dirs = self.query_abs_dirs()
-        bin_archive = self.query_file_archives()['binary']
-        tests_archive = self.query_file_archives()['tests']
-        extract_binary_cmd = self.extract_tool + [bin_archive]
-
-        self.run_command(extract_binary_cmd,
-                cwd=dirs['abs_work_dir'],
-                error_list=MakefileErrorList,
-                halt_on_failure=True)
-
-        self.run_command(["unzip", "-o", tests_archive],
-                cwd=dirs['abs_work_dir'],
-                error_list=MakefileErrorList,
-                halt_on_failure=True)
 
     def preflight_mochitests(self):
-        self.preflight_all_tests(self.OS_name)
+        self._run_preflight_run_commands()
 
     def mochitests(self):
         """run tests for mochitests"""
@@ -386,12 +372,12 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         tests_complete = 0
 
-        base_cmd = ["python", dirs["abs_mochi_dir"] + "/runtests.py"]
+        base_cmd = ["python", dirs["abs_mochitest_dir"] + "/runtests.py"]
         glob_test_options = self.query_glob_options(**c['global_test_options'])
         glob_mochi_options = self.query_glob_mochi_options(**c['global_mochi_options'])
 
         abs_base_cmd = base_cmd + glob_test_options + glob_mochi_options
-        mochi_suites = self.query_specified_suites("mochi")
+        mochi_suites = self._query_specified_suites("mochi")
 
         if mochi_suites :
             for num in range(len(mochi_suites)):
@@ -411,7 +397,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
 
     def preflight_reftests(self):
-        self.preflight_all_tests(self.OS_name)
+        self._run_preflight_run_commands()
 
     def reftests(self):
         """run tests for reftests"""
@@ -422,7 +408,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         tests_complete = 0
 
         abs_base_cmd = base_cmd + glob_test_options
-        reftest_suites = self.query_specified_suites("reftest")
+        reftest_suites = self._query_specified_suites("reftest")
 
         if reftest_suites :
             for num in range(len(reftest_suites)):
@@ -442,14 +428,14 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
 
     def preflight_xpcshell(self):
-        self.preflight_all_tests(self.OS_name)
+        self._run_preflight_run_commands()
 
     def xpcshell(self):
         """run tests for xpcshell"""
         c = self.config
         dirs = self.query_abs_dirs()
-        app_xpcshell_path = os.path.join(dirs['abs_app_dir'], self.xpcshell_name)
-        bin_xpcshell_path = os.path.join(dirs['abs_bin_dir'], self.xpcshell_name)
+        app_xpcshell_path = os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])
+        bin_xpcshell_path = os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name'])
 
         base_cmd = ["python", dirs["abs_xpcshell_dir"] + "/runxpcshelltests.py"]
         glob_xpcshell_options = self.query_glob_xpcshell_options(**c['global_xpcshell_options'])
@@ -457,8 +443,8 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
         self.mkdir_p(dirs['abs_app_plugins_dir'])
         self.copyfile(bin_xpcshell_path, app_xpcshell_path)
-        self.copy_tree(dirs['abs_bin_components_dir'], dirs['abs_app_components_dir'])
-        self.copy_tree(dirs['abs_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
+        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
+        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
 
         print abs_base_cmd
 

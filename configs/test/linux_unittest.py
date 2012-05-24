@@ -14,6 +14,7 @@ config = {
                                         # mozilla-central-win32/1334941863/firefox-14.0a1.en-US.win32.tests.zip"
 
         "installer_path" : None, # eg "/path/with/something/like/build/application"
+        "binary_path" : None, # eg "/path/with/something/like/build/application/firefox/firefox-bin"
         "tests_path" :  None, # eg "/path/with/something/like/build/tests"
         #######
 
@@ -31,8 +32,8 @@ config = {
         #global unittest options
         "global_test_options" : {
             "app_name" : "--appname={binary_path}",
-            "util_path" : "--utility-path={bin_dir}",
-            "extra_prof_path" : "--extra-profile-file={bin_dir}/plugins",
+            "util_path" : "--utility-path=tests/bin",
+            "extra_prof_path" : "--extra-profile-file=tests/bin/plugins",
             "symbols_path" : "--symbols-path={symbols_path}"
         },
 

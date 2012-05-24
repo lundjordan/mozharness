@@ -52,13 +52,14 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             {
                 "action": "store_true",
                 "dest": "preflight_run_commands_disabled",
-                "default": True,
+                "default": False,
                 "help": """This will disable any run commands that are specified
                         in the config file under: preflight_run_cmd_suites""",
             }
         ],
     ] + copy.deepcopy(testing_config_options)
 
+    # TODO find out which modules I do and dont need here
     virtualenv_modules = [
      'simplejson',
      {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
@@ -77,12 +78,12 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
-                    # 'clobber',
-                    # 'read-buildbot-config',
-                    # 'create-virtualenv',
-                    # 'download-and-extract',
-                    # 'pull_other_repos',
-                    # 'install',
+                    'clobber',
+                    'read-buildbot-config',
+                    'download-and-extract',
+                    'pull_other_repos',
+                    'create-virtualenv',
+                    'install',
                     'mochitests',
                     'reftests',
                     'xpcshell',
@@ -240,21 +241,28 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         if self.glob_test_options:
             return self.glob_test_options
 
-        if kwargs:
-            dirs = self.query_abs_dirs()
-            glob_test_options  = []
-            for key in kwargs.keys():
-                kwargs[key] = kwargs[key].format(
-                        binary_path=self.binary_path,
-                        bin_dir=dirs['abs_test_bin_dir'],
-                        symbols_path=self._query_symbols_url())
-                glob_test_options.append(kwargs[key])
-            self.glob_test_options = glob_test_options
+        if self.binary_path:
+            if kwargs:
+                dirs = self.query_abs_dirs()
+                glob_test_options  = []
+                for key in kwargs.keys():
+                    kwargs[key] = kwargs[key].format(
+                            binary_path=self.binary_path,
+                            symbols_path=self._query_symbols_url())
+                    glob_test_options.append(kwargs[key])
+                self.glob_test_options = glob_test_options
 
-            return self.glob_test_options
+                return self.glob_test_options
+            else:
+                self.fatal("""No global test options could be found in self.config
+                        Please add them to your config file.""")
         else:
-            self.fatal("""No global test options could be found in self.config
-                    Please add them to your config file.""")
+            self.fatal("""the 'appname' or 'binary_path' could not be determined.
+            This should be something like '/root/path/with/build/application/firefox/firefox-bin'
+            If you are running this script without the 'install' action (where binary_path is set),
+            Please make sure you are either:
+                    (1) specifing it in the config file under binary_path
+                    (2) specifing it on command line with the '--binary-path' flag""")
 
     def query_glob_mochi_options(self, **kwargs):
         """return a list of options for all mochi tests"""
@@ -324,23 +332,25 @@ class DesktopUnittest(TestingMixin, MercurialScript):
     def _run_preflight_run_commands(self):
         """preflight commands for all tests"""
         if self.ran_preflight_run_commands:
-            pass
+            return
 
         c = self.config
         dirs = self.query_abs_dirs()
         if not c.get('preflight_run_commands_disabled'):
-            for suite in c['preflight_test_commands']:
+            for suite in c['preflight_run_cmd_suites']:
                 if suite['enabled']:
-                    self.info("Running pre test command {name}".format(suite['name']))
-                    self.info("Running command " + suite['cmd'])
+                    self.info("Running pre test command {name} with '{cmd}'".format(
+                        name=suite['name'],
+                        cmd=' '.join(suite['cmd'])))
                     # self.run_command(suite['cmd'],
                     #         cwd=dirs['abs_work_dir'],
                     #         error_list=MakefileErrorList,
                     #         halt_on_failure=True)
-            self.ran_preflight_run_commands = True
         else:
-            self.warning("""Proceeding without running pretest commands. These are often
-                OS specific and disabling them may result in spurious test results!""")
+            self.warning("""Proceeding without running prerun test commands.
+            These are often OS specific and disabling them may result in spurious test results!""")
+
+        self.ran_preflight_run_commands = True
 
 
     # Actions {{{2

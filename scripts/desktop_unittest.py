@@ -27,14 +27,14 @@ from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_opt
 class DesktopUnittest(TestingMixin, MercurialScript):
 
     config_options = [
-        [['--mochi-suite',],
+        [['--mochitest-suite',],
             {
                 "action" : "append",
-                "dest" : "specified_mochi_suites",
+                "dest" : "specified_mochitest_suites",
                 "type": "string",
                 "help": """Specify which mochi suite to run.
                 Suites are defined in the config file.
-                Examples: 'plain1', 'plain5', 'chrome', or 'a11y'"""
+                Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"""
             }
         ],
 
@@ -45,16 +45,46 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 "type": "string",
                 "help": """Specify which reftest suite to run.
                 Suites are defined in the config file.
-                Examples: 'crashplan', or 'jsreftest'"""
+                Examples: 'all', 'crashplan', or 'jsreftest'"""
             }
         ],
+        [['--xpcshell-suite',],
+            {
+                "action" : "append",
+                "dest" : "specified_xpcshell_suites",
+                "type": "string",
+                "help": """Specify which xpcshell suite to run.
+                Suites are defined in the config file.
+                Examples: 'xpcshell'"""
+            }
+        ],
+        [['--run-all-suites',],
+            {
+                "action": "store_true",
+                "dest": "run_all_suites",
+                "default": False,
+                "help": """This will run all suites that are specified
+                        in the config file. You do not need to specify any other suites.
+                        Beware, this may take a while ;)""",
+                        }
+            ],
         [['--disable-preflight-run-commands',],
             {
                 "action": "store_true",
                 "dest": "preflight_run_commands_disabled",
                 "default": False,
                 "help": """This will disable any run commands that are specified
-                        in the config file under: preflight_run_cmd_suites""",
+in the config file under: preflight_run_cmd_suites""",
+            }
+            ],
+        # TODO implement --fast option
+        [['--fast',],
+                {
+                    "action": "store_true",
+                "dest": "run_fast_suites",
+                "default": False,
+                "help": """Does nothing ATM but I would like it to run a 'quick' set of test suites to
+                see if there are any serious issues that can be noticed immediately.""",
             }
         ],
     ] + copy.deepcopy(testing_config_options)
@@ -81,18 +111,20 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     'clobber',
                     'read-buildbot-config',
                     'download-and-extract',
-                    'pull_other_repos',
+                    'pull-other-repos',
                     'create-virtualenv',
                     'install',
-                    'mochitests',
-                    'reftests',
-                    'xpcshell',
+                    'run-tests',
                     ],
                 require_config_file=require_config_file,
                 config={'virtualenv_modules': self.virtualenv_modules}
                 )
 
         c = self.config
+        if not self.check_if_valid_config():
+            self.fatal("""Config options are not valid.
+                    Please ensure that if the '--run-all-suites' flag was enabled
+                    then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
         self.glob_test_options = []
         self.glob_mochi_options = []
         self.xpcshell_options = []
@@ -101,12 +133,25 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
         self.installer_url = c.get('installer_url')
         self.test_url = self.config.get('test_url')
-        self.installer_path = c.get('installer_path', self.guess_installer_path())
+        self.installer_path = c.get('installer_path') or self.guess_installer_path()
         self.binary_path = c.get('binary_path')
         self.symbols_url = c.get('symbols_url')
 
-
     ###### helper methods
+
+    def check_if_valid_config(self):
+        suite_categories = ['mochitests', 'reftests', 'xpcshell']
+        c = self.config
+        if not c.get('run_all_suites'):
+            return True # configs are valid
+
+        is_valid = True
+        for cat in suite_categories:
+            specific_suites = c.get('specified_{cat}_suites'.format(cat=cat))
+            if specific_suites:
+                if specific_suites != 'all':
+                    is_valid = False
+        return is_valid
 
 
     def query_abs_dirs(self):
@@ -154,8 +199,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         return self.abs_dirs
 
     def guess_installer_path(self):
-        """uses regex to guess installer path name based on installer_url.
-        Returns None if can't guess or install is in actions(as this will set installer_path"""
+        """uses regex to guess installer_path based on installer_url.
+        Returns None if can't guess or the action 'install' is in
+        actions(as this will set installer_path)"""
         c = self.config
         dirs = self.query_abs_dirs()
 
@@ -245,36 +291,29 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.fatal("""No global mochitest options could be found in self.config
                     Please add them to your config file.""")
 
-    def query_glob_xpcshell_options(self, **kwargs):
-        """return a list of options for all xpcshell tests"""
-        if self.xpcshell_options:
-            return self.xpcshell_options
-
-        if kwargs:
-            xpcshell_options  = []
-            for key in kwargs.keys():
-                xpcshell_options.append(kwargs[key])
-            self.xpcshell_options = xpcshell_options
-
-            return self.xpcshell_options
-        else:
-            self.fatal("""No xpcshell options could be found in self.config
-                    Please add them to your config file.""")
 
     def _query_specified_suites(self, category):
         """return the suites to run depending on a given category"""
 
         # logic goes: if at least one '--{category}-suite' was given in the script
-        # then run only that(those) given suite(s). Else, run all the
-        # {category} suites
+        # then run only that(those) given suite(s). Elif, if no suites were
+        # specified and the --run-all-suites flag was given,
+        # run all {category} suites. Anything else, run no suites.
+
         c = self.config
         all_suites = c.get('all_{0}_suites'.format(category))
         specified_suites = c.get('specified_{0}_suites'.format(category))
+
+        suites = None
         if specified_suites:
-            suites = [all_suites[key] for key in \
-                    all_suites.keys() if key in specified_suites]
+            if 'all' in specified_suites:
+                suites = [value for value in all_suites.values()]
+            else:
+                suites = [all_suites[key] for key in \
+                        all_suites.keys() if key in specified_suites]
         else:
-            suites = [value for value in all_suites.values()]
+            if c.get('run_all_suites'):
+                suites = [value for value in all_suites.values()]
 
         return suites
 
@@ -294,28 +333,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     level=error_level)
             return -1
 
-    def _run_preflight_run_commands(self):
-        """preflight commands for all tests"""
-        if self.ran_preflight_run_commands:
-            return
-
-        c = self.config
-        dirs = self.query_abs_dirs()
-        if not c.get('preflight_run_commands_disabled'):
-            for suite in c['preflight_run_cmd_suites']:
-                if suite['enabled']:
-                    self.info("Running pre test command {name} with '{cmd}'".format(
-                        name=suite['name'],
-                        cmd=' '.join(suite['cmd'])))
-                    self.run_command(suite['cmd'],
-                            cwd=dirs['abs_work_dir'],
-                            error_list=MakefileErrorList,
-                            halt_on_failure=True)
-        else:
-            self.warning("""Proceeding without running prerun test commands.
-            These are often OS specific and disabling them may result in spurious test results!""")
-
-        self.ran_preflight_run_commands = True
 
 
     # Actions {{{2
@@ -338,8 +355,34 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                                     parent_dir=dirs['abs_test_install_dir'])
 
 
-    def preflight_mochitests(self):
-        self._run_preflight_run_commands()
+    def preflight_run_tests(self):
+        """preflight commands for all tests"""
+        if self.ran_preflight_run_commands:
+            return
+
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('preflight_run_commands_disabled'):
+            for suite in c['preflight_run_cmd_suites']:
+                if suite['enabled']:
+                    self.info("Running pre test command {name} with '{cmd}'".format(
+                        name=suite['name'],
+                        cmd=' '.join(suite['cmd'])))
+                    self.run_command(suite['cmd'],
+                            cwd=dirs['abs_work_dir'],
+                            error_list=MakefileErrorList,
+                            halt_on_failure=True)
+        else:
+            self.warning("""Proceeding without running prerun test commands.
+            These are often OS specific and disabling them may result in spurious test results!""")
+
+        self.ran_preflight_run_commands = True
+
+    def run_tests(self):
+        self.mochitests()
+        self.reftests()
+        self.xpcshell()
+
 
     def mochitests(self):
         """run tests for mochitests"""
@@ -349,15 +392,15 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
         base_cmd = ["python", dirs["abs_mochitest_dir"] + "/runtests.py"]
         glob_test_options = self.query_glob_options(**c['global_test_options'])
-        glob_mochi_options = self.query_glob_mochi_options(**c['global_mochi_options'])
+        glob_mochi_options = self.query_glob_mochi_options(**c['global_mochitest_options'])
 
         abs_base_cmd = base_cmd + glob_test_options + glob_mochi_options
-        mochi_suites = self._query_specified_suites("mochi")
+        mochi_suites = self._query_specified_suites("mochitest")
 
         if mochi_suites :
+            self.info('#### Running Mochitests')
             for num in range(len(mochi_suites)):
                 cmd =  abs_base_cmd + mochi_suites[num]
-                # print cmd
                 self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList,
@@ -365,14 +408,12 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.info("{0} of {1} tests completed".format(tests_complete,
                 len(mochi_suites)))
         else:
-            self.fatal("""'mochi_suites' could not be determined.
-                    If you supplied at least one '--mochitest-suite'
-                    when running this script, make sure the value(s) you gave
-                    matches the key(s) from 'all_mochi_suites' in your config file.""")
+            self.warning("""Skipping Mochitests. Either,
+            1) you did not specify any mochitests suites to run
+            2) did not supply --run-all-suites
+            3) the specified mochitests suite(s) you stated did not match any
+            keys from 'all_mochitest_suites' in the config file""")
 
-
-    def preflight_reftests(self):
-        self._run_preflight_run_commands()
 
     def reftests(self):
         """run tests for reftests"""
@@ -386,9 +427,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         reftest_suites = self._query_specified_suites("reftest")
 
         if reftest_suites :
+            self.info('#### Running Reftests')
             for num in range(len(reftest_suites)):
                 cmd =  abs_base_cmd + reftest_suites[num]
-                # print cmd
                 self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList,
@@ -396,14 +437,12 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.info("{0} of {1} tests completed".format(tests_complete,
                 len(reftest_suites)))
         else:
-            self.fatal("""'reftest_suites' could not be determined.
-                    If you supplied at least one '--reftest-suite'
-                    when running this script, make sure the value(s) you gave
-                    matches the key(s) from 'all_reftest_suites' in your config file.""")
+            self.warning("""Skipping Reftests. Either,
+            1) you did not specify any reftest suites to run
+            2) did not supply --run-all-suites
+            3) the specified reftest suite(s) you stated did not match any
+            keys from 'all_reftest_suites' in the config file""")
 
-
-    def preflight_xpcshell(self):
-        self._run_preflight_run_commands()
 
     def xpcshell(self):
         """run tests for xpcshell"""
@@ -411,23 +450,34 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         app_xpcshell_path = os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])
         bin_xpcshell_path = os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name'])
+        tests_complete = 0
 
-        base_cmd = ["python", dirs["abs_xpcshell_dir"] + "/runxpcshelltests.py"]
-        glob_xpcshell_options = self.query_glob_xpcshell_options(**c['global_xpcshell_options'])
-        abs_base_cmd = base_cmd + glob_xpcshell_options
+        abs_base_cmd = ["python", dirs["abs_xpcshell_dir"] + "/runxpcshelltests.py"]
+        xpcshell_suites = self._query_specified_suites("xpcshell")
 
-        self.mkdir_p(dirs['abs_app_plugins_dir'])
-        self.copyfile(bin_xpcshell_path, app_xpcshell_path)
-        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
-        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
+        if xpcshell_suites:
+            self.info('#### Running xpcshell')
 
-        # print abs_base_cmd
+            self.mkdir_p(dirs['abs_app_plugins_dir'])
+            self.copyfile(bin_xpcshell_path, app_xpcshell_path)
+            self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
+            self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
 
-        self.run_command(abs_base_cmd,
-                cwd=dirs['abs_work_dir'],
-                error_list=MakefileErrorList,
-                halt_on_failure=True)
-        self.info("xpcshell test completed")
+            # print abs_base_cmd
+            for num in range(len(xpcshell_suites)):
+                cmd =  abs_base_cmd + xpcshell_suites[num]
+                self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList,
+                        halt_on_failure=True)
+            self.info("{0} of {1} tests completed".format(tests_complete,
+                len(xpcshell_suites)))
+        else:
+            self.warning("""Skipping xpcshell tests. Either,
+            1) you did not specify any xpcshell suites to run
+            2) did not supply --run-all-suites
+            3) the specified xpcshell suite(s) you stated did not match any
+            keys from 'all_xpcshell_suites' in the config file""")
 
 # main {{{1
 if __name__ == '__main__':

@@ -15,6 +15,7 @@ config = {
 
         "installer_path" : None, # eg "/path/with/something/like/build/application"
         "binary_path" : None, # eg "/path/with/something/like/build/application/firefox/firefox-bin"
+        # "binary_path" : "/home/jlund/devel/mozilla/dirtyBuildRepos-git/jlundMozharness/mozharness/build/application/firefox/firefox-bin",
         "tests_path" :  None, # eg "/path/with/something/like/build/tests"
         #######
 
@@ -38,22 +39,16 @@ config = {
         },
 
         #global mochitest options
-        "global_mochi_options" : {
+        "global_mochitest_options" : {
             "cert_path" : "--certificate-path=tests/certs",
             "autorun" : "--autorun",
             "close_when_done" : "--close-when-done",
             "console_level" : "--console-level=INFO",
         },
 
-        'xpcshell_name' : XPCSHELL_NAME,
-        #global xpcshell options
-        'global_xpcshell_options' : {
-            'manifest' : '--manifest=tests/xpcshell/tests/all-test-dirs.list',
-            'xpcshell_name' : 'application/firefox/' + XPCSHELL_NAME
-        },
 
         #local mochi suites
-        "all_mochi_suites" :
+        "all_mochitest_suites" :
         {
             'plain1' : ["--total-chunks=5", "--this-chunk=1", "--chunk-by-dir=4"],
             'plain2' : ["--total-chunks=5", "--this-chunk=2", "--chunk-by-dir=4"],
@@ -75,6 +70,12 @@ config = {
             'jsreftest' : ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftests/jstests.list"],
         },
 
+        'xpcshell_name' : XPCSHELL_NAME,
+        #local xpcshell options
+        'all_xpcshell_suites' : {
+            'xpcshell' : ['--manifest=tests/xpcshell/tests/all-test-dirs.list',
+                    'application/firefox/' + XPCSHELL_NAME]
+        },
 
         "preflight_run_cmd_suites" : [
                 {

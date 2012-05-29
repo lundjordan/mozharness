@@ -23,7 +23,7 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 
 
-# MobileSingleLocale {{{1
+# DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
 
     config_options = [

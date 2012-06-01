@@ -111,7 +111,7 @@ in the config file under: preflight_run_cmd_suites""",
                     'clobber',
                     'read-buildbot-config',
                     'download-and-extract',
-                    'pull-other-repos',
+                    'pull',
                     'create-virtualenv',
                     'install',
                     'run-tests',
@@ -125,33 +125,33 @@ in the config file under: preflight_run_cmd_suites""",
             self.fatal("""Config options are not valid.
                     Please ensure that if the '--run-all-suites' flag was enabled
                     then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
-        self.glob_test_options = []
-        self.glob_mochi_options = []
-        self.xpcshell_options = []
+        self.global_test_options = []
+        self.global_mochi_options = []
+        self.suite_categories = ['mochitests', 'reftests', 'xpcshell']
         self.ran_preflight_run_commands = False
         self.abs_dirs = None
 
         self.installer_url = c.get('installer_url')
-        self.test_url = self.config.get('test_url')
+        self.test_url = c.get('test_url')
         self.installer_path = c.get('installer_path') or self.guess_installer_path()
         self.binary_path = c.get('binary_path')
         self.symbols_url = c.get('symbols_url')
 
     ###### helper methods
 
-    def check_if_valid_config(self):
-        suite_categories = ['mochitests', 'reftests', 'xpcshell']
+    def _pre_config_lock(self, rw_config):
         c = self.config
         if not c.get('run_all_suites'):
-            return True # configs are valid
+            return # configs are valid
 
         is_valid = True
-        for cat in suite_categories:
-            specific_suites = c.get('specified_{cat}_suites'.format(cat=cat))
+        for category in self.suite_categories:
+            specific_suites = c.get('specified_{0}_suites'.format(category))
             if specific_suites:
                 if specific_suites != 'all':
-                    is_valid = False
-        return is_valid
+                    self.fatal("""Config options are not valid.
+                            Please ensure that if the '--run-all-suites' flag was enabled
+                            then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
 
 
     def query_abs_dirs(self):
@@ -247,23 +247,23 @@ in the config file under: preflight_run_cmd_suites""",
         return self.symbols_url
 
 
-    def query_glob_options(self, **kwargs):
+    def query_global_options(self, **kwargs):
         """return a list of options for all tests"""
-        if self.glob_test_options:
-            return self.glob_test_options
+        if self.global_test_options:
+            return self.global_test_options
 
         if self.binary_path:
             if kwargs:
                 dirs = self.query_abs_dirs()
-                glob_test_options  = []
+                global_test_options  = []
                 for key in kwargs.keys():
                     kwargs[key] = kwargs[key].format(
                             binary_path=self.binary_path,
                             symbols_path=self._query_symbols_url())
-                    glob_test_options.append(kwargs[key])
-                self.glob_test_options = glob_test_options
+                    global_test_options.append(kwargs[key])
+                self.global_test_options = global_test_options
 
-                return self.glob_test_options
+                return self.global_test_options
             else:
                 self.fatal("""No global test options could be found in self.config
                         Please add them to your config file.""")
@@ -275,18 +275,18 @@ in the config file under: preflight_run_cmd_suites""",
                     (1) specifing it in the config file under binary_path
                     (2) specifing it on command line with the '--binary-path' flag""")
 
-    def query_glob_mochi_options(self, **kwargs):
+    def query_global_mochi_options(self, **kwargs):
         """return a list of options for all mochi tests"""
-        if self.glob_mochi_options:
-            return self.glob_mochi_options
+        if self.global_mochi_options:
+            return self.global_mochi_options
 
         if kwargs:
-            glob_test_options  = []
+            global_test_options  = []
             for key in kwargs.keys():
-                glob_test_options.append(kwargs[key])
-            self.glob_test_options = glob_test_options
+                global_test_options.append(kwargs[key])
+            self.global_test_options = global_test_options
 
-            return self.glob_test_options
+            return self.global_test_options
         else:
             self.fatal("""No global mochitest options could be found in self.config
                     Please add them to your config file.""")
@@ -346,12 +346,13 @@ in the config file under: preflight_run_cmd_suites""",
     # preflight_install is in TestingMixin.
     # install is in TestingMixin.
 
-    def pull_other_repos(self):
+    def pull(self):
         dirs = self.query_abs_dirs()
+        c = self.config
 
-        if self.config.get('repos'):
+        if c.get('repos'):
             dirs = self.query_abs_dirs()
-            self.vcs_checkout_repos(self.config['repos'],
+            self.vcs_checkout_repos(c['repos'],
                                     parent_dir=dirs['abs_test_install_dir'])
 
 
@@ -391,10 +392,10 @@ in the config file under: preflight_run_cmd_suites""",
         tests_complete = 0
 
         base_cmd = ["python", dirs["abs_mochitest_dir"] + "/runtests.py"]
-        glob_test_options = self.query_glob_options(**c['global_test_options'])
-        glob_mochi_options = self.query_glob_mochi_options(**c['global_mochitest_options'])
+        global_test_options = self.query_global_options(**c['global_test_options'])
+        global_mochi_options = self.query_global_mochi_options(**c['global_mochitest_options'])
 
-        abs_base_cmd = base_cmd + glob_test_options + glob_mochi_options
+        abs_base_cmd = base_cmd + global_test_options + global_mochi_options
         mochi_suites = self._query_specified_suites("mochitest")
 
         if mochi_suites :
@@ -420,10 +421,10 @@ in the config file under: preflight_run_cmd_suites""",
         c = self.config
         dirs = self.query_abs_dirs()
         base_cmd = ["python", dirs["abs_reftest_dir"] + "/runreftest.py"]
-        glob_test_options = self.query_glob_options(**c['global_test_options'])
+        global_test_options = self.query_global_options(**c['global_test_options'])
         tests_complete = 0
 
-        abs_base_cmd = base_cmd + glob_test_options
+        abs_base_cmd = base_cmd + global_test_options
         reftest_suites = self._query_specified_suites("reftest")
 
         if reftest_suites :

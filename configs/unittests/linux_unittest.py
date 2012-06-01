@@ -22,13 +22,17 @@ config = {
             "symbols_path" : "--symbols-path={symbols_path}"
         },
 
-        #global mochitest options
-        "global_mochitest_options" : {
-            "cert_path" : "--certificate-path=tests/certs",
-            "autorun" : "--autorun",
-            "close_when_done" : "--close-when-done",
-            "console_level" : "--console-level=INFO",
+        'run_file_names' : {
+            'mochitest' : 'runtests.py',
+            'reftest' : 'runreftest.py',
+            'xpcshell' : 'runxpcshelltests.py'
         },
+
+        #global mochitest options
+        "global_mochitest_options" : [
+            "--certificate-path=tests/certs", "--autorun",
+            "--close-when-done", "--console-level=INFO",
+        ],
 
 
         #local mochi suites
@@ -55,7 +59,7 @@ config = {
         },
 
         'xpcshell_name' : XPCSHELL_NAME,
-        #local xpcshell options
+
         'all_xpcshell_suites' : {
             'xpcshell' : ['--manifest=tests/xpcshell/tests/all-test-dirs.list',
                     'application/firefox/' + XPCSHELL_NAME]

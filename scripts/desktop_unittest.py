@@ -247,7 +247,7 @@ in the config file under: preflight_run_cmd_suites""",
         return self.symbols_url
 
 
-    def query_global_options(self, **kwargs):
+    def _query_global_options(self, **kwargs):
         """return a list of options for all tests"""
         if self.global_test_options:
             return self.global_test_options
@@ -274,22 +274,6 @@ in the config file under: preflight_run_cmd_suites""",
             Please make sure you are either:
                     (1) specifing it in the config file under binary_path
                     (2) specifing it on command line with the '--binary-path' flag""")
-
-    def query_global_mochi_options(self, **kwargs):
-        """return a list of options for all mochi tests"""
-        if self.global_mochi_options:
-            return self.global_mochi_options
-
-        if kwargs:
-            global_test_options  = []
-            for key in kwargs.keys():
-                global_test_options.append(kwargs[key])
-            self.global_test_options = global_test_options
-
-            return self.global_test_options
-        else:
-            self.fatal("""No global mochitest options could be found in self.config
-                    Please add them to your config file.""")
 
 
     def _query_specified_suites(self, category):
@@ -332,8 +316,6 @@ in the config file under: preflight_run_cmd_suites""",
             self.dump_exception("Can't copy %s to %s!" % (src, dest),
                     level=error_level)
             return -1
-
-
 
     # Actions {{{2
 
@@ -379,106 +361,54 @@ in the config file under: preflight_run_cmd_suites""",
 
         self.ran_preflight_run_commands = True
 
+    def preflight_xpcshell_run(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+
+        self.mkdir_p(dirs['abs_app_plugins_dir'])
+        self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
+            os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
+        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
+
     def run_tests(self):
-        self.mochitests()
-        self.reftests()
-        self.xpcshell()
+        c = self.config
+        self._run_category_suites('mochitest', c['global_test_options'],
+                category_options=c['global_mochitest_options'])
+        self._run_category_suites('reftest', c['global_test_options'])
+        self._run_category_suites('misc', c['global_test_options'],
+                preflight_run_method=self.preflight_xpcshell_run)
 
-
-    def mochitests(self):
-        """run tests for mochitests"""
+    def _run_category_suites(self, suite_category, global_options,
+            category_options=None, preflight_run_method=None):
+        """run suite(s) to a specific category"""
         c = self.config
         dirs = self.query_abs_dirs()
         tests_complete = 0
+        run_file = c['run_file_name'][suite_category]
+        base_cmd = ["python", dirs["abs_%s_dir" % suite_category] + "/" + run_file]
+        global_test_options = self._query_global_options(**global_options)
 
-        base_cmd = ["python", dirs["abs_mochitest_dir"] + "/runtests.py"]
-        global_test_options = self.query_global_options(**c['global_test_options'])
-        global_mochi_options = self.query_global_mochi_options(**c['global_mochitest_options'])
-
-        abs_base_cmd = base_cmd + global_test_options + global_mochi_options
-        mochi_suites = self._query_specified_suites("mochitest")
-
-        if mochi_suites :
-            self.info('#### Running Mochitests')
-            for num in range(len(mochi_suites)):
-                cmd =  abs_base_cmd + mochi_suites[num]
-                self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-            self.info("{0} of {1} tests completed".format(tests_complete,
-                len(mochi_suites)))
-        else:
-            self.warning("""Skipping Mochitests. Either,
-            1) you did not specify any mochitests suites to run
-            2) did not supply --run-all-suites
-            3) the specified mochitests suite(s) you stated did not match any
-            keys from 'all_mochitest_suites' in the config file""")
-
-
-    def reftests(self):
-        """run tests for reftests"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        base_cmd = ["python", dirs["abs_reftest_dir"] + "/runreftest.py"]
-        global_test_options = self.query_global_options(**c['global_test_options'])
-        tests_complete = 0
+        if category_options:
+            global_test_options += category_options
 
         abs_base_cmd = base_cmd + global_test_options
-        reftest_suites = self._query_specified_suites("reftest")
+        suites = self._query_specified_suites(suite_category)
 
-        if reftest_suites :
-            self.info('#### Running Reftests')
-            for num in range(len(reftest_suites)):
-                cmd =  abs_base_cmd + reftest_suites[num]
+        if preflight_run_method:
+            preflight_run_method()
+
+        if suites:
+            self.info('#### Running %s suites' % suite_category)
+            for num in range(len(suites)):
+                cmd =  abs_base_cmd + suites[num]
                 self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList,
                         halt_on_failure=True)
             self.info("{0} of {1} tests completed".format(tests_complete,
-                len(reftest_suites)))
-        else:
-            self.warning("""Skipping Reftests. Either,
-            1) you did not specify any reftest suites to run
-            2) did not supply --run-all-suites
-            3) the specified reftest suite(s) you stated did not match any
-            keys from 'all_reftest_suites' in the config file""")
+                len(suites)))
 
-
-    def xpcshell(self):
-        """run tests for xpcshell"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        app_xpcshell_path = os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])
-        bin_xpcshell_path = os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name'])
-        tests_complete = 0
-
-        abs_base_cmd = ["python", dirs["abs_xpcshell_dir"] + "/runxpcshelltests.py"]
-        xpcshell_suites = self._query_specified_suites("xpcshell")
-
-        if xpcshell_suites:
-            self.info('#### Running xpcshell')
-
-            self.mkdir_p(dirs['abs_app_plugins_dir'])
-            self.copyfile(bin_xpcshell_path, app_xpcshell_path)
-            self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
-            self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
-
-            # print abs_base_cmd
-            for num in range(len(xpcshell_suites)):
-                cmd =  abs_base_cmd + xpcshell_suites[num]
-                self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-            self.info("{0} of {1} tests completed".format(tests_complete,
-                len(xpcshell_suites)))
-        else:
-            self.warning("""Skipping xpcshell tests. Either,
-            1) you did not specify any xpcshell suites to run
-            2) did not supply --run-all-suites
-            3) the specified xpcshell suite(s) you stated did not match any
-            keys from 'all_xpcshell_suites' in the config file""")
 
 # main {{{1
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ config = {
 
         "app_name_dir" : "firefox",
         "installer_path" : "installer.tar.bz2",
+        "binary_path" : "firefox/firefox-bin",
 
         "repos": [{
             "repo": "http://hg.mozilla.org/build/tools",

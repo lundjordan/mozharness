@@ -22,6 +22,7 @@ from mozharness.base.errors import MakefileErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 
+SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
 
 # DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
@@ -110,12 +111,7 @@ in the config file under: preflight_run_cmd_suites""",
                 )
 
         c = self.config
-        if not self.check_if_valid_config():
-            self.fatal("""Config options are not valid.
-                    Please ensure that if the '--run-all-suites' flag was enabled
-                    then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
         self.global_test_options = []
-        self.suite_categories = ['mochitests', 'reftests', 'xpcshell']
         self.abs_dirs = None
 
         self.installer_url = c.get('installer_url')
@@ -131,7 +127,7 @@ in the config file under: preflight_run_cmd_suites""",
         if not c.get('run_all_suites'):
             return # configs are valid
 
-        for category in self.suite_categories:
+        for category in SUITE_CATEGORIES:
             specific_suites = c.get('specified_{0}_suites'.format(category))
             if specific_suites:
                 if specific_suites != 'all':
@@ -343,7 +339,7 @@ in the config file under: preflight_run_cmd_suites""",
         self._run_category_suites('mochitest', c['global_test_options'],
                 category_options=c['global_mochitest_options'])
         self._run_category_suites('reftest', c['global_test_options'])
-        self._run_category_suites('misc', c['global_test_options'],
+        self._run_category_suites('xpcshell', c['global_test_options'],
                 preflight_run_method=self.preflight_xpcshell)
 
     def preflight_xpcshell(self):
@@ -353,8 +349,10 @@ in the config file under: preflight_run_cmd_suites""",
         self.mkdir_p(dirs['abs_app_plugins_dir'])
         self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
-        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'])
-        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'])
+        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'],
+                overwrite='corresponding')
+        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
+                overwrite='corresponding')
 
     def _run_category_suites(self, suite_category, global_options,
             category_options=None, preflight_run_method=None):
@@ -362,7 +360,7 @@ in the config file under: preflight_run_cmd_suites""",
         c = self.config
         dirs = self.query_abs_dirs()
         tests_complete = 0
-        run_file = c['run_file_name'][suite_category]
+        run_file = c['run_file_names'][suite_category]
         base_cmd = ["python", dirs["abs_%s_dir" % suite_category] + "/" + run_file]
         global_test_options = self._query_global_options(**global_options)
 
@@ -372,10 +370,10 @@ in the config file under: preflight_run_cmd_suites""",
         abs_base_cmd = base_cmd + global_test_options
         suites = self._query_specified_suites(suite_category)
 
-        if preflight_run_method:
-            preflight_run_method()
-
         if suites:
+            if preflight_run_method:
+                preflight_run_method()
+
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]

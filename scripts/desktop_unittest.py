@@ -21,6 +21,8 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import MakefileErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
+from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
+from mozharness.base.log import INFO, ERROR
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
 
@@ -243,8 +245,8 @@ in the config file under: preflight_run_cmd_suites""",
 
         return suites
 
-    def copy_tree(self, src, dest, overwrite='nothing', log_level='INFO',
-            error_level='ERROR'):
+    def copy_tree(self, src, dest, overwrite='nothing', log_level=INFO,
+            error_level=ERROR):
         """an implementation of shutil.copytree however it allows for
         dest to exist and implements differen't overwrite levels.
         overwrite uses:
@@ -359,7 +361,6 @@ in the config file under: preflight_run_cmd_suites""",
         """run suite(s) to a specific category"""
         c = self.config
         dirs = self.query_abs_dirs()
-        tests_complete = 0
         run_file = c['run_file_names'][suite_category]
         base_cmd = ["python", dirs["abs_%s_dir" % suite_category] + "/" + run_file]
         global_test_options = self._query_global_options(**global_options)
@@ -377,12 +378,29 @@ in the config file under: preflight_run_cmd_suites""",
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-                self.run_command(cmd,
+                code = self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList,
-                        halt_on_failure=True)
-            self.info("{0} of {1} tests completed".format(tests_complete,
-                len(suites)))
+                        error_list=MakefileErrorList)
+
+                tbpl_status = TBPL_SUCCESS
+                level = INFO
+                if code == 0:
+                    status = "success"
+                elif code == 1:
+                    status = "test failures"
+                    tbpl_status = TBPL_WARNING
+                else:
+                    status = "harness failure"
+                    tbpl_status = TBPL_FAILURE
+                    level = ERROR
+                self.add_summary("The %s suite: %s test ran with return code %s: %s" % (suite_category,
+                        suites[num], code, status), level=level)
+
+                # TODO find out when I should be displaying tbpl status. Should
+                # this be done if its a developer running the script?
+                if 'read-buildbot-config' in self.actions:
+                    self.buildbot_status(tbpl_status)
+
 
 
 # main {{{1

@@ -1,4 +1,7 @@
 #### OS Specifics ####
+APP_NAME_DIR = "firefox"
+BINARY_PATH = "firefox-bin"
+INSTALLER_PATH = "installer.tar.bz2"
 XPCSHELL_NAME = "xpcshell"
 ADJUST_SCREEN_RESOLUTION = False
 DISABLE_SCREEN_SAVER = True
@@ -6,9 +9,9 @@ DISABLE_SCREEN_SAVER = True
 
 config = {
 
-        "app_name_dir" : "firefox",
-        "installer_path" : "installer.tar.bz2",
-        "binary_path" : "firefox/firefox-bin",
+        "app_name_dir" : APP_NAME_DIR,
+        "installer_path" : INSTALLER_PATH,
+        "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
 
         "repos": [{
             "repo": "http://hg.mozilla.org/build/tools",

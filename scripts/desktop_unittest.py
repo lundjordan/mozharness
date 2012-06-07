@@ -177,18 +177,17 @@ in the config file under: preflight_run_cmd_suites""",
         if self.symbols_url:
             return self.symbols_url
 
-        installer_url = self.config.get('installer_url')
+        self.installer_url
         symbols_url = None
-        self.info("finding symbols_url based upon self.config['installer_url']")
-        if installer_url:
+        self.info("finding symbols_url based upon self.installer_url")
+        if self.installer_url:
             for ext in ['.zip', '.dmg', '.tar.bz2']:
-                if ext in installer_url:
-                    symbols_url = installer_url.replace(ext, '.crashreporter-symbols.zip')
+                if ext in self.installer_url:
+                    symbols_url = self.installer_url.replace(ext, '.crashreporter-symbols.zip')
             if not symbols_url:
-                self.fatal("installer_url was found but symbols_url could not be determined")
+                self.fatal("self.installer_url was found but symbols_url could not be determined")
         else:
-            self.fatal("installer_url was not found in self.config")
-
+            self.fatal("self.installer_url was not found in self.config") 
         self.info("setting symbols_url as {0}".format(symbols_url))
         self.symbols_url = symbols_url
         return self.symbols_url

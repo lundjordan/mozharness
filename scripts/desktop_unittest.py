@@ -109,8 +109,8 @@ in the config file under: preflight_run_cmd_suites""",
                     'run-tests',
                     ],
                 require_config_file=require_config_file,
-                config={'virtualenv_modules': self.virtualenv_modules}
-                )
+                config={'virtualenv_modules': self.virtualenv_modules,
+                        'require_test_zip': True,})
 
         c = self.config
         self.global_test_options = []
@@ -252,7 +252,7 @@ in the config file under: preflight_run_cmd_suites""",
         overwrite uses:
         'nothing' will keep all(any) existing files in destination tree
         'corresponding' will only overwrite destination paths that have
-                   the same path names relative to the root of src and
+                   the same path names relative to the root of the src and
                    destination tree
         'all' will replace the whole destination tree(clobber) if it exists"""
 

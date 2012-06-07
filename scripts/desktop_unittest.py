@@ -365,9 +365,10 @@ in the config file under: preflight_run_cmd_suites""",
         global_test_options = self._query_global_options(**global_options)
 
         if category_options:
-            global_test_options += category_options
+            abs_base_cmd = base_cmd + global_test_options + category_options
+        else:
+            abs_base_cmd = base_cmd + global_test_options
 
-        abs_base_cmd = base_cmd + global_test_options
         suites = self._query_specified_suites(suite_category)
 
         if suites:
@@ -377,10 +378,9 @@ in the config file under: preflight_run_cmd_suites""",
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-                # code = self.run_command(cmd,
-                #         cwd=dirs['abs_work_dir'],
-                #         error_list=MakefileErrorList)
-                code = 0
+                code = self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList)
 
                 tbpl_status = TBPL_SUCCESS
                 level = INFO

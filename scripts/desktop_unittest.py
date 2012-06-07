@@ -109,8 +109,8 @@ in the config file under: preflight_run_cmd_suites""",
                     'run-tests',
                     ],
                 require_config_file=require_config_file,
-                config={'virtualenv_modules': self.virtualenv_modules,
-                        'require_test_zip': True,})
+                config={'virtualenv_modules': self.virtualenv_modules}
+                )
 
         c = self.config
         self.global_test_options = []

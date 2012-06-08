@@ -314,7 +314,7 @@ in the config file under: preflight_run_cmd_suites""",
         if c.get('repos'):
             dirs = self.query_abs_dirs()
             self.vcs_checkout_repos(c['repos'],
-                                    parent_dir=dirs['abs_test_install_dir'])
+                                    parent_dir=dirs['abs_work_dir'])
 
     def preflight_run_tests(self):
         """preflight commands for all tests"""

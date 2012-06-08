@@ -369,7 +369,6 @@ in the config file under: preflight_run_cmd_suites""",
         else:
             abs_base_cmd = base_cmd + global_test_options
 
-        abs_base_cmd = base_cmd + global_test_options
         suites = self._query_specified_suites(suite_category)
 
         if suites:

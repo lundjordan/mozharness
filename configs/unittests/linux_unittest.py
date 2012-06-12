@@ -44,7 +44,7 @@ config = {
 
         "mochitest_options" : [
             "--appname={binary_path}", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}"
+            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}",
             "--certificate-path=tests/certs", "--autorun", "--close-when-done",
             "--console-level=INFO"
         ],
@@ -66,7 +66,7 @@ config = {
             "a11y" : ["--a11y"],
             "plugins" : ['--setpref=dom.ipc.plugins.enabled=false',
                     '--setpref=dom.ipc.plugins.enabled.x86_64=false',
-                    '--icplugins']
+                    '--ipcplugins']
         },
 
         #local reftests suites

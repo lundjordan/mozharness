@@ -13,7 +13,7 @@ and subject to change upon review)
 author: Jordan Lund
 """
 
-import os, sys, shutil, copy
+import os, sys, copy
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -134,8 +134,8 @@ in the config file under: preflight_run_cmd_suites""",
             if specific_suites:
                 if specific_suites != 'all':
                     self.fatal("""Config options are not valid.
-                            Please ensure that if the '--run-all-suites' flag was enabled
-                            then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
+Please ensure that if the '--run-all-suites' flag was enabled
+then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
 
 
     def query_abs_dirs(self):
@@ -177,7 +177,6 @@ in the config file under: preflight_run_cmd_suites""",
         if self.symbols_url:
             return self.symbols_url
 
-        self.installer_url
         symbols_url = None
         self.info("finding symbols_url based upon self.installer_url")
         if self.installer_url:
@@ -193,14 +192,14 @@ in the config file under: preflight_run_cmd_suites""",
         return self.symbols_url
 
     def _query_suite_options(self, suite_category):
-        suite_options = self.config['%s_options' % suite_category]
+        config_suite_options = []
         if self.binary_path:
-            if suite_options:
-                for option in suite_options:
-                    option = option.format(
+            if self.config['%s_options' % suite_category]:
+                for option in self.config['%s_options' % suite_category]:
+                    config_suite_options.append(option.format(
                             binary_path=self.binary_path,
-                            symbols_path=self._query_symbols_url())
-                return suite_options
+                            symbols_path=self._query_symbols_url()))
+                return config_suite_options
             else:
                 self.warning("""Suite options for %s could not be determined.
 If you meant to have options for this suite, please make sure they are specified
@@ -278,7 +277,6 @@ in your config under %s_options""" % suite_category, suite_category)
             These are often OS specific and disabling them may result in spurious test results!""")
 
     def run_tests(self):
-        c = self.config
         self._run_category_suites('mochitest')
         self._run_category_suites('reftest')
         self._run_category_suites('xpcshell',
@@ -315,10 +313,11 @@ in your config under %s_options""" % suite_category, suite_category)
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
+                # print cmd
                 code = self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList)
-
+                # code = 0
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:

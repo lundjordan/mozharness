@@ -24,6 +24,35 @@ config = {
             "dest": "tools"
         }],
 
+        "exes": {
+            'python': '/tools/buildbot/bin/python',
+            'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+        },
+
+
+        "run_file_names" : {
+            "mochitest" : "runtests.py",
+            "reftest" : "runreftest.py",
+            "xpcshell" : "runxpcshelltests.py"
+        },
+
+        "reftest_options" : [
+            "--appname={binary_path}", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path={symbols_path}"
+        ],
+
+
+        "mochitest_options" : [
+            "--appname={binary_path}", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}",
+            "--certificate-path=tests/certs", "--autorun", "--close-when-done",
+            "--console-level=INFO"
+        ],
+
+        "xpcshell_options" : [
+            "--symbols-path={symbols_path}"
+        ],
+
         #local mochi suites
         "all_mochitest_suites" :
         {
@@ -37,7 +66,7 @@ config = {
             "a11y" : ["--a11y"],
             "plugins" : ['--setpref=dom.ipc.plugins.enabled=false',
                     '--setpref=dom.ipc.plugins.enabled.x86_64=false',
-                    '--icplugins']
+                    '--ipcplugins']
         },
 
         #local reftests suites

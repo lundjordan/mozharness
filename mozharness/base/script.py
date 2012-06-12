@@ -189,6 +189,59 @@ class OSMixin(object):
                                     level=error_level)
                 return -1
 
+    def copy_tree(self, src, dest, overwrite='nothing', log_level=INFO,
+            error_level=ERROR):
+        """an implementation of shutil.copytree however it allows for
+        dest to exist and implements differen't overwrite levels.
+        overwrite uses:
+        'nothing' will keep all(any) existing files in destination tree
+        'corresponding' will only overwrite destination paths that have
+                   the same path names relative to the root of the src and
+                   destination tree
+        'all' will replace the whole destination tree(clobber) if it exists"""
+
+        # TODO ask what is more appropriate then 'corresponding'
+        # ie: 'reciprocal', 'correlative', 'coequal',  'akin', 'parallel'
+
+        try:
+            if overwrite == 'all':
+                self.rmtree(dest)
+                self.info('copying tree: %s to %s' % (src, dest))
+                shutil.copytree(src, dest)
+            elif overwrite == 'nothing' or overwrite == 'corresponding':
+                files = os.listdir(src)
+                for f in files:
+                    abs_src_f = os.path.join(src, f)
+                    abs_dest_f = os.path.join(dest, f)
+                    if not os.path.exists(abs_dest_f):
+                        if os.path.isdir(abs_src_f):
+                            self.mkdir_p(abs_dest_f)
+                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='all')
+                        else:
+                            self.copyfile(abs_src_f, abs_dest_f)
+                    elif overwrite == 'nothing': # and destination path exists
+                        if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
+                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='nothing')
+                        else:
+                            self.debug('ignoring path: %s as destination: \
+                                    %s exists' % (abs_src_f, abs_dest_f))
+                    else: # overwrite == 'corresponding' and destination path exists
+                        self.debug('overwriting: %s with: %s' % (abs_dest_f, abs_src_f))
+                        self.rmtree(abs_dest_f)
+
+                        if os.path.isdir(abs_src_f):
+                            self.mkdir_p(abs_dest_f)
+                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='corresponding')
+                        else:
+                            self.copyfile(abs_src_f, abs_dest_f)
+            else:
+                self.fatal("%s is not a valid argument for param overwrite" % (overwrite))
+        except (IOError, shutil.Error):
+            self.dump_exception("There was an error while copying %s to %s!" % (src, dest),
+                    level=error_level)
+            return -1
+
+
     def write_to_file(self, file_path, contents, verbose=True,
                       open_mode='w', create_parent_dir=False,
                       error_level=ERROR):

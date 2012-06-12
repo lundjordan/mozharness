@@ -12,6 +12,7 @@ config = {
         "app_name_dir" : APP_NAME_DIR,
         "installer_path" : INSTALLER_PATH,
         "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
+        "xpcshell_name" : XPCSHELL_NAME,
 
         # TODO find out if I need simple_json_url
         "buildbot_json_path": "buildprops.json",
@@ -23,15 +24,11 @@ config = {
             "dest": "tools"
         }],
 
-
-        #global unittest options
-        "global_test_options" : 
-        {
-            "app_name" : "--appname={binary_path}",
-            "util_path" : "--utility-path=tests/bin",
-            "extra_prof_path" : "--extra-profile-file=tests/bin/plugins",
-            "symbols_path" : "--symbols-path={symbols_path}"
+        "exes": {
+            'python': '/tools/buildbot/bin/python',
+            'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
         },
+
 
         "run_file_names" : {
             "mochitest" : "runtests.py",
@@ -39,12 +36,22 @@ config = {
             "xpcshell" : "runxpcshelltests.py"
         },
 
-        #global mochitest options
-        "global_mochitest_options" : [
-            "--certificate-path=tests/certs", "--autorun",
-            "--close-when-done", "--console-level=INFO",
+        "reftest_options" : [
+            "--appname={binary_path}", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path={symbols_path}"
         ],
 
+
+        "mochitest_options" : [
+            "--appname={binary_path}", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}"
+            "--certificate-path=tests/certs", "--autorun", "--close-when-done",
+            "--console-level=INFO"
+        ],
+
+        "xpcshell_options" : [
+            "--symbols-path={symbols_path}"
+        ],
 
         #local mochi suites
         "all_mochitest_suites" :
@@ -57,8 +64,9 @@ config = {
             "chrome" : ["--chrome"],
             "browser-chrome" : ["--browser-chrome"],
             "a11y" : ["--a11y"],
-            "plugins" : ["--setpref='dom.ipc.plugins.enabled=false'",
-                "--test-path='modules/plugin/test'"]
+            "plugins" : ['--setpref=dom.ipc.plugins.enabled=false',
+                    '--setpref=dom.ipc.plugins.enabled.x86_64=false',
+                    '--icplugins']
         },
 
         #local reftests suites
@@ -69,7 +77,6 @@ config = {
             "jsreftest" : ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftests/jstests.list"],
         },
 
-        "xpcshell_name" : XPCSHELL_NAME,
 
         "all_xpcshell_suites" : {
             "xpcshell" : ["--manifest=tests/xpcshell/tests/all-test-dirs.list",
@@ -91,11 +98,6 @@ config = {
                     "enabled" : ADJUST_SCREEN_RESOLUTION
                 },
         ],
-
-        "exes": {
-            'python': '/tools/buildbot/bin/python',
-            'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-        },
 
 }
 

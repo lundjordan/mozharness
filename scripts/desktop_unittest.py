@@ -192,25 +192,19 @@ in the config file under: preflight_run_cmd_suites""",
         self.symbols_url = symbols_url
         return self.symbols_url
 
-    def _query_global_options(self, **kwargs):
-        """return a list of options for all tests"""
-        if self.global_test_options:
-            return self.global_test_options
-
+    def _query_suite_options(self, suite_category):
+        suite_options = self.config['%s_options' % suite_category]
         if self.binary_path:
-            if kwargs:
-                global_test_options  = []
-                for key in kwargs.keys():
-                    kwargs[key] = kwargs[key].format(
+            if suite_options:
+                for option in suite_options:
+                    option = option.format(
                             binary_path=self.binary_path,
                             symbols_path=self._query_symbols_url())
-                    global_test_options.append(kwargs[key])
-                self.global_test_options = global_test_options
-
-                return self.global_test_options
+                return suite_options
             else:
-                self.fatal("""No global test options could be found in self.config
-                        Please add them to your config file.""")
+                self.warning("""Suite options for %s could not be determined.
+If you meant to have options for this suite, please make sure they are specified
+in your config under %s_options""" % suite_category, suite_category)
         else:
             self.fatal("""the 'appname' or 'binary_path' could not be determined.
             This should be something like '/root/path/with/build/application/firefox/firefox-bin'
@@ -243,58 +237,6 @@ in the config file under: preflight_run_cmd_suites""",
                 suites = [value for value in all_suites.values()]
 
         return suites
-
-    def copy_tree(self, src, dest, overwrite='nothing', log_level=INFO,
-            error_level=ERROR):
-        """an implementation of shutil.copytree however it allows for
-        dest to exist and implements differen't overwrite levels.
-        overwrite uses:
-        'nothing' will keep all(any) existing files in destination tree
-        'corresponding' will only overwrite destination paths that have
-                   the same path names relative to the root of the src and
-                   destination tree
-        'all' will replace the whole destination tree(clobber) if it exists"""
-
-        # TODO ask what is more appropriate then 'corresponding'
-        # ie: 'reciprocal', 'correlative', 'coequal',  'akin', 'parallel'
-
-        try:
-            if overwrite == 'all':
-                self.rmtree(dest)
-                self.info('copying tree: %s to %s' % (src, dest))
-                shutil.copytree(src, dest)
-            elif overwrite == 'nothing' or overwrite == 'corresponding':
-                files = os.listdir(src)
-                for f in files:
-                    abs_src_f = os.path.join(src, f)
-                    abs_dest_f = os.path.join(dest, f)
-                    if not os.path.exists(abs_dest_f):
-                        if os.path.isdir(abs_src_f):
-                            self.mkdir_p(abs_dest_f)
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='all')
-                        else:
-                            self.copyfile(abs_src_f, abs_dest_f)
-                    elif overwrite == 'nothing': # and destination path exists
-                        if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='nothing')
-                        else:
-                            self.debug('ignoring path: %s as destination: \
-                                    %s exists' % (abs_src_f, abs_dest_f))
-                    else: # overwrite == 'corresponding' and destination path exists
-                        self.debug('overwriting: %s with: %s' % (abs_dest_f, abs_src_f))
-                        self.rmtree(abs_dest_f)
-
-                        if os.path.isdir(abs_src_f):
-                            self.mkdir_p(abs_dest_f)
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='corresponding')
-                        else:
-                            self.copyfile(abs_src_f, abs_dest_f)
-            else:
-                self.fatal("%s is not a valid argument for param overwrite" % (overwrite))
-        except (IOError, shutil.Error):
-            self.dump_exception("There was an error while copying %s to %s!" % (src, dest),
-                    level=error_level)
-            return -1
 
     # Actions {{{2
 
@@ -337,10 +279,9 @@ in the config file under: preflight_run_cmd_suites""",
 
     def run_tests(self):
         c = self.config
-        self._run_category_suites('mochitest', c['global_test_options'],
-                category_options=c['global_mochitest_options'])
-        self._run_category_suites('reftest', c['global_test_options'])
-        self._run_category_suites('xpcshell', c['global_test_options'],
+        self._run_category_suites('mochitest')
+        self._run_category_suites('reftest')
+        self._run_category_suites('xpcshell',
                 preflight_run_method=self.preflight_xpcshell)
 
     def preflight_xpcshell(self):
@@ -355,21 +296,17 @@ in the config file under: preflight_run_cmd_suites""",
         self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
                 overwrite='corresponding')
 
-    def _run_category_suites(self, suite_category, global_options,
-            category_options=None, preflight_run_method=None):
+    def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
         c = self.config
         dirs = self.query_abs_dirs()
+
         run_file = c['run_file_names'][suite_category]
         base_cmd = ["python", dirs["abs_%s_dir" % suite_category] + "/" + run_file]
-        global_test_options = self._query_global_options(**global_options)
-
-        if category_options:
-            abs_base_cmd = base_cmd + global_test_options + category_options
-        else:
-            abs_base_cmd = base_cmd + global_test_options
-
+        suite_options = self._query_suite_options(suite_category)
         suites = self._query_specified_suites(suite_category)
+
+        abs_base_cmd = base_cmd + suite_options
 
         if suites:
             if preflight_run_method:

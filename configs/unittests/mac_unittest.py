@@ -82,15 +82,23 @@ config = {
 
         "preflight_run_cmd_suites" : [
                 {
-                    "name" : "disable_screen_saver",
-                    "cmd" : ["xset", "s", "reset"],
-                    "enabled" : DISABLE_SCREEN_SAVER
+                    "name" : "get_screen_resolution",
+                    "cmd" : [
+                        "bash", "-c", "screenresolution", "get"                    ],
+                    "enabled" : ADJUST_SCREEN_RESOLUTION
                 },
                 {
-                    "name" : "adjust_screen_resolution",
+                    "name" : "list_screen_resolution",
                     "cmd" : [
-                        "bash", "-c", "screenresolution", "get", "&&", "screenresolution",
-                        "list", "&&", "system_profiler", "SPDisplaysDataType"
+                        "bash", "-c", "screenresolution",
+                        "list"
+                    ],
+                    "enabled" : ADJUST_SCREEN_RESOLUTION
+                },
+                {
+                    "name" : "system_profiler_spdisplay_data_type",
+                    "cmd" : [
+                        "bash", "-c", "system_profiler", "SPDisplaysDataType"
                     ],
                     "enabled" : ADJUST_SCREEN_RESOLUTION
                 },

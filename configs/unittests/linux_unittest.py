@@ -87,14 +87,6 @@ config = {
                     "cmd" : ["xset", "s", "reset"],
                     "enabled" : DISABLE_SCREEN_SAVER
                 },
-                {
-                    "name" : "adjust_screen_resolution",
-                    "cmd" : [
-                        "bash", "-c", "screenresolution", "get", "&&", "screenresolution",
-                        "list", "&&", "system_profiler", "SPDisplaysDataType"
-                    ],
-                    "enabled" : ADJUST_SCREEN_RESOLUTION
-                },
         ],
 
 }

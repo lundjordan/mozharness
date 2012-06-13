@@ -274,7 +274,7 @@ in your config under %s_options""" % suite_category, suite_category)
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
                             error_list=MakefileErrorList,
-                            halt_on_failure=True)
+                            halt_on_failure=False)
         else:
             self.warning("""Proceeding without running prerun test commands.
 These are often OS specific and disabling them may result in spurious test results!""")

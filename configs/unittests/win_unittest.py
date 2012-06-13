@@ -37,20 +37,20 @@ config = {
         },
 
         "reftest_options" : [
-            "--appname={binary_path}", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins","--symbols-path={symbols_path}"
+            "--appname=%(binary_path)s", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s"
         ],
 
 
         "mochitest_options" : [
-            "--appname={binary_path}", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}",
+            "--appname=%(binary_path)s", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s"
             "--certificate-path=tests/certs", "--autorun", "--close-when-done",
             "--console-level=INFO"
         ],
 
         "xpcshell_options" : [
-            "--symbols-path={symbols_path}"
+            "--symbols-path=%(symbols_path)s"
         ],
 
         #local mochi suites

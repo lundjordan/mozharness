@@ -37,26 +37,25 @@ config = {
         },
 
         "reftest_options" : [
-            "--appname={binary_path}", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins","--symbols-path={symbols_path}"
+            "--appname=%(binary_path)s", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s"
         ],
 
 
         "mochitest_options" : [
-            "--appname={binary_path}", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins", "--symbols-path={symbols_path}",
+            "--appname=%(binary_path)s", "--utility-path=tests/bin",
+            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s"
             "--certificate-path=tests/certs", "--autorun", "--close-when-done",
             "--console-level=INFO"
         ],
 
         "xpcshell_options" : [
-            "--symbols-path={symbols_path}"
+            "--symbols-path=%(symbols_path)s"
         ],
 
 
         #local mochi suites
-        "all_mochitest_suites" :
-        {
+        "all_mochitest_suites" : {
             "plain1" : ["--total-chunks=5", "--this-chunk=1", "--chunk-by-dir=4"],
             "plain2" : ["--total-chunks=5", "--this-chunk=2", "--chunk-by-dir=4"],
             "plain3" : ["--total-chunks=5", "--this-chunk=3", "--chunk-by-dir=4"],
@@ -70,8 +69,7 @@ config = {
         },
 
         #local reftests suites
-        "all_reftest_suites" :
-        {
+        "all_reftest_suites" : {
             "reftest" : ["tests/reftest/tests/layout/reftests/reftest.list"],
             "crashtest" : ["tests/reftest/tests/layout/reftests/crashtests.list"],
             "jsreftest" : ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftests/jstests.list"],

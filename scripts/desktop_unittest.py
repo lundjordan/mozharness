@@ -130,7 +130,7 @@ in the config file under: preflight_run_cmd_suites""",
             return # configs are valid
 
         for category in SUITE_CATEGORIES:
-            specific_suites = c.get('specified_{0}_suites'.format(category))
+            specific_suites = c.get('specified_%s_suites' % (category))
             if specific_suites:
                 if specific_suites != 'all':
                     self.fatal("""Config options are not valid.
@@ -187,18 +187,21 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
                 self.fatal("self.installer_url was found but symbols_url could not be determined")
         else:
             self.fatal("self.installer_url was not found in self.config") 
-        self.info("setting symbols_url as {0}".format(symbols_url))
+        self.info("setting symbols_url as %s" % (symbols_url))
         self.symbols_url = symbols_url
         return self.symbols_url
 
     def _query_suite_options(self, suite_category):
         config_suite_options = []
         if self.binary_path:
+
+            str_format_values = {
+                'binary_path' : self.binary_path,
+                'symbols_path' : self._query_symbols_url()
+            }
             if self.config['%s_options' % suite_category]:
                 for option in self.config['%s_options' % suite_category]:
-                    config_suite_options.append(option.format(
-                            binary_path=self.binary_path,
-                            symbols_path=self._query_symbols_url()))
+                    config_suite_options.append(option % str_format_values)
                 return config_suite_options
             else:
                 self.warning("""Suite options for %s could not be determined.
@@ -221,8 +224,8 @@ in your config under %s_options""" % suite_category, suite_category)
         # run all {category} suites. Anything else, run no suites.
 
         c = self.config
-        all_suites = c.get('all_{0}_suites'.format(category))
-        specified_suites = c.get('specified_{0}_suites'.format(category))
+        all_suites = c.get('all_%s_suites' % (category))
+        specified_suites = c.get('specified_%s_suites' % (category))
 
         suites = None
         if specified_suites:
@@ -265,16 +268,16 @@ in your config under %s_options""" % suite_category, suite_category)
         if not c.get('preflight_run_commands_disabled'):
             for suite in c['preflight_run_cmd_suites']:
                 if suite['enabled']:
-                    self.info("Running pre test command {name} with '{cmd}'".format(
-                        name=suite['name'],
-                        cmd=' '.join(suite['cmd'])))
+                    self.info("Running pre test command %(name)s with '%(cmd)s'" % {
+                        'name' : suite['name'],
+                        'cmd' : ' '.join(suite['cmd'])})
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
                             error_list=MakefileErrorList,
                             halt_on_failure=True)
         else:
             self.warning("""Proceeding without running prerun test commands.
-            These are often OS specific and disabling them may result in spurious test results!""")
+These are often OS specific and disabling them may result in spurious test results!""")
 
     def run_tests(self):
         self._run_category_suites('mochitest')
@@ -300,7 +303,8 @@ in your config under %s_options""" % suite_category, suite_category)
         dirs = self.query_abs_dirs()
 
         run_file = c['run_file_names'][suite_category]
-        base_cmd = ["python", dirs["abs_%s_dir" % suite_category] + "/" + run_file]
+        python = self.query_python_path('python')
+        base_cmd = [python, dirs["abs_%s_dir" % suite_category] + "/" + run_file]
         suite_options = self._query_suite_options(suite_category)
         suites = self._query_specified_suites(suite_category)
 
@@ -314,10 +318,10 @@ in your config under %s_options""" % suite_category, suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
                 # print cmd
+                # code = 0
                 code = self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=MakefileErrorList)
-                # code = 0
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:

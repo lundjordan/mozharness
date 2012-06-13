@@ -1,5 +1,5 @@
 #### OS Specifics ####
-APP_NAME_DIR = "FirefoxNightly.app"
+APP_NAME_DIR = "FirefoxNightly.app/Contents/MacOS"
 BINARY_PATH = "Contents/MacOS/firefox-bin"
 INSTALLER_PATH = "installer.dmg"
 XPCSHELL_NAME = 'xpcshell'
@@ -44,7 +44,7 @@ config = {
 
         "mochitest_options" : [
             "--appname=%(binary_path)s", "--utility-path=tests/bin",
-            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s"
+            "--extra-profile-file=tests/bin/plugins","--symbols-path=%(symbols_path)s",
             "--certificate-path=tests/certs", "--autorun", "--close-when-done",
             "--console-level=INFO"
         ],
@@ -81,6 +81,9 @@ config = {
         },
 
         "preflight_run_cmd_suites" : [
+                # TODO find out why I have to split these commands up rather
+                # then running them with '&&' inbetween. also is this adjusting
+                # the resolution correctly?
                 {
                     "name" : "get_screen_resolution",
                     "cmd" : [

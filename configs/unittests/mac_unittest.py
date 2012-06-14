@@ -27,7 +27,6 @@ config = {
     "exes": {
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-        'hg': 'c:/mozilla-build/hg/hg',
     },
 
 

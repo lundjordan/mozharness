@@ -189,7 +189,7 @@ class OSMixin(object):
                                     level=error_level)
                 return -1
 
-    def copy_tree(self, src, dest, overwrite='nothing', log_level=INFO,
+    def copytree(self, src, dest, overwrite='nothing', log_level=INFO,
             error_level=ERROR):
         """an implementation of shutil.copytree however it allows for
         dest to exist and implements differen't overwrite levels.
@@ -216,12 +216,12 @@ class OSMixin(object):
                     if not os.path.exists(abs_dest_f):
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='all')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='all')
                         else:
                             self.copyfile(abs_src_f, abs_dest_f)
                     elif overwrite == 'nothing': # and destination path exists
                         if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='nothing')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='nothing')
                         else:
                             self.debug('ignoring path: %s as destination: \
                                     %s exists' % (abs_src_f, abs_dest_f))
@@ -231,7 +231,7 @@ class OSMixin(object):
 
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copy_tree(abs_src_f, abs_dest_f, overwrite='corresponding')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='corresponding')
                         else:
                             self.copyfile(abs_src_f, abs_dest_f)
             else:
@@ -240,6 +240,12 @@ class OSMixin(object):
             self.dump_exception("There was an error while copying %s to %s!" % (src, dest),
                     level=error_level)
             return -1
+        try:
+            self.info('If not Windows, copying time stamps and access from src tree')
+            shutil.copystat(src, dest)
+        except OSError, why:
+            self.dump_exception("could not copy time/permissions for %s to %s \
+                    because %s!" % (src, dest, why))
 
 
     def write_to_file(self, file_path, contents, verbose=True,

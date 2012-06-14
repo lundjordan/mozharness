@@ -292,9 +292,9 @@ These are often OS specific and disabling them may result in spurious test resul
         self.mkdir_p(dirs['abs_app_plugins_dir'])
         self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
-        self.copy_tree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'],
+        self.copytree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'],
                 overwrite='corresponding')
-        self.copy_tree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
+        self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
                 overwrite='corresponding')
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):

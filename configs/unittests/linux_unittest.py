@@ -24,10 +24,10 @@ config = {
         "dest": "tools"
     }],
 
-    "exes": {
-        'python': '/tools/buildbot/bin/python',
-        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-    },
+    # "exes": {
+    #     'python': '/tools/buildbot/bin/python',
+    #     'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+    # },
 
 
     "run_file_names" : {

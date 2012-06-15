@@ -240,12 +240,6 @@ class OSMixin(object):
             self.dump_exception("There was an error while copying %s to %s!" % (src, dest),
                     level=error_level)
             return -1
-        try:
-            self.info('If not Windows, copying time stamps and access from src tree')
-            shutil.copystat(src, dest)
-        except OSError, why:
-            self.dump_exception("could not copy time/permissions for %s to %s \
-                    because %s!" % (src, dest, why))
 
 
     def write_to_file(self, file_path, contents, verbose=True,

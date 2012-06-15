@@ -14,6 +14,7 @@ author: Jordan Lund
 """
 
 import os, sys, copy
+from stat import S_IXUSR
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -292,6 +293,9 @@ These are often OS specific and disabling them may result in spurious test resul
         self.mkdir_p(dirs['abs_app_plugins_dir'])
         self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+        # chmod xpcshell to excutable.
+        # TODO look into shutil.copystat for copytree
+        self.chmod(os.path.join(dirs['abs_app_dir'], c['xpcshell_name']), S_IXUSR)
         self.copytree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'],
                 overwrite='corresponding')
         self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
@@ -317,11 +321,11 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-                # print cmd
-                # code = 0
-                code = self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList)
+                print cmd
+                code = 0
+                # code = self.run_command(cmd,
+                #         cwd=dirs['abs_work_dir'],
+                #         error_list=MakefileErrorList)
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:

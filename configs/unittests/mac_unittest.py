@@ -1,6 +1,6 @@
 #### OS Specifics ####
 APP_NAME_DIR = "FirefoxNightly.app/Contents/MacOS"
-BINARY_PATH = "Contents/MacOS/firefox-bin"
+BINARY_PATH = "firefox-bin"
 INSTALLER_PATH = "installer.dmg"
 XPCSHELL_NAME = 'xpcshell'
 ADJUST_SCREEN_RESOLUTION = True

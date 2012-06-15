@@ -77,7 +77,7 @@ config = {
 
     "all_xpcshell_suites" : {
         "xpcshell" : ["--manifest=tests/xpcshell/tests/all-test-dirs.list",
-                "application/firefox/" + XPCSHELL_NAME]
+            "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
 
     "preflight_run_cmd_suites" : [

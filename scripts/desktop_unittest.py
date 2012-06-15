@@ -321,11 +321,11 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-                print cmd
-                code = 0
-                # code = self.run_command(cmd,
-                #         cwd=dirs['abs_work_dir'],
-                #         error_list=MakefileErrorList)
+                # print cmd
+                # code = 0
+                code = self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=MakefileErrorList)
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:

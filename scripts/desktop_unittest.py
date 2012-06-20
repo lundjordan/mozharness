@@ -14,6 +14,7 @@ author: Jordan Lund
 """
 
 import os, sys, copy
+import shutil
 from stat import S_IXUSR
 
 # load modules from parent dir
@@ -312,7 +313,9 @@ These are often OS specific and disabling them may result in spurious test resul
         dirs = self.query_abs_dirs()
 
         self.mkdir_p(dirs['abs_app_plugins_dir'])
-        self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
+        self.info('copying %s to %s' % os.path.join(dirs['abs_test_bin_dir'],
+            c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+        shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
         # chmod xpcshell to excutable.
         # self.chmod(os.path.join(dirs['abs_app_dir'], c['xpcshell_name']), S_IXUSR)

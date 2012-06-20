@@ -156,7 +156,7 @@ class OSMixin(object):
                      exit_code=exit_code)
             return
         except urllib2.URLError, e:
-            self.log("URL Error: %s" % (url), level=error_level,
+            self.log("URL Error: %s %s" % (e.code, url), level=error_level,
                      exit_code=exit_code)
             return
         return file_name
@@ -195,20 +195,20 @@ class OSMixin(object):
         dest to exist and implements differen't overwrite levels.
         overwrite uses:
         'nothing' will keep all(any) existing files in destination tree
-        'corresponding' will only overwrite destination paths that have
+        'update' will only overwrite destination paths that have
                    the same path names relative to the root of the src and
                    destination tree
         'all' will replace the whole destination tree(clobber) if it exists"""
 
-        # TODO ask what is more appropriate then 'corresponding'
-        # ie: 'reciprocal', 'correlative', 'coequal',  'akin', 'parallel'
+        # TODO ask what is more appropriate then 'update'
+        # ie: 'reciprocal', 'correlative', 'coequal',  'akin', 'corresponding'
 
+        self.info('copying tree: %s to %s' % (src, dest))
         try:
             if overwrite == 'all':
                 self.rmtree(dest)
-                self.info('copying tree: %s to %s' % (src, dest))
                 shutil.copytree(src, dest)
-            elif overwrite == 'nothing' or overwrite == 'corresponding':
+            elif overwrite == 'nothing' or overwrite == 'update':
                 files = os.listdir(src)
                 for f in files:
                     abs_src_f = os.path.join(src, f)
@@ -218,22 +218,22 @@ class OSMixin(object):
                             self.mkdir_p(abs_dest_f)
                             self.copytree(abs_src_f, abs_dest_f, overwrite='all')
                         else:
-                            self.copyfile(abs_src_f, abs_dest_f)
+                            self.copy2(abs_src_f, abs_dest_f)
                     elif overwrite == 'nothing': # and destination path exists
                         if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
                             self.copytree(abs_src_f, abs_dest_f, overwrite='nothing')
                         else:
                             self.debug('ignoring path: %s as destination: \
                                     %s exists' % (abs_src_f, abs_dest_f))
-                    else: # overwrite == 'corresponding' and destination path exists
+                    else: # overwrite == 'update' and destination path exists
                         self.debug('overwriting: %s with: %s' % (abs_dest_f, abs_src_f))
                         self.rmtree(abs_dest_f)
 
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='corresponding')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='update')
                         else:
-                            self.copyfile(abs_src_f, abs_dest_f)
+                            self.copy2(abs_src_f, abs_dest_f)
             else:
                 self.fatal("%s is not a valid argument for param overwrite" % (overwrite))
         except (IOError, shutil.Error):

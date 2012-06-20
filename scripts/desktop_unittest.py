@@ -18,12 +18,11 @@ from stat import S_IXUSR
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
-
-from mozharness.base.errors import MakefileErrorList
+from mozharness.base.errors import PythonErrorList, BaseErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
-from mozharness.base.log import INFO, ERROR
+from mozharness.base.log import INFO, ERROR, WARNING, DEBUG
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
 
@@ -82,6 +81,13 @@ in the config file under: preflight_run_cmd_suites""",
             }
             ],
     ] + copy.deepcopy(testing_config_options)
+
+    error_list = [
+        {'substr': r'''UNITTEST TEST-UNEXPECTED-FAIL''', 'level': ERROR},
+        {'substr': r'''UNITTEST ERROR''', 'level': ERROR},
+        {'substr': r'''UNITTEST WARNING''', 'level': WARNING},
+        {'substr': r'''UNITTEST DEBUG''', 'level': DEBUG},
+    ]
 
     virtualenv_modules = [
      'simplejson',
@@ -154,8 +160,10 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
 
         dirs['abs_test_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_test_bin_dir'] = os.path.join(dirs['abs_test_install_dir'], 'bin')
-        dirs['abs_test_bin_plugins_dir'] = os.path.join(dirs['abs_test_bin_dir'], 'plugins')
-        dirs['abs_test_bin_components_dir'] = os.path.join(dirs['abs_test_bin_dir'], 'components')
+        dirs['abs_test_bin_plugins_dir'] = os.path.join(dirs['abs_test_bin_dir'],
+                'plugins')
+        dirs['abs_test_bin_components_dir'] = os.path.join(dirs['abs_test_bin_dir'],
+                'components')
 
         dirs['abs_mochitest_dir'] = os.path.join(dirs['abs_test_install_dir'], "mochitest")
         dirs['abs_reftest_dir'] = os.path.join(dirs['abs_test_install_dir'], "reftest")
@@ -183,27 +191,36 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
         if self.installer_url:
             for ext in ['.zip', '.dmg', '.tar.bz2']:
                 if ext in self.installer_url:
-                    symbols_url = self.installer_url.replace(ext, '.crashreporter-symbols.zip')
+                    symbols_url = self.installer_url.replace(
+                            ext, '.crashreporter-symbols.zip')
             if not symbols_url:
-                self.fatal("self.installer_url was found but symbols_url could not be determined")
+                self.fatal("self.installer_url was found but symbols_url could \
+                        not be determined")
         else:
             self.fatal("self.installer_url was not found in self.config") 
         self.info("setting symbols_url as %s" % (symbols_url))
         self.symbols_url = symbols_url
         return self.symbols_url
 
-    def _query_suite_options(self, suite_category):
-        config_suite_options = []
+    def _query_abs_base_cmd(self, suite_category):
         if self.binary_path:
-
+            c = self.config
+            dirs = self.query_abs_dirs()
+            options = []
+            run_file = c['run_file_names'][suite_category]
+            python = [self.query_python_path('python')]
+            if suite_category == 'xpcshell':
+                python.append('-u')
+            base_cmd = python.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
             str_format_values = {
                 'binary_path' : self.binary_path,
                 'symbols_path' : self._query_symbols_url()
             }
             if self.config['%s_options' % suite_category]:
                 for option in self.config['%s_options' % suite_category]:
-                    config_suite_options.append(option % str_format_values)
-                return config_suite_options
+                    options.append(option % str_format_values)
+                abs_base_cmd = base_cmd.extend(options)
+                return abs_base_cmd
             else:
                 self.warning("""Suite options for %s could not be determined.
 If you meant to have options for this suite, please make sure they are specified
@@ -239,6 +256,8 @@ in your config under %s_options""" % suite_category, suite_category)
             if c.get('run_all_suites'):
                 suites = [value for value in all_suites.values()]
 
+        if not suites:
+            self.fatal("could not determine any suites for %s tests" % category)
         return suites
 
     # Actions {{{2
@@ -274,13 +293,15 @@ in your config under %s_options""" % suite_category, suite_category)
                         'cmd' : ' '.join(suite['cmd'])})
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
-                            error_list=MakefileErrorList,
+                            error_list=BaseErrorList,
                             halt_on_failure=False)
         else:
             self.warning("""Proceeding without running prerun test commands.
 These are often OS specific and disabling them may result in spurious test results!""")
 
     def run_tests(self):
+        self.error_list.extend(PythonErrorList)
+
         self._run_category_suites('mochitest')
         self._run_category_suites('reftest')
         self._run_category_suites('xpcshell',
@@ -294,56 +315,51 @@ These are often OS specific and disabling them may result in spurious test resul
         self.copyfile(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
         # chmod xpcshell to excutable.
-        # TODO look into shutil.copystat for copytree
-        self.chmod(os.path.join(dirs['abs_app_dir'], c['xpcshell_name']), S_IXUSR)
-        self.copytree(dirs['abs_test_bin_components_dir'], dirs['abs_app_components_dir'],
-                overwrite='corresponding')
+        # self.chmod(os.path.join(dirs['abs_app_dir'], c['xpcshell_name']), S_IXUSR)
+        self.copytree(dirs['abs_test_bin_components_dir'],
+                dirs['abs_app_components_dir'], overwrite='update')
         self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
-                overwrite='corresponding')
+                overwrite='update')
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
-        c = self.config
         dirs = self.query_abs_dirs()
 
-        run_file = c['run_file_names'][suite_category]
-        python = self.query_python_path('python')
-        base_cmd = [python, dirs["abs_%s_dir" % suite_category] + "/" + run_file]
-        suite_options = self._query_suite_options(suite_category)
+        abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
 
-        abs_base_cmd = base_cmd + suite_options
+        if preflight_run_method:
+            preflight_run_method()
 
-        if suites:
-            if preflight_run_method:
-                preflight_run_method()
+        self.info('#### Running %s suites' % suite_category)
+        for num in range(len(suites)):
+            cmd =  abs_base_cmd + suites[num]
+            # print cmd
+            # code = 0
 
-            self.info('#### Running %s suites' % suite_category)
-            for num in range(len(suites)):
-                cmd =  abs_base_cmd + suites[num]
-                # print cmd
-                # code = 0
-                code = self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=MakefileErrorList)
-                tbpl_status = TBPL_SUCCESS
-                level = INFO
-                if code == 0:
-                    status = "success"
-                elif code == 1:
-                    status = "test failures"
-                    tbpl_status = TBPL_WARNING
-                else:
-                    status = "harness failure"
-                    tbpl_status = TBPL_FAILURE
-                    level = ERROR
-                self.add_summary("The %s suite: %s test ran with return code %s: %s" % (suite_category,
-                        suites[num], code, status), level=level)
+            code = self.run_command(cmd,
+                    cwd=dirs['abs_work_dir'],
+                    error_list=self.error_list)
+            tbpl_status = TBPL_SUCCESS
+            level = INFO
+            if code == 0:
+                status = "success"
+            elif code == 1:
+                status = "test failures"
+                tbpl_status = TBPL_WARNING
+            else:
+                status = "harness failure"
+                tbpl_status = TBPL_FAILURE
+                level = ERROR
+            self.add_summary("The %s suite: %s test ran with return code \
+                    %s: %s" % (suite_category, suites[num], code, status),
+                    level=level)
 
-                # TODO find out when I should be displaying tbpl status. Should
-                # this be done if its a developer running the script?
-                if 'read-buildbot-config' in self.actions:
-                    self.buildbot_status(tbpl_status)
+            # TODO find out when I should be displaying tbpl status. Should
+            # this be done if its a developer running the script? how is this
+            # different from the add_summary above?
+            if 'read-buildbot-config' in self.actions:
+                self.buildbot_status(tbpl_status)
 
 
 

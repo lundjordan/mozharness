@@ -7,15 +7,12 @@
 """desktop_unittest.py
 
 The goal of this is to extract the unittestng from buildbot's factory.py
-for any Mozilla desktop applictation(my goal
-and subject to change upon review)
 
 author: Jordan Lund
 """
 
 import os, sys, copy
 import shutil
-from stat import S_IXUSR
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -25,10 +22,11 @@ from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_opt
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
 from mozharness.base.log import INFO, ERROR, WARNING, DEBUG
 
-SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
 
 # DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
+
+    suite_categories = ['mochitest', 'reftest', 'xpcshell']
 
     config_options = [
         [['--mochitest-suite',],
@@ -41,7 +39,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"""
             }
         ],
-
         [['--reftest-suite',],
             {
                 "action" : "append",
@@ -80,7 +77,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 "help": """This will disable any run commands that are specified
 in the config file under: preflight_run_cmd_suites""",
             }
-            ],
+        ]
     ] + copy.deepcopy(testing_config_options)
 
     error_list = [
@@ -278,24 +275,18 @@ in your config under %s_options""" % suite_category, suite_category)
         optimizes which subfolders to extract from tests zip
         """
         c = self.config
-        unzip_dirs = ['bin/*', 'certs/*', 'modules/*', 'mozbase/*']
-        all_categories = {
-            'mochitest' : ['mochitest/*'],
-            'reftest' : ['reftest/*', 'jsreftest/*'],
-            'xpcshell' : ['xpcshell/*']
-            }
+        unzip_tests_dirs = None
 
-        if c['run_all_suites']:
-            for category in all_categories.keys():
-                unzip_dirs.extend(all_categories[category])
-        else:
-            for category in all_categories.keys():
-                if self._query_specified_suites(category):
-                    unzip_dirs.extend(all_categories[category])
+        if c['specific_tests_zip_dirs']:
+            unzip_tests_dirs = c['minimum_tests_zip_dirs']
+            for category in c['specific_tests_zip_dirs'].keys():
+                if c['run_all_suites'] or self._query_specified_suites(category) \
+                        or 'run-tests' not in self.actions:
+                    unzip_tests_dirs.extend(c['specific_tests_zip_dirs'][category])
 
         if self.test_url:
             self._download_test_zip()
-            self._extract_test_zip(target_unzip_dirs=unzip_dirs)
+            self._extract_test_zip(target_unzip_dirs=unzip_tests_dirs)
         self._download_installer()
 
     def pull(self):
@@ -343,8 +334,6 @@ These are often OS specific and disabling them may result in spurious test resul
             c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])))
         shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
-        # chmod xpcshell to excutable.
-        # self.chmod(os.path.join(dirs['abs_app_dir'], c['xpcshell_name']), S_IXUSR)
         self.copytree(dirs['abs_test_bin_components_dir'],
                 dirs['abs_app_components_dir'], overwrite='update')
         self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],

@@ -100,7 +100,6 @@ in the config file under: preflight_run_cmd_suites""",
      {'mozprofile': os.path.join('tests', 'mozbase', 'mozprofile')},
      {'mozprocess': os.path.join('tests', 'mozbase', 'mozprocess')},
      {'mozrunner': os.path.join('tests', 'mozbase', 'mozrunner')},
-     {'peptest': os.path.join('tests', 'peptest')},
     ]
 
     def __init__(self, require_config_file=True):
@@ -275,17 +274,24 @@ in your config under %s_options""" % suite_category, suite_category)
 
     def download_and_extract(self):
         """
-        Create virtualenv and install dependencies
+        download and extract test zip / download installer
+        optimizes which subfolders to extract from tests zip
         """
         c = self.config
-        unzip_dirs = ['bin/*', 'certs/*', 'modules/*']
+        unzip_dirs = ['bin/*', 'certs/*', 'modules/*', 'mozbase/*']
+        all_categories = {
+            'mochitest' : ['mochitest/*'],
+            'reftest' : ['reftest/*', 'jsreftest/*'],
+            'xpcshell' : ['xpcshell/*']
+            }
 
         if c['run_all_suites']:
-            unzip_dirs.extend(['mochitest/*', 'reftest/*', 'xpcshell/*'])
+            for category in all_categories.keys():
+                unzip_dirs.extend(all_categories[category])
         else:
-            for category in ['mochitest', 'reftest', 'xpcshell']:
+            for category in all_categories.keys():
                 if self._query_specified_suites(category):
-                    unzip_dirs.append(category + '/*')
+                    unzip_dirs.extend(all_categories[category])
 
         if self.test_url:
             self._download_test_zip()
@@ -333,8 +339,8 @@ These are often OS specific and disabling them may result in spurious test resul
         dirs = self.query_abs_dirs()
 
         self.mkdir_p(dirs['abs_app_plugins_dir'])
-        self.info('copying %s to %s' % os.path.join(dirs['abs_test_bin_dir'],
-            c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+        self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
+            c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])))
         shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
             os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
         # chmod xpcshell to excutable.
@@ -365,6 +371,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 code = self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=self.error_list)
+
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:

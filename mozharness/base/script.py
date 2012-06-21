@@ -218,7 +218,7 @@ class OSMixin(object):
                             self.mkdir_p(abs_dest_f)
                             self.copytree(abs_src_f, abs_dest_f, overwrite='all')
                         else:
-                            self.copy2(abs_src_f, abs_dest_f)
+                            shutil.copy2(abs_src_f, abs_dest_f)
                     elif overwrite == 'nothing': # and destination path exists
                         if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
                             self.copytree(abs_src_f, abs_dest_f, overwrite='nothing')
@@ -233,7 +233,7 @@ class OSMixin(object):
                             self.mkdir_p(abs_dest_f)
                             self.copytree(abs_src_f, abs_dest_f, overwrite='update')
                         else:
-                            self.copy2(abs_src_f, abs_dest_f)
+                            shutil.copy2(abs_src_f, abs_dest_f)
             else:
                 self.fatal("%s is not a valid argument for param overwrite" % (overwrite))
         except (IOError, shutil.Error):

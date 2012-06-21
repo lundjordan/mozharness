@@ -154,7 +154,7 @@ You can set this by:
 
     def download_and_extract(self):
         """
-        Create virtualenv and install dependencies
+        download and extract test zip / download installer
         """
         if self.test_url:
             self._download_test_zip()

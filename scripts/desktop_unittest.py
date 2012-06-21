@@ -209,10 +209,12 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
             dirs = self.query_abs_dirs()
             options = []
             run_file = c['run_file_names'][suite_category]
-            python = [self.query_python_path('python')]
+            base_cmd = [self.query_python_path('python')]
+            # TODO in buildbot only xpcshell is run with the '-u' (force stdin)
+            # flag? should all unittests be run with this in mozharness?
             if suite_category == 'xpcshell':
-                python.append('-u')
-            base_cmd = python.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
+                base_cmd.append('-u')
+            base_cmd.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
             str_format_values = {
                 'binary_path' : self.binary_path,
                 'symbols_path' : self._query_symbols_url()
@@ -220,7 +222,7 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
             if self.config['%s_options' % suite_category]:
                 for option in self.config['%s_options' % suite_category]:
                     options.append(option % str_format_values)
-                abs_base_cmd = base_cmd.extend(options)
+                abs_base_cmd = base_cmd + options
                 return abs_base_cmd
             else:
                 self.warning("""Suite options for %s could not be determined.
@@ -245,8 +247,8 @@ in your config under %s_options""" % suite_category, suite_category)
         c = self.config
         all_suites = c.get('all_%s_suites' % (category))
         specified_suites = c.get('specified_%s_suites' % (category))
-
         suites = None
+
         if specified_suites:
             if 'all' in specified_suites:
                 suites = [value for value in all_suites.values()]
@@ -257,9 +259,9 @@ in your config under %s_options""" % suite_category, suite_category)
             if c.get('run_all_suites'):
                 suites = [value for value in all_suites.values()]
 
-        if not suites:
-            self.fatal("could not determine any suites for %s tests" % category)
         return suites
+
+    # this is a new line
 
     # Actions {{{2
 
@@ -267,10 +269,28 @@ in your config under %s_options""" % suite_category, suite_category)
     # read_buildbot_config is in BuildbotMixin.
     # postflight_read_buildbot_config is in TestingMixin.
     # preflight_download_and_extract is in TestingMixin.
-    # download_and_extract is in TestingMixin.
     # create_virtualenv is in VirtualenvMixin.
     # preflight_install is in TestingMixin.
     # install is in TestingMixin.
+
+    def download_and_extract(self):
+        """
+        Create virtualenv and install dependencies
+        """
+        c = self.config
+        unzip_dirs = ['bin/*', 'certs/*', 'modules/*']
+
+        if c['run_all_suites']:
+            unzip_dirs.extend(['mochitest/*', 'reftest/*', 'xpcshell/*'])
+        else:
+            for category in ['mochitest', 'reftest', 'xpcshell']:
+                if self._query_specified_suites(category):
+                    unzip_dirs.append(category + '/*')
+
+        if self.test_url:
+            self._download_test_zip()
+            self._extract_test_zip(target_unzip_dirs=unzip_dirs)
+        self._download_installer()
 
     def pull(self):
         dirs = self.query_abs_dirs()
@@ -334,37 +354,39 @@ These are often OS specific and disabling them may result in spurious test resul
         if preflight_run_method:
             preflight_run_method()
 
-        self.info('#### Running %s suites' % suite_category)
-        for num in range(len(suites)):
-            cmd =  abs_base_cmd + suites[num]
-            # print cmd
-            # code = 0
+        if suites:
+            self.info('#### Running %s suites' % suite_category)
+            for num in range(len(suites)):
+                cmd =  abs_base_cmd + suites[num]
 
-            code = self.run_command(cmd,
-                    cwd=dirs['abs_work_dir'],
-                    error_list=self.error_list)
-            tbpl_status = TBPL_SUCCESS
-            level = INFO
-            if code == 0:
-                status = "success"
-            elif code == 1:
-                status = "test failures"
-                tbpl_status = TBPL_WARNING
-            else:
-                status = "harness failure"
-                tbpl_status = TBPL_FAILURE
-                level = ERROR
-            self.add_summary("The %s suite: %s test ran with return code \
-                    %s: %s" % (suite_category, suites[num], code, status),
-                    level=level)
+                # print cmd
+                # code = 0
 
-            # TODO find out when I should be displaying tbpl status. Should
-            # this be done if its a developer running the script? how is this
-            # different from the add_summary above?
-            if 'read-buildbot-config' in self.actions:
-                self.buildbot_status(tbpl_status)
+                code = self.run_command(cmd,
+                        cwd=dirs['abs_work_dir'],
+                        error_list=self.error_list)
+                tbpl_status = TBPL_SUCCESS
+                level = INFO
+                if code == 0:
+                    status = "success"
+                elif code == 1:
+                    status = "test failures"
+                    tbpl_status = TBPL_WARNING
+                else:
+                    status = "harness failure"
+                    tbpl_status = TBPL_FAILURE
+                    level = ERROR
+                self.add_summary("The %s suite: %s test ran with return code \
+                        %s: %s" % (suite_category, suites[num], code, status),
+                        level=level)
 
-
+                # TODO find out when I should be displaying tbpl status. Should
+                # this be done if its a developer running the script? how is this
+                # different from the add_summary above?
+                if 'read-buildbot-config' in self.actions:
+                    self.buildbot_status(tbpl_status)
+        else:
+            pass # no suites in that category
 
 # main {{{1
 if __name__ == '__main__':

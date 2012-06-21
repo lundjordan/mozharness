@@ -130,15 +130,17 @@ You can set this by:
                                     error_level=FATAL)
         self.test_zip_path = os.path.realpath(source)
 
-    def _extract_test_zip(self):
+    def _extract_test_zip(self, target_unzip_dirs=None):
         dirs = self.query_abs_dirs()
         unzip = self.query_exe("unzip")
         test_install_dir = dirs.get('abs_test_install_dir',
                                     os.path.join(dirs['abs_work_dir'], 'tests'))
         self.mkdir_p(test_install_dir)
+        unzip_cmd = [unzip, self.test_zip_path]
+        if target_unzip_dirs:
+            unzip_cmd.extend(target_unzip_dirs)
         # TODO error_list
-        self.run_command([unzip, self.test_zip_path],
-                         cwd=test_install_dir)
+        self.run_command(unzip_cmd, cwd=test_install_dir)
 
     def _download_installer(self):
         file_name = None

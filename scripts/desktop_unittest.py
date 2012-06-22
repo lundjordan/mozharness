@@ -23,10 +23,11 @@ from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
 from mozharness.base.log import INFO, ERROR, WARNING, DEBUG
 
 
+SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
+
 # DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
 
-    suite_categories = ['mochitest', 'reftest', 'xpcshell']
 
     config_options = [
         [['--mochitest-suite',],

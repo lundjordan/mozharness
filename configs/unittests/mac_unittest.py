@@ -77,20 +77,21 @@ config = {
             {
                 "name" : "get_screen_resolution",
                 "cmd" : [
-                    "screenresolution", "get"                    ],
+                    "bash", "-c", "screenresolution get"
+                ],
                 "enabled" : ADJUST_SCREEN_RESOLUTION
             },
             {
                 "name" : "list_screen_resolution",
                 "cmd" : [
-                    "screenresolution", "list"
+                    "bash", "-c", "screenresolution list"
                 ],
                 "enabled" : ADJUST_SCREEN_RESOLUTION
             },
             {
                 "name" : "system_profiler_spdisplay_data_type",
                 "cmd" : [
-                    "system_profiler", "SPDisplaysDataType"
+                    "bash", "-c", "system_profiler SPDisplaysDataType"
                 ],
                 "enabled" : ADJUST_SCREEN_RESOLUTION
             },

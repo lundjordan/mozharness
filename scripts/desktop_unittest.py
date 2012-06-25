@@ -86,7 +86,7 @@ in the config file under: preflight_run_cmd_suites""",
         {'substr': r'''UNITTEST ERROR''', 'level': ERROR},
         {'substr': r'''UNITTEST WARNING''', 'level': WARNING},
         {'substr': r'''UNITTEST DEBUG''', 'level': DEBUG},
-    ]
+    ] + PythonErrorList
 
     virtualenv_modules = [
      'simplejson',
@@ -313,13 +313,12 @@ in your config under %s_options""" % suite_category, suite_category)
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
                             error_list=BaseErrorList,
-                            halt_on_failure=False)
+                            halt_on_failure=True)
         else:
             self.warning("""Proceeding without running prerun test commands.
 These are often OS specific and disabling them may result in spurious test results!""")
 
     def run_tests(self):
-        self.error_list.extend(PythonErrorList)
 
         self._run_category_suites('mochitest')
         self._run_category_suites('reftest')

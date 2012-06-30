@@ -424,8 +424,15 @@ class ShellMixin(object):
         shell = True
         if isinstance(command, list):
             shell = False
-        p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
+        try:
+            p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
                              cwd=cwd, stderr=subprocess.STDOUT, env=env)
+        except OSError as e:
+            if halt_on_failure:
+                level = FATAL
+            self.log('caught OS error %s: %s while running %s' % (e.errno,
+                    e.strerror, command))
+            return -1
         parser = OutputParser(config=self.config, log_obj=self.log_obj,
                               error_list=error_list)
         loop = True

@@ -313,7 +313,7 @@ in your config under %s_options""" % suite_category, suite_category)
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
                             error_list=BaseErrorList,
-                            halt_on_failure=True)
+                            halt_on_failure=False)
         else:
             self.warning("""Proceeding without running prerun test commands.
 These are often OS specific and disabling them may result in spurious test results!""")
@@ -354,7 +354,7 @@ These are often OS specific and disabling them may result in spurious test resul
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
 
-                # print cmd
+                print cmd
                 # code = 0
 
                 code = self.run_command(cmd,
@@ -382,7 +382,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 if 'read-buildbot-config' in self.actions:
                     self.buildbot_status(tbpl_status)
         else:
-            pass # no suites in that category
+            self.debug('There were no suites to run for %s' % suite_category)
 
 # main {{{1
 if __name__ == '__main__':

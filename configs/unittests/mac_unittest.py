@@ -82,7 +82,9 @@ config = {
             #TODO add error list to this (global errors from buildbot)
             "name" : "run mouse & screen adjustment script",
             "cmd" : [
-                "python",
+                # when configs are consolidated this python path will only show
+                # for windows.
+                "C:\\mozilla-build\\python25\\python.exe",
                 "tools/scripts/support/mouse_and_screen_resolution.py",
                 "--configuration-url",
                 "http://hg.mozilla.org/mozilla-central/raw/tip/" + \

@@ -11,8 +11,8 @@ The goal of this is to extract the unittestng from buildbot's factory.py
 author: Jordan Lund
 """
 
-import os, sys, copy, re
-import shutil
+import os, sys, copy, platform
+import shutil, re
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -85,7 +85,7 @@ in the config file under: preflight_run_cmd_suites""",
             {'regex': re.compile(r'''^TEST-UNEXPECTED-FAIL'''), 'level': WARNING,
                 'explanation' : "this unittest unexpectingly failed. This is a harness error"},
         {'regex': re.compile(r'''^\tFailed: [^0]'''), 'level': WARNING,
-                'explanation' : "1 or more unittests failed"},
+               'explanation' : "1 or more unittests failed"},
         {'regex': re.compile(r'''^\d+ INFO Failed: [^0]'''), 'level': WARNING,
                 'explanation' : "1 or more unittests failed"},
     ] + PythonErrorList
@@ -308,14 +308,22 @@ in your config under %s_options""" % suite_category, suite_category)
 
         if not c.get('preflight_run_commands_disabled'):
             for suite in c['preflight_run_cmd_suites']:
-                if suite['enabled']:
+                # XXX platform.architecture() may give incorrect values for some
+                # platforms like mac as excutable files may be universal
+                # files containing multiple architectures
+                if suite['enabled'] and \
+                        platform.architecture()[0] in suite['architectures']:
+                    # TODO find a neater way to set appropriate python path
+                    if suite['cmd'][0] == 'python':
+                        suite['cmd'][0] = self.query_python_path('python')
+
                     self.info("Running pre test command %(name)s with '%(cmd)s'" % {
                         'name' : suite['name'],
                         'cmd' : ' '.join(suite['cmd'])})
                     self.run_command(suite['cmd'],
                             cwd=dirs['abs_work_dir'],
                             error_list=BaseErrorList,
-                            halt_on_failure=False)
+                            halt_on_failure=suite['halt_on_failure'])
         else:
             self.warning("""Proceeding without running prerun test commands.
 These are often OS specific and disabling them may result in spurious test results!""")
@@ -378,7 +386,8 @@ These are often OS specific and disabling them may result in spurious test resul
                         %s: %s" % (suite_category, suites[num], code, status),
                         level=level)
 
-                # this is in here since 
+                # this if is in here since a developer will not be using
+                # buildbot
                 if 'read-buildbot-config' in self.actions:
                     self.buildbot_status(tbpl_status)
         else:

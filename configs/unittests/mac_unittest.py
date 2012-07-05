@@ -3,8 +3,8 @@ APP_NAME_DIR = "FirefoxNightly.app/Contents/MacOS"
 BINARY_PATH = "firefox-bin"
 INSTALLER_PATH = "installer.dmg"
 XPCSHELL_NAME = 'xpcshell'
-ADJUST_SCREEN_RESOLUTION = True
 DISABLE_SCREEN_SAVER = False
+ADJUST_MOUSE_AND_SCREEN = False
 #####
 config = {
     "app_name_dir" : APP_NAME_DIR,
@@ -71,29 +71,25 @@ config = {
             "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
     "preflight_run_cmd_suites" : [
-            # TODO find out why I have to split these commands up rather
-            # then running them with '&&' inbetween. also is this adjusting
-            # the resolution correctly?
-            {
-                "name" : "get_screen_resolution",
-                "cmd" : [
-                    "screenresolution", "get"
-                ],
-                "enabled" : ADJUST_SCREEN_RESOLUTION
-            },
-            {
-                "name" : "list_screen_resolution",
-                "cmd" : [
-                    "screenresolution", "list"
-                ],
-                "enabled" : ADJUST_SCREEN_RESOLUTION
-            },
-            {
-                "name" : "system_profiler_spdisplay_data_type",
-                "cmd" : [
-                    "system_profiler", "SPDisplaysDataType"
-                ],
-                "enabled" : ADJUST_SCREEN_RESOLUTION
-            },
+        {
+            "name" : "disable_screen_saver",
+            "cmd" : ["xset", "s", "reset"],
+            "architectures" : ["32bit", "64bit"],
+            "halt_on_failure" : False,
+            "enabled" : DISABLE_SCREEN_SAVER
+        },
+        {
+            #TODO add error list to this (global errors from buildbot)
+            "name" : "run mouse & screen adjustment script",
+            "cmd" : [
+                "python",
+                "tools/scripts/support/mouse_and_screen_resolution.py",
+                "--configuration-url",
+                "http://hg.mozilla.org/mozilla-central/raw/tip/" + \
+                        "testing/machine-configuration.json"],
+            "architectures" : ["32bit"],
+            "halt_on_failure" : True,
+            "enabled" : ADJUST_MOUSE_AND_SCREEN
+        },
     ],
 }

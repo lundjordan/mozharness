@@ -427,7 +427,7 @@ class ShellMixin(object):
         try:
             p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
                              cwd=cwd, stderr=subprocess.STDOUT, env=env)
-        except OSError as e:
+        except OSError, e:
             if halt_on_failure:
                 level = FATAL
             self.log('caught OS error %s: %s while running %s' % (e.errno,

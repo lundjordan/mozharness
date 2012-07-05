@@ -11,7 +11,7 @@ The goal of this is to extract the unittestng from buildbot's factory.py
 author: Jordan Lund
 """
 
-import os, sys, copy
+import os, sys, copy, re
 import shutil
 
 # load modules from parent dir
@@ -82,10 +82,12 @@ in the config file under: preflight_run_cmd_suites""",
     ] + copy.deepcopy(testing_config_options)
 
     error_list = [
-        {'substr': r'''UNITTEST TEST-UNEXPECTED-FAIL''', 'level': ERROR},
-        {'substr': r'''UNITTEST ERROR''', 'level': ERROR},
-        {'substr': r'''UNITTEST WARNING''', 'level': WARNING},
-        {'substr': r'''UNITTEST DEBUG''', 'level': DEBUG},
+            {'regex': re.compile(r'''^TEST-UNEXPECTED-FAIL'''), 'level': WARNING,
+                'explanation' : "this unittest unexpectingly failed. This is a harness error"},
+        {'regex': re.compile(r'''^\tFailed: [^0]'''), 'level': WARNING,
+                'explanation' : "1 or more unittests failed"},
+        {'regex': re.compile(r'''^\d+ INFO Failed: [^0]'''), 'level': WARNING,
+                'explanation' : "1 or more unittests failed"},
     ] + PythonErrorList
 
     virtualenv_modules = [
@@ -354,7 +356,7 @@ These are often OS specific and disabling them may result in spurious test resul
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
 
-                print cmd
+                # print cmd
                 # code = 0
 
                 code = self.run_command(cmd,
@@ -376,9 +378,7 @@ These are often OS specific and disabling them may result in spurious test resul
                         %s: %s" % (suite_category, suites[num], code, status),
                         level=level)
 
-                # TODO find out when I should be displaying tbpl status. Should
-                # this be done if its a developer running the script? how is this
-                # different from the add_summary above?
+                # this is in here since 
                 if 'read-buildbot-config' in self.actions:
                     self.buildbot_status(tbpl_status)
         else:

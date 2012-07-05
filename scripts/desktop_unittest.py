@@ -313,14 +313,15 @@ in your config under %s_options""" % suite_category, suite_category)
                 # files containing multiple architectures
                 if suite['enabled'] and \
                         platform.architecture()[0] in suite['architectures']:
-                    # TODO find a neater way to set appropriate python path
-                    if suite['cmd'][0] == 'python':
-                        suite['cmd'][0] = self.query_python_path('python')
 
                     self.info("Running pre test command %(name)s with '%(cmd)s'" % {
                         'name' : suite['name'],
                         'cmd' : ' '.join(suite['cmd'])})
-                    self.run_command(suite['cmd'],
+                    # TODO rather then checking for formatting on every string
+                    # in every preflight enabled cmd: find a better solution!
+                    # maybe I can implement WithProperties in mozharness?
+                    cmd = [x % (self.buildbot_config['properties']) for x in suite['cmd']]
+                    self.run_command(cmd,
                             cwd=dirs['abs_work_dir'],
                             error_list=BaseErrorList,
                             halt_on_failure=suite['halt_on_failure'])

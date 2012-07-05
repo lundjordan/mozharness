@@ -85,10 +85,9 @@ config = {
             "cmd" : [
                 # when configs are consolidated this python path will only show
                 # for windows.
-                "C:\\mozilla-build\\python25\\python.exe",
-                "tools/scripts/support/mouse_and_screen_resolution.py",
+                "python", "tools/scripts/support/mouse_and_screen_resolution.py",
                 "--configuration-url",
-                "http://hg.mozilla.org/mozilla-central/raw/tip/" + \
+                "http://hg.mozilla.org/%(branch)s/%(revision)s/" + \
                         "testing/machine-configuration.json"],
             "architectures" : ["32bit"],
             "halt_on_failure" : True,

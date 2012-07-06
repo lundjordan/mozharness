@@ -20,7 +20,7 @@ from mozharness.base.errors import PythonErrorList, BaseErrorList
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
-from mozharness.base.log import INFO, ERROR, WARNING, DEBUG
+from mozharness.base.log import INFO, ERROR, WARNING
 
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
@@ -232,8 +232,8 @@ in your config under %s_options""" % suite_category, suite_category)
             This should be something like '/root/path/with/build/application/firefox/firefox-bin'
             If you are running this script without the 'install' action (where binary_path is set),
             Please make sure you are either:
-                    (1) specifing it in the config file under binary_path
-                    (2) specifing it on command line with the '--binary-path' flag""")
+                    (1) specifying it in the config file under binary_path
+                    (2) specifying it on command line with the '--binary-path' flag""")
 
 
     def _query_specified_suites(self, category):
@@ -311,6 +311,7 @@ in your config under %s_options""" % suite_category, suite_category)
                 # XXX platform.architecture() may give incorrect values for some
                 # platforms like mac as excutable files may be universal
                 # files containing multiple architectures
+                # NOTE 'enabled' is only here while we have unconsolidated configs
                 if suite['enabled'] and \
                         platform.architecture()[0] in suite['architectures']:
 
@@ -364,14 +365,11 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-
-                # print cmd
-                # code = 0
-
                 code = self.run_command(cmd,
                         cwd=dirs['abs_work_dir'],
                         error_list=self.error_list)
 
+                #### WIP warning colors not implemented
                 tbpl_status = TBPL_SUCCESS
                 level = INFO
                 if code == 0:
@@ -386,6 +384,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 self.add_summary("The %s suite: %s test ran with return code \
                         %s: %s" % (suite_category, suites[num], code, status),
                         level=level)
+                ####
 
                 # this if is in here since a developer will not be using
                 # buildbot

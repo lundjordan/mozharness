@@ -17,6 +17,7 @@ import shutil, re
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import PythonErrorList, BaseErrorList
+from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
@@ -82,8 +83,8 @@ in the config file under: preflight_run_cmd_suites""",
     ] + copy.deepcopy(testing_config_options)
 
     error_list = [
-            {'regex': re.compile(r'''^TEST-UNEXPECTED-FAIL'''), 'level': WARNING,
-                'explanation' : "this unittest unexpectingly failed. This is a harness error"},
+        {'regex': re.compile(r'''^TEST-UNEXPECTED-FAIL'''), 'level': WARNING,
+            'explanation' : "this unittest unexpectingly failed. This is a harness error"},
         {'regex': re.compile(r'''^\tFailed: [^0]'''), 'level': WARNING,
                'explanation' : "1 or more unittests failed"},
         {'regex': re.compile(r'''^\d+ INFO Failed: [^0]'''), 'level': WARNING,
@@ -128,6 +129,7 @@ in the config file under: preflight_run_cmd_suites""",
         self.installer_path = c.get('installer_path')
         self.binary_path = c.get('binary_path')
         self.symbols_url = c.get('symbols_url')
+        self.summaries = []
 
     ###### helper methods
 
@@ -331,7 +333,6 @@ in your config under %s_options""" % suite_category, suite_category)
 These are often OS specific and disabling them may result in spurious test results!""")
 
     def run_tests(self):
-
         self._run_category_suites('mochitest')
         self._run_category_suites('reftest')
         self._run_category_suites('xpcshell',
@@ -354,6 +355,7 @@ These are often OS specific and disabling them may result in spurious test resul
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
         dirs = self.query_abs_dirs()
+        c = self.config
 
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
@@ -365,33 +367,26 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for num in range(len(suites)):
                 cmd =  abs_base_cmd + suites[num]
-                code = self.run_command(cmd,
-                        cwd=dirs['abs_work_dir'],
-                        error_list=self.error_list)
+                output = self.get_output_from_command(cmd,
+                        cwd=dirs['abs_work_dir'], silent=True)
 
-                #### WIP warning colors not implemented
-                tbpl_status = TBPL_SUCCESS
-                level = INFO
-                if code == 0:
-                    status = "success"
-                elif code == 1:
-                    status = "test failures"
-                    tbpl_status = TBPL_WARNING
-                else:
-                    status = "harness failure"
-                    tbpl_status = TBPL_FAILURE
-                    level = ERROR
-                self.add_summary("The %s suite: %s test ran with return code \
-                        %s: %s" % (suite_category, suites[num], code, status),
-                        level=level)
-                ####
+                parser = OutputParser(config=c, log_obj=self.log_obj,
+                                    error_list=c['error_list'] + PythonErrorList)
+                parser.add_lines(output)
 
-                # this if is in here since a developer will not be using
+                self.add_summary("The %s suite: %s test ran with return status \
+                        : %s" % (suite_category, suites[num], parser.error_status),
+                        level=INFO)
+
+                # this 'if' is in here since a developer will not be using
                 # buildbot
                 if 'read-buildbot-config' in self.actions:
-                    self.buildbot_status(tbpl_status)
+                    suite_name = suite_category + '-' + suites[num]
+                    self.log_tinderbox_println(suite_name, output)
+                    self.buildbot_status(parser.error_status.upper())
         else:
             self.debug('There were no suites to run for %s' % suite_category)
+
 
 # main {{{1
 if __name__ == '__main__':

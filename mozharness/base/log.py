@@ -98,6 +98,14 @@ class LogMixin(object):
 
 
 
+def worst_error_level(target_level, existing_level):
+    """returns the 'worst' level between the existing worst level and the level
+    being currently evaluated"""
+    # TODO again here should I be checking for FATAL?
+    for l in (FATAL, CRITICAL, ERROR, WARNING, INFO):
+        if l in (target_level, existing_level):
+            return l
+
 # OutputParser {{{1
 class OutputParser(LogMixin):
     """ Helper object to parse command output.
@@ -125,14 +133,13 @@ pre-context-line setting in error_list.)
         self.error_list = error_list
         self.log_output = log_output
         self.num_errors = 0
+        self.num_warnings = 0
         # TODO context_lines.
         # Not in use yet, but will be based off error_list.
         self.context_buffer = []
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
-        # TODO set self.error_level to the worst error level hit
-        # (WARNING, ERROR, CRITICAL, FATAL)
-        # self.error_level = INFO
+        self.error_status = INFO
 
     def add_lines(self, output):
         if str(output) == output:
@@ -163,14 +170,26 @@ pre-context-line setting in error_list.)
                             self.add_summary(message, level=level)
                         else:
                             self.log(message, level=level)
+                    # TODO ask Aki
+                    # if level is FATAL then will any lines below ever happen? If its
+                    # fatal then self.log on the above line will return an exit
+                    # code I think. Therefor we do not count fatal in num_errors
                     if level in (ERROR, CRITICAL, FATAL):
                         self.num_errors += 1
-                    # TODO set self.error_status (or something)
-                    # that sets the worst error level hit.
-                    break
+                    if level == WARNING:
+                        self.num_warnings += 1
+                    # TODO maybe I don't want to call worst_error_level on every line in the log
+                    # but instead keep track of each seperate level num_count then assign
+                    # worst_level after parsing. worst_level would depend on which level
+                    # has a non 0 num_count and is the worst in hierarchy
+                    self.error_status = worst_error_level(level, self.error_status)
+                    # I dont think we want to break now if I want to
+                    # capture worst status?
+                    # break 
             else:
                 if self.log_output:
                     self.info(' %s' % line)
+
 
 
 

@@ -94,4 +94,20 @@ config = {
             "enabled" : ADJUST_MOUSE_AND_SCREEN
         },
     ],
+    "global_unittest_error_list" : [
+        {'regex': r'''TEST-UNEXPECTED''', 'level': 'warning',
+            'explanation' : "This unittest unexpectingly failed. This is a harness error"},
+    ],
+    "mochitest_error_list" : [
+        {'regex': r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])''', 'level': 'warning',
+               'explanation' : "1 or more unittests failed"},
+    ],
+    "reftest_error_list" : [
+        {'regex': r'''^REFTEST INFO \| Unexpected: 0 \(''', 'level': 'warning',
+               'explanation' : "1 or more unittests failed"},
+    ],
+    "xpcshell_error_list" : [
+        {'regex': r'''^INFO \| Failed: 0''', 'level': 'warning',
+               'explanation' : "1 or more unittests failed"},
+    ],
 }

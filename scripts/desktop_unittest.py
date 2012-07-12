@@ -17,11 +17,12 @@ import shutil, re
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import PythonErrorList, BaseErrorList
+from mozharness.mozilla.errors import CategoryTestErrorList
+from mozharness.mozilla.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE, TBPL_WARNING
-from mozharness.base.log import INFO, ERROR, WARNING
+from mozharness.base.log import INFO, WARNING
 
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
@@ -359,6 +360,9 @@ These are often OS specific and disabling them may result in spurious test resul
 
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
+        suite_category_error_list = PythonErrorList 
+        if CategoryTestErrorList.get(suite_category): 
+            suite_category_error_list += CategoryTestErrorList[suite_category]
 
         if preflight_run_method:
             preflight_run_method()
@@ -371,7 +375,7 @@ These are often OS specific and disabling them may result in spurious test resul
                         cwd=dirs['abs_work_dir'], silent=True)
 
                 parser = OutputParser(config=c, log_obj=self.log_obj,
-                                    error_list=c['error_list'] + PythonErrorList)
+                                    error_list=suite_category_error_list)
                 parser.add_lines(output)
 
                 self.add_summary("The %s suite: %s test ran with return status \
@@ -382,7 +386,10 @@ These are often OS specific and disabling them may result in spurious test resul
                 # buildbot
                 if 'read-buildbot-config' in self.actions:
                     suite_name = suite_category + '-' + suites[num]
-                    self.log_tinderbox_println(suite_name, output)
+                    tbpl = TinderBoxPrint['%s_summary' % suite_category]
+
+                    self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],
+                            tbpl['pass_name'], tbpl['fail_name'], tbpl['known_fail_name'])
                     self.buildbot_status(parser.error_status.upper())
         else:
             self.debug('There were no suites to run for %s' % suite_category)

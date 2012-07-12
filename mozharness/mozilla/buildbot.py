@@ -32,24 +32,25 @@ TBPL_STATUS_DICT = {
     TBPL_RETRY: WARNING,
 }
 
-def create_tinderbox_summary(suite_name, success_count, fail_count,
-        todo_count, crashed, leaked):
+def create_tinderbox_summary(suite_name, pass_count, fail_count,
+        known_fail_count=False, crashed=False, leaked=False):
     emphasize_fail_text = '<em class="testfail">%s</em>'
 
-    if success_count < 0 or fail_count < 0 or todo_count < 0 or \
-            (success_count == 0 and fail_count == 0 and todo_count == 0):
+    if pass_count < 0 or fail_count < 0 or \
+            (known_fail_count != None and known_fail_count < 0):
+        summary = emphasize_fail_text % 'T-FAIL'
+    elif pass_count == 0 and fail_count == 0 and \
+            (known_fail_count == None or known_fail_count == 0):
         summary = emphasize_fail_text % 'T-FAIL'
     else:
         str_fail_count = str(fail_count)
         if fail_count > 0:
             str_fail_count = emphasize_fail_text % str_fail_count
-
-        summary = "%d/%s/%d" % (success_count,
-                emphasize_fail_text % str_fail_count, todo_count)
+        summary = "%d/%s/%d" % (pass_count,
+                emphasize_fail_text % str_fail_count, known_fail_count)
     # Format the crash status.
     if crashed:
         summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
-
     # Format the leak status.
     if leaked != False:
         summary += "&nbsp;%s" % emphasize_fail_text % (
@@ -83,28 +84,28 @@ class BuildbotMixin(object):
                 level = TBPL_STATUS_DICT[tbpl_status]
             self.add_summary("# TBPL %s #" % tbpl_status, level=level)
 
-    def log_tinderbox_println(self, suite_name, log):
+    def log_tinderbox_println(self, suite_name, log, full_re_substr, pass_name,
+            fail_name, known_fail_name=None):
         """appends 'TinderboxPrint: foo, summary' to the log"""
-        totals_re = re.comile(r"(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))")
+        full_re = re.compile(full_re_substr)
         harness_errors_re = re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)")
-
-        success_count, fail_count, todo_count = -1, -1, -1
+        pass_count, fail_count = -1, -1
+        known_fail_count = known_fail_name and -1
         crashed, leaked = False, False
 
         for line in log.readlines():
-            m = totals_re.match(line)
+            m = full_re.match(line)
             if m:
                 r = m.group(1)
-                if r == "Passed":
-                    success_count = int(m.group(2))
-                elif r == "Failed":
+                if r == pass_name:
+                    pass_count = int(m.group(2))
+                elif r == fail_name:
                     fail_count = int(m.group(2))
                 # If otherIdent == None, then totals_re should not match it,
                 # so this test is fine as is.
-                elif r == "Todo":
-                    todo_count = int(m.group(2))
+                elif r == known_fail_name:
+                    known_fail_count = int(m.group(2))
                 continue
-            # Set the error flags.
             m = harness_errors_re.match(line)
             if m:
                 r = m.group(1)
@@ -115,8 +116,8 @@ class BuildbotMixin(object):
                 else:
                     leaked = True
                 # continue
-        summary = create_tinderbox_summary(suite_name, success_count, fail_count,
-                todo_count, crashed, leaked)
+        summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
+                known_fail_count, crashed, leaked)
         self.info(summary)
 
     def set_buildbot_property(self, prop_name, prop_value, write_to_file=False):

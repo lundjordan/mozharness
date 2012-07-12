@@ -16,26 +16,45 @@ whether IGNORE, DEBUG, INFO, WARNING, ERROR, CRITICAL, or FATAL.
 
 import re
 
-from mozharness.base.log import WARNING, ERROR, CRITICAL, FATAL
+from mozharness.base.log import WARNING
 
 # ErrorLists {{{1
 
-"global_unittest_error_list" : [
+BaseTestError = [
     {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level': WARNING,
-        'explanation' : "This unittest unexpectingly failed. This is a harness error"},
-],
-"mochitest_error_list" : [
-    {'regex': re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''), 'level': WARNING,
-            'explanation' : "1 or more unittests failed"},
-],
-"reftest_error_list" : [
-    {'regex': re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''), 'level': WARNING,
-            'explanation' : "1 or more unittests failed"},
-],
-"xpcshell_error_list" : [
-    {'regex': re.compile(r'''^INFO \| Failed: 0'''), 'level': WARNING,
-            'explanation' : "1 or more unittests failed"},
+        'explanation' : "One or more unittests unexpectingly failed. This is a harness error"},
 ]
-BaseErrorList = [
- {'substr': r'''command not found''', 'level': ERROR},
-]
+CategoryTestErrorList = {
+    'mochitest' : BaseTestError  + [
+        {'regex': re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''), 'level': WARNING,
+                'explanation' : "One or more unittests failed"},
+        ],
+    'reftest' : BaseTestError + [
+        {'regex': re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''), 'level': WARNING,
+                'explanation' : "One or more unittests failed"},
+        ],
+    'xpcshell' : BaseTestError + [
+        {'regex': re.compile(r'''^INFO \| Failed: 0'''), 'level': WARNING,
+                'explanation' : "One or more unittests failed"},
+        ],
+}
+TinderBoxPrint = {
+    "mochitest_summary" : {
+        'full_re_substr' : r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))''',
+        'success_name' : "Passed",
+        'fail_name' : "Failed",
+        'todo_name' : "Todo",
+    },
+    "reftest_summary" : {
+        'full_re_substr' : r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \(''',
+        'success_name' : "Successful",
+        'fail_name' : "Unexpected",
+        'todo_name' : "known problems",
+    },
+    "xpcshell_summary" : {
+        'full_re_substr' : r'''INFO \| (Passed|Failed): (\d+)''',
+        'success_name' : "Passed",
+        'fail_name' : "Failed",
+        'todo_name' : None,
+    },
+}

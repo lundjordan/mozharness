@@ -17,7 +17,7 @@ import shutil, re
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.errors import CategoryTestErrorList
+from mozharness.mozilla.testing.errors import CategoryTestErrorList
 from mozharness.mozilla.testing.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript

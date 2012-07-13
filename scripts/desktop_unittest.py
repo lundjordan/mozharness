@@ -17,7 +17,7 @@ import shutil, re
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.testing.errors import CategoryTestErrorList
+from mozharness.mozilla.errors import CategoryTestErrorList
 from mozharness.mozilla.testing.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
@@ -379,13 +379,13 @@ These are often OS specific and disabling them may result in spurious test resul
                 parser.add_lines(output)
 
                 self.add_summary("The %s suite: %s test ran with return status \
-                        : %s" % (suite_category, suites[num], parser.error_status),
+                        : %s" % (suite_category, ' '.join(suites[num]), parser.error_status),
                         level=INFO)
 
                 # this 'if' is in here since a developer will not be using
                 # buildbot
                 if 'read-buildbot-config' in self.actions:
-                    suite_name = suite_category + '-' + suites[num]
+                    suite_name = suite_category + '-' + ' '.join(suites[num])
                     tbpl = TinderBoxPrint['%s_summary' % suite_category]
 
                     self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],

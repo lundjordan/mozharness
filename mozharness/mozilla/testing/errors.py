@@ -41,20 +41,20 @@ CategoryTestErrorList = {
 TinderBoxPrint = {
     "mochitest_summary" : {
         'full_re_substr' : r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))''',
-        'success_name' : "Passed",
+        'pass_name' : "Passed",
         'fail_name' : "Failed",
         'todo_name' : "Todo",
     },
     "reftest_summary" : {
         'full_re_substr' : r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \(''',
         'success_name' : "Successful",
-        'fail_name' : "Unexpected",
+        'pass_name' : "Unexpected",
         'todo_name' : "known problems",
     },
     "xpcshell_summary" : {
         'full_re_substr' : r'''INFO \| (Passed|Failed): (\d+)''',
         'success_name' : "Passed",
-        'fail_name' : "Failed",
+        'pass_name' : "Failed",
         'todo_name' : None,
     },
 }

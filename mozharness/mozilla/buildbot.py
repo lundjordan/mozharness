@@ -84,16 +84,18 @@ class BuildbotMixin(object):
                 level = TBPL_STATUS_DICT[tbpl_status]
             self.add_summary("# TBPL %s #" % tbpl_status, level=level)
 
-    def log_tinderbox_println(self, suite_name, log, full_re_substr, pass_name,
+    def log_tinderbox_println(self, suite_name, output, full_re_substr, pass_name,
             fail_name, known_fail_name=None):
-        """appends 'TinderboxPrint: foo, summary' to the log"""
+        """appends 'TinderboxPrint: foo, summary' to the output"""
         full_re = re.compile(full_re_substr)
         harness_errors_re = re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)")
         pass_count, fail_count = -1, -1
         known_fail_count = known_fail_name and -1
         crashed, leaked = False, False
 
-        for line in log.readlines():
+        if str(output) == output:
+            output = [output]
+        for line in output:
             m = full_re.match(line)
             if m:
                 r = m.group(1)
@@ -116,6 +118,7 @@ class BuildbotMixin(object):
                 else:
                     leaked = True
                 # continue
+        print (suite_name, pass_count, fail_count, known_fail_count, crashed, leaked)
         summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
                 known_fail_count, crashed, leaked)
         self.info(summary)

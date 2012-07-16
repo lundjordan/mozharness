@@ -16,13 +16,15 @@ import shutil, re
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
+
 from mozharness.base.errors import PythonErrorList, BaseErrorList
 from mozharness.mozilla.testing.errors import CategoryTestErrorList
 from mozharness.mozilla.testing.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import INFO, WARNING
+from mozharness.base.log import INFO, WARNING, ERROR
+from mozharness.mozilla.buildbot import TBPL_STATUS_DICT
 
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
@@ -240,7 +242,6 @@ in your config under %s_options""" % suite_category, suite_category)
 
 
     def _query_specified_suites(self, category):
-
         # logic goes: if at least one '--{category}-suite' was given in the script
         # then run only that(those) given suite(s). Elif, if no suites were
         # specified and the --run-all-suites flag was given,
@@ -248,18 +249,22 @@ in your config under %s_options""" % suite_category, suite_category)
 
         c = self.config
         all_suites = c.get('all_%s_suites' % (category))
-        specified_suites = c.get('specified_%s_suites' % (category))
+        specified_suites = c.get('specified_%s_suites' % (category)) # list
         suites = None
 
         if specified_suites:
             if 'all' in specified_suites:
-                suites = [value for value in all_suites.values()]
+                # useful if you want a quick way of saying run all suites
+                # of a specific category.
+                suites = all_suites
             else:
-                suites = [all_suites[key] for key in \
-                        all_suites.keys() if key in specified_suites]
+                # suites gets a dict of everything from all_suites where a key
+                # is also in specified_suites
+                suites = dict((key, all_suites.get(key)) for key in specified_suites \
+                        if key in all_suites.keys())
         else:
-            if c.get('run_all_suites'):
-                suites = [value for value in all_suites.values()]
+            if c.get('run_all_suites'): # needed if you dont specify any suites
+                suites = all_suites
 
         return suites
 
@@ -339,19 +344,20 @@ These are often OS specific and disabling them may result in spurious test resul
         self._run_category_suites('xpcshell',
                 preflight_run_method=self.preflight_xpcshell)
 
-    def preflight_xpcshell(self):
+    def preflight_xpcshell(self, suites):
         c = self.config
         dirs = self.query_abs_dirs()
 
-        self.mkdir_p(dirs['abs_app_plugins_dir'])
-        self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
-            c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])))
-        shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
-            os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
-        self.copytree(dirs['abs_test_bin_components_dir'],
-                dirs['abs_app_components_dir'], overwrite='update')
-        self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
-                overwrite='update')
+        if suites: # there are xpcshell suites to run
+            self.mkdir_p(dirs['abs_app_plugins_dir'])
+            self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
+                c['xpcshell_name']), os.path.join(dirs['abs_app_dir'], c['xpcshell_name'])))
+            shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
+                os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+            self.copytree(dirs['abs_test_bin_components_dir'],
+                    dirs['abs_app_components_dir'], overwrite='update')
+            self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
+                    overwrite='update')
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
@@ -360,39 +366,43 @@ These are often OS specific and disabling them may result in spurious test resul
 
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
-        suite_category_error_list = PythonErrorList 
-        if CategoryTestErrorList.get(suite_category): 
-            suite_category_error_list += CategoryTestErrorList[suite_category]
 
         if preflight_run_method:
-            preflight_run_method()
+            preflight_run_method(suites)
 
         if suites:
             self.info('#### Running %s suites' % suite_category)
-            for num in range(len(suites)):
-                cmd =  abs_base_cmd + suites[num]
+            for suite in suites:
+                cmd =  abs_base_cmd + suites[suite]
                 output = self.get_output_from_command(cmd,
                         cwd=dirs['abs_work_dir'], silent=True)
-
-                parser = OutputParser(config=c, log_obj=self.log_obj,
-                                    error_list=suite_category_error_list)
-                parser.add_lines(output)
-
-                self.add_summary("The %s suite: %s test ran with return status \
-                        : %s" % (suite_category, ' '.join(suites[num]), parser.error_status),
-                        level=INFO)
-
-                # this 'if' is in here since a developer will not be using
-                # buildbot
-                if 'read-buildbot-config' in self.actions:
-                    suite_name = suite_category + '-' + ' '.join(suites[num])
-                    tbpl = TinderBoxPrint['%s_summary' % suite_category]
-
-                    self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],
-                            tbpl['pass_name'], tbpl['fail_name'], tbpl['known_fail_name'])
-                    self.buildbot_status(parser.error_status.upper())
+                self._parse_unittest(output, suite_category, suite)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
+
+    def _parse_unittest(self, output, suite_category, suite):
+        """parses unittest and adds tinderboxprint summary"""
+        c = self.config
+        suite_category_error_list = PythonErrorList
+        if CategoryTestErrorList.get(suite_category):
+            suite_category_error_list += CategoryTestErrorList[suite_category]
+        status_levels = TBPL_STATUS_DICT.keys()
+        log_levels  = [INFO, WARNING, ERROR]
+
+        parser = OutputParser(config=c, log_obj=self.log_obj,
+                            error_list=suite_category_error_list)
+        parser.add_lines(output, status_levels=status_levels)
+        result_level = parser.result_levels
+        log_level = TBPL_STATUS_DICT.get(result_level, parser.log_level)
+
+        suite_name = suite_category + '-' + suite
+        tbpl = TinderBoxPrint['%s_summary' % suite_category]
+        self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],
+                tbpl['pass_name'], tbpl['fail_name'], tbpl['known_fail_name'])
+        self.buildbot_status(result_level)
+
+        self.add_summary("The %s suite: %s ran with return status: %s" %
+                (suite_category, suite, result_level), level=log_level)
 
 
 # main {{{1

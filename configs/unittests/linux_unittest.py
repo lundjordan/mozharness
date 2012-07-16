@@ -19,10 +19,10 @@ config = {
         "revision": "default",
         "dest": "tools"
     }],
-    "exes": {
-        'python': '/tools/buildbot/bin/python',
-        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-    },
+    # "exes": {
+    #     'python': '/tools/buildbot/bin/python',
+    #     'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+    # },
     "run_file_names" : {
         "mochitest" : "runtests.py",
         "reftest" : "runreftest.py",
@@ -72,26 +72,26 @@ config = {
             "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
     "preflight_run_cmd_suites" : [
-        {
-            "name" : "disable_screen_saver",
-            "cmd" : ["xset", "s", "reset"],
-            "halt_on_failure" : False,
-            "architectures" : ["32bit", "64bit"],
-            "enabled" : DISABLE_SCREEN_SAVER
-        },
-        {
-            # TODO add error list to this (global errors from buildbot)
-            "name" : "run mouse & screen adjustment script",
-            "cmd" : [
-                # when configs are consolidated this python path will only show
-                # for windows.
-                "python", "tools/scripts/support/mouse_and_screen_resolution.py",
-                "--configuration-url",
-                "http://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" + \
-                        "testing/machine-configuration.json"],
-            "architectures" : ["32bit"],
-            "halt_on_failure" : True,
-            "enabled" : ADJUST_MOUSE_AND_SCREEN
-        },
+        # {
+        #     "name" : "disable_screen_saver",
+        #     "cmd" : ["xset", "s", "reset"],
+        #     "halt_on_failure" : False,
+        #     "architectures" : ["32bit", "64bit"],
+        #     "enabled" : DISABLE_SCREEN_SAVER
+        # },
+        # {
+        #     # TODO add error list to this (global errors from buildbot)
+        #     "name" : "run mouse & screen adjustment script",
+        #     "cmd" : [
+        #         # when configs are consolidated this python path will only show
+        #         # for windows.
+        #         "python", "tools/scripts/support/mouse_and_screen_resolution.py",
+        #         "--configuration-url",
+        #         "http://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" + \
+        #                 "testing/machine-configuration.json"],
+        #     "architectures" : ["32bit"],
+        #     "halt_on_failure" : True,
+        #     "enabled" : ADJUST_MOUSE_AND_SCREEN
+        # },
     ],
 }

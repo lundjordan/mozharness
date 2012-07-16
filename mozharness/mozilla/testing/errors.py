@@ -17,25 +17,29 @@ whether IGNORE, DEBUG, INFO, WARNING, ERROR, CRITICAL, or FATAL.
 import re
 
 from mozharness.base.log import WARNING
+from mozharness.mozilla.buildbot import TBPL_WARNING
 
 # ErrorLists {{{1
 
 BaseTestError = [
-    {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level': WARNING,
-        'explanation' : "One or more unittests unexpectingly failed. This is a harness error"},
-]
+    {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level' : WARNING,
+        'explanation' : "One or more unittests unexpectingly failed." + \
+                " This is a harness error", 'status_level' : TBPL_WARNING},
+    ],
 CategoryTestErrorList = {
     'mochitest' : BaseTestError  + [
-        {'regex': re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''), 'level': WARNING,
-                'explanation' : "One or more unittests failed"},
+        {'regex' : re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''),
+            'level' : WARNING, 'explanation' : "One or more unittests failed"}
         ],
     'reftest' : BaseTestError + [
-        {'regex': re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''), 'level': WARNING,
-                'explanation' : "One or more unittests failed"},
+        {'regex' : re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''),
+            'level' : WARNING, 'explanation' : "One or more unittests failed",
+            'status_level' : TBPL_WARNING}
         ],
     'xpcshell' : BaseTestError + [
-        {'regex': re.compile(r'''^INFO \| Failed: 0'''), 'level': WARNING,
-                'explanation' : "One or more unittests failed"},
+        {'regex' : re.compile(r'''^INFO \| Failed: 0'''), 'level' : WARNING,
+                'explanation' : "One or more unittests failed",
+                'status_level' : TBPL_WARNING}
         ],
 }
 TinderBoxPrint = {

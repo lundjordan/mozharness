@@ -98,13 +98,6 @@ class LogMixin(object):
 
 
 
-def worst_error_level(target_level, existing_level):
-    """returns the 'worst' level between the existing worst level and the level
-    being currently evaluated"""
-    # TODO again here should I be checking for FATAL?
-    for l in (FATAL, CRITICAL, ERROR, WARNING, INFO):
-        if l in (target_level, existing_level):
-            return l
 
 # OutputParser {{{1
 class OutputParser(LogMixin):
@@ -141,7 +134,7 @@ pre-context-line setting in error_list.)
         self.num_post_context_lines = 0
         self.error_status = INFO
 
-    def add_lines(self, output):
+    def add_lines(self, output, status_levels=None):
         if str(output) == output:
             output = [output]
         for line in output:
@@ -161,28 +154,35 @@ pre-context-line setting in error_list.)
                     self.warn("error_list: 'substr' and 'regex' not in %s" % \
                               error_check)
                 if match:
-                    level = error_check.get('level', INFO)
+                    log_level = error_check.get('level', INFO)
                     if self.log_output:
                         message = ' %s' % line
                         if error_check.get('explanation'):
                             message += '\n %s' % error_check['explanation']
+                        if error_check.get('status_level'):
+                            status_level = error_check['status_level']
+                            if not status_levels:
+                                self.fatal("result_status requires status_levels" + \
+                                        "to determine worst status_level")
+                            self.result_status_level = worst_level(status_level,
+                                    self.result_status_level, levels=status_levels)
                         if error_check.get('summary'):
-                            self.add_summary(message, level=level)
+                            self.add_summary(message, level=log_level)
                         else:
-                            self.log(message, level=level)
+                            self.log(message, level=log_level)
                     # TODO ask Aki
                     # if level is FATAL then will any lines below ever happen? If its
                     # fatal then self.log on the above line will return an exit
                     # code I think. Therefor we do not count fatal in num_errors
-                    if level in (ERROR, CRITICAL, FATAL):
+                    if log_level in (ERROR, CRITICAL, FATAL):
                         self.num_errors += 1
-                    if level == WARNING:
+                    if log_level == WARNING:
                         self.num_warnings += 1
-                    # TODO maybe I don't want to call worst_error_level on every line in the log
-                    # but instead keep track of each seperate level num_count then assign
-                    # worst_level after parsing. worst_level would depend on which level
-                    # has a non 0 num_count and is the worst in hierarchy
-                    self.error_status = worst_error_level(level, self.error_status)
+                    # TODO maybe I don't want to call worst_level on every line in
+                    # the log but instead keep track of each seperate {level}_num_count
+                    # then assign worst_level after parsing. worst_level would depend on which level
+                    # has a non 0 {level}_num_count and is the worst in hierarchy
+                    self.result_log_level = worst_level(log_level, self.error_status)
                     # I dont think we want to break now if I want to
                     # capture worst status?
                     # break 
@@ -190,6 +190,17 @@ pre-context-line setting in error_list.)
                 if self.log_output:
                     self.info(' %s' % line)
 
+    def worst_level(self, target_level, existing_level, levels=None):
+        """returns the 'worst' level between the existing worst level and the level
+        being currently evaluated"""
+        if not levels:
+            # TODO again here should I be checking for FATAL?
+            levels = [FATAL, CRITICAL, ERROR, WARNING, INFO]
+        if target_level not in levels:
+            self.fatal("'%s' not in %s'." % (target_level, levels))
+        for l in levels:
+            if l in (target_level, existing_level):
+                return l
 
 
 

@@ -330,9 +330,9 @@ These are often OS specific and disabling them may result in spurious test resul
             shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
                 os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
             self.copytree(dirs['abs_test_bin_components_dir'],
-                    dirs['abs_app_components_dir'], overwrite='update')
+                    dirs['abs_app_components_dir'], overwrite='overwrite_if_exists')
             self.copytree(dirs['abs_test_bin_plugins_dir'], dirs['abs_app_plugins_dir'],
-                    overwrite='update')
+                    overwrite='overwrite_if_exists')
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""

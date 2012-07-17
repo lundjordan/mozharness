@@ -1,7 +1,7 @@
 #### OS Specifics ####
 APP_NAME_DIR = "firefox"
 BINARY_PATH = "firefox.exe"
-INSTALLER_PATH = "installer.tar.bz2"
+INSTALLER_PATH = "installer.zip"
 XPCSHELL_NAME = 'xpcshell.exe'
 DISABLE_SCREEN_SAVER = False
 ADJUST_MOUSE_AND_SCREEN = True

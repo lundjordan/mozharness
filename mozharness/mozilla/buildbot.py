@@ -118,9 +118,7 @@ class BuildbotMixin(object):
                     leaked = None
                 else:
                     leaked = True
-                # continue
-        print (suite_name, pass_count, fail_count, known_fail_count, crashed, leaked)
-        import pdb; pdb.set_trace()
+                continue
         summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
                 known_fail_count, crashed, leaked)
         self.info(summary)

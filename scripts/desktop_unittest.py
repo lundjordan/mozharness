@@ -84,7 +84,7 @@ in the config file under: preflight_run_cmd_suites""",
      {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
      {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
      {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},
-     {'mozinstall': os.path.join('tests', 'mozbase', 'mozinstall')},
+     {'mozinstall': "http://build.mozilla.org/talos/findlinks/mozInstall-1.0.tar.gz"},
      {'manifestdestiny': os.path.join('tests', 'mozbase', 'manifestdestiny')},
      {'mozprofile': os.path.join('tests', 'mozbase', 'mozprofile')},
      {'mozprocess': os.path.join('tests', 'mozbase', 'mozprocess')},
@@ -210,7 +210,7 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
 If you meant to have options for this suite, please make sure they are specified
 in your config under %s_options""" % suite_category, suite_category)
         else:
-            self.fatal("""the 'appname' or 'binary_path' could not be determined.
+            self.fatal("""'binary_path' could not be determined.
             This should be something like '/root/path/with/build/application/firefox/firefox-bin'
             If you are running this script without the 'install' action (where binary_path is set),
             Please make sure you are either:

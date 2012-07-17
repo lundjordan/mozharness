@@ -12,7 +12,7 @@ author: Jordan Lund
 """
 
 import os, sys, copy, platform
-import shutil, re
+import shutil
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -23,7 +23,6 @@ from mozharness.mozilla.testing.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import WARNING
 from mozharness.mozilla.buildbot import TBPL_FAILURE, TBPL_EXCEPTION, TBPL_RETRY
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WARNING, TBPL_STATUS_DICT
 
@@ -33,10 +32,8 @@ SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
 # DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
 
-
     config_options = [
-        [['--mochitest-suite',],
-            {
+        [['--mochitest-suite',], {
                 "action" : "append",
                 "dest" : "specified_mochitest_suites",
                 "type": "string",
@@ -45,8 +42,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"""
             }
         ],
-        [['--reftest-suite',],
-            {
+        [['--reftest-suite',], {
                 "action" : "append",
                 "dest" : "specified_reftest_suites",
                 "type": "string",
@@ -55,8 +51,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 Examples: 'all', 'crashplan', or 'jsreftest'"""
             }
         ],
-        [['--xpcshell-suite',],
-            {
+        [['--xpcshell-suite',], {
                 "action" : "append",
                 "dest" : "specified_xpcshell_suites",
                 "type": "string",
@@ -65,18 +60,16 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 Examples: 'xpcshell'"""
             }
         ],
-        [['--run-all-suites',],
-            {
+        [['--run-all-suites',], {
                 "action": "store_true",
                 "dest": "run_all_suites",
                 "default": False,
                 "help": """This will run all suites that are specified
                         in the config file. You do not need to specify any other suites.
                         Beware, this may take a while ;)""",
-                        }
-            ],
-        [['--disable-preflight-run-commands',],
-            {
+            }
+        ],
+        [['--disable-preflight-run-commands',], {
                 "action": "store_true",
                 "dest": "preflight_run_commands_disabled",
                 "default": False,
@@ -85,15 +78,6 @@ in the config file under: preflight_run_cmd_suites""",
             }
         ]
     ] + copy.deepcopy(testing_config_options)
-
-    error_list = [
-        {'regex': re.compile(r'''^TEST-UNEXPECTED-FAIL'''), 'level': WARNING,
-            'explanation' : "this unittest unexpectingly failed. This is a harness error"},
-        {'regex': re.compile(r'''^\tFailed: [^0]'''), 'level': WARNING,
-               'explanation' : "1 or more unittests failed"},
-        {'regex': re.compile(r'''^\d+ INFO Failed: [^0]'''), 'level': WARNING,
-                'explanation' : "1 or more unittests failed"},
-    ] + PythonErrorList
 
     virtualenv_modules = [
      'simplejson',
@@ -108,7 +92,6 @@ in the config file under: preflight_run_cmd_suites""",
     ]
 
     def __init__(self, require_config_file=True):
-
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
@@ -127,7 +110,6 @@ in the config file under: preflight_run_cmd_suites""",
         c = self.config
         self.global_test_options = []
         self.abs_dirs = None
-
         self.installer_url = c.get('installer_url')
         self.test_url = c.get('test_url')
         self.installer_path = c.get('installer_path')
@@ -149,7 +131,6 @@ in the config file under: preflight_run_cmd_suites""",
                     self.fatal("""Config options are not valid.
 Please ensure that if the '--run-all-suites' flag was enabled
 then do not specify to run only specific suites like '--mochitest-suite browser-chrome'""")
-
 
     def query_abs_dirs(self):
         if self.abs_dirs:
@@ -180,10 +161,9 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
         else:
             dirs['abs_virtualenv_dir'] = os.path.join(abs_dirs['abs_work_dir'],
                 c['virtualenv_path'])
-
         abs_dirs.update(dirs)
-
         self.abs_dirs = abs_dirs
+
         return self.abs_dirs
 
     def _query_symbols_url(self):
@@ -214,11 +194,7 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
             dirs = self.query_abs_dirs()
             options = []
             run_file = c['run_file_names'][suite_category]
-            base_cmd = [self.query_python_path('python')]
-            # TODO in buildbot only xpcshell is run with the '-u' (force stdin)
-            # flag? should all unittests be run with this in mozharness?
-            if suite_category == 'xpcshell':
-                base_cmd.append('-u')
+            base_cmd = [self.query_python_path('python'), '-u']
             base_cmd.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
             str_format_values = {
                 'binary_path' : self.binary_path,
@@ -268,8 +244,6 @@ in your config under %s_options""" % suite_category, suite_category)
                 suites = all_suites
 
         return suites
-
-    # this is a new line
 
     # Actions {{{2
 

@@ -189,26 +189,23 @@ class OSMixin(object):
                                     level=error_level)
                 return -1
 
-    def copytree(self, src, dest, overwrite='nothing', log_level=INFO,
+    def copytree(self, src, dest, overwrite='no_overwrite', log_level=INFO,
             error_level=ERROR):
         """an implementation of shutil.copytree however it allows for
         dest to exist and implements differen't overwrite levels.
         overwrite uses:
-        'nothing' will keep all(any) existing files in destination tree
-        'update' will only overwrite destination paths that have
+        'no_overwrite' will keep all(any) existing files in destination tree
+        'overwrite_if_exists' will only overwrite destination paths that have
                    the same path names relative to the root of the src and
                    destination tree
-        'all' will replace the whole destination tree(clobber) if it exists"""
-
-        # TODO ask what is more appropriate then 'update'
-        # ie: 'reciprocal', 'correlative', 'coequal',  'akin', 'corresponding'
+        'clobber' will replace the whole destination tree(clobber) if it exists"""
 
         self.info('copying tree: %s to %s' % (src, dest))
         try:
-            if overwrite == 'all':
+            if overwrite == 'clobber':
                 self.rmtree(dest)
                 shutil.copytree(src, dest)
-            elif overwrite == 'nothing' or overwrite == 'update':
+            elif overwrite == 'no_overwrite' or overwrite == 'overwrite_if_exists':
                 files = os.listdir(src)
                 for f in files:
                     abs_src_f = os.path.join(src, f)
@@ -216,22 +213,22 @@ class OSMixin(object):
                     if not os.path.exists(abs_dest_f):
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='all')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='clobber')
                         else:
                             shutil.copy2(abs_src_f, abs_dest_f)
-                    elif overwrite == 'nothing': # and destination path exists
+                    elif overwrite == 'no_overwrite': # and destination path exists
                         if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='nothing')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='no_overwrite')
                         else:
                             self.debug('ignoring path: %s as destination: \
                                     %s exists' % (abs_src_f, abs_dest_f))
-                    else: # overwrite == 'update' and destination path exists
+                    else: # overwrite == 'overwrite_if_exists' and destination path exists
                         self.debug('overwriting: %s with: %s' % (abs_dest_f, abs_src_f))
                         self.rmtree(abs_dest_f)
 
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='update')
+                            self.copytree(abs_src_f, abs_dest_f, overwrite='overwrite_if_exists')
                         else:
                             shutil.copy2(abs_src_f, abs_dest_f)
             else:

@@ -337,7 +337,6 @@ These are often OS specific and disabling them may result in spurious test resul
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
         dirs = self.query_abs_dirs()
-
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
 

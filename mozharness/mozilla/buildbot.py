@@ -93,20 +93,21 @@ class BuildbotMixin(object):
         known_fail_count = known_fail_name and -1
         crashed, leaked = False, False
 
-        if str(output) == output:
-            output = [output]
         for line in output:
+            if not line or line.isspace():
+                continue
+            line = line.decode("utf-8").rstrip()
             m = full_re.match(line)
             if m:
-                r = m.group(1)
+                r = m.group(2)
                 if r == pass_name:
-                    pass_count = int(m.group(2))
+                    pass_count = int(m.group(3))
                 elif r == fail_name:
-                    fail_count = int(m.group(2))
+                    fail_count = int(m.group(3))
                 # If otherIdent == None, then totals_re should not match it,
                 # so this test is fine as is.
                 elif r == known_fail_name:
-                    known_fail_count = int(m.group(2))
+                    known_fail_count = int(m.group(3))
                 continue
             m = harness_errors_re.match(line)
             if m:
@@ -119,6 +120,7 @@ class BuildbotMixin(object):
                     leaked = True
                 # continue
         print (suite_name, pass_count, fail_count, known_fail_count, crashed, leaked)
+        import pdb; pdb.set_trace()
         summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
                 known_fail_count, crashed, leaked)
         self.info(summary)

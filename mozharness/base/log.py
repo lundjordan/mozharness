@@ -132,10 +132,11 @@ pre-context-line setting in error_list.)
         self.context_buffer = []
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
-        self.error_status = INFO
+        self.result_log_level = INFO
+        self.result_status_level = None
 
     def add_lines(self, output, status_levels=None):
-        if str(output) == output:
+        if isinstance(output, basestring):
             output = [output]
         for line in output:
             if not line or line.isspace():
@@ -164,7 +165,7 @@ pre-context-line setting in error_list.)
                             if not status_levels:
                                 self.fatal("result_status requires status_levels" + \
                                         "to determine worst status_level")
-                            self.result_status_level = worst_level(status_level,
+                            self.result_status_level = self.worst_level(status_level,
                                     self.result_status_level, levels=status_levels)
                         if error_check.get('summary'):
                             self.add_summary(message, level=log_level)
@@ -182,9 +183,10 @@ pre-context-line setting in error_list.)
                     # the log but instead keep track of each seperate {level}_num_count
                     # then assign worst_level after parsing. worst_level would depend on which level
                     # has a non 0 {level}_num_count and is the worst in hierarchy
-                    self.result_log_level = worst_level(log_level, self.error_status)
-                    # I dont think we want to break now if I want to
-                    # capture worst status?
+                    self.result_log_level = self.worst_level(log_level, self.result_log_level)
+                    # TODO I dont think we want to break now if I want to
+                    # capture worst status? Make sure this does not brake
+                    # anything else
                     # break 
             else:
                 if self.log_output:

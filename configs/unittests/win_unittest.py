@@ -11,7 +11,6 @@ config = {
     "installer_path" : INSTALLER_PATH,
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
-    # TODO find out if I need simple_json_url
     "buildbot_json_path": "buildprops.json",
     "simplejson_url": "http://build.mozilla.org/talos/zips/simplejson-2.2.1.tar.gz",
     "virtualenv_path": 'c:/talos-slave/test/build/venv',

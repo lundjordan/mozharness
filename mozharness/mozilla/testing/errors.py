@@ -25,11 +25,12 @@ BaseTestError = [
     {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level' : WARNING,
         'explanation' : "One or more unittests unexpectingly failed." + \
                 " This is a harness error", 'status_level' : TBPL_WARNING},
-    ],
+]
 CategoryTestErrorList = {
     'mochitest' : BaseTestError  + [
         {'regex' : re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''),
-            'level' : WARNING, 'explanation' : "One or more unittests failed"}
+            'level' : WARNING, 'explanation' : "One or more unittests failed",
+            'status_level' : TBPL_WARNING}
         ],
     'reftest' : BaseTestError + [
         {'regex' : re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''),

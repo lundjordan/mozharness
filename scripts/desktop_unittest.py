@@ -23,7 +23,7 @@ from mozharness.mozilla.testing.errors import TinderBoxPrint
 from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import INFO, WARNING, ERROR
+from mozharness.base.log import WARNING
 from mozharness.mozilla.buildbot import TBPL_STATUS_DICT
 
 
@@ -362,7 +362,6 @@ These are often OS specific and disabling them may result in spurious test resul
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
         dirs = self.query_abs_dirs()
-        c = self.config
 
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
@@ -376,7 +375,9 @@ These are often OS specific and disabling them may result in spurious test resul
                 cmd =  abs_base_cmd + suites[suite]
                 output = self.get_output_from_command(cmd,
                         cwd=dirs['abs_work_dir'], silent=True)
-                self._parse_unittest(output, suite_category, suite)
+                # TODO needed to split output line by line to assign write
+                # levels but str.split might be slow. Maybe write a generator?
+                self._parse_unittest(str.split(output, '\n'), suite_category, suite)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
 
@@ -387,22 +388,22 @@ These are often OS specific and disabling them may result in spurious test resul
         if CategoryTestErrorList.get(suite_category):
             suite_category_error_list += CategoryTestErrorList[suite_category]
         status_levels = TBPL_STATUS_DICT.keys()
-        log_levels  = [INFO, WARNING, ERROR]
 
         parser = OutputParser(config=c, log_obj=self.log_obj,
                             error_list=suite_category_error_list)
         parser.add_lines(output, status_levels=status_levels)
-        result_level = parser.result_levels
-        log_level = TBPL_STATUS_DICT.get(result_level, parser.log_level)
+        result_log_level = TBPL_STATUS_DICT.get(parser.result_status_level,
+                parser.result_log_level)
 
         suite_name = suite_category + '-' + suite
         tbpl = TinderBoxPrint['%s_summary' % suite_category]
         self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],
                 tbpl['pass_name'], tbpl['fail_name'], tbpl['known_fail_name'])
-        self.buildbot_status(result_level)
+        self.buildbot_status(parser.result_status_level)
 
         self.add_summary("The %s suite: %s ran with return status: %s" %
-                (suite_category, suite, result_level), level=log_level)
+                (suite_category, suite, parser.result_status_level),
+                level=result_log_level)
 
 
 # main {{{1

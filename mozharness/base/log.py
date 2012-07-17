@@ -134,7 +134,7 @@ pre-context-line setting in error_list.)
         self.num_post_context_lines = 0
         self.result_log_level = INFO
         if status_levels:
-            self.result_status_level = status_levels[0]
+            self.result_status_level = status_levels[-1]
 
     def add_lines(self, output, status_levels=None):
         if isinstance(output, basestring):

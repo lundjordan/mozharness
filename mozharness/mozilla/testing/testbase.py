@@ -188,15 +188,17 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
         # Remove the below when we no longer need to support mozinstall 0.3
         self.info("Detecting whether we're running mozinstall >=1.0...")
         output = self.get_output_from_command(cmd + ['-h'])
-        if '--source' in output:
-            cmd.append('--source')
         # End remove
         dirs = self.query_abs_dirs()
         target_dir = dirs.get('abs_app_install_dir',
                               os.path.join(dirs['abs_work_dir'],
                              'application'))
         self.mkdir_p(target_dir)
-        cmd.extend([self.installer_path,
-                    '--destination', target_dir])
+        cmd.extend(['--destination', target_dir, self.installer_path])
+        # TODO find out if --source is deprectiated
+        if '--source' in output:
+            for index, value in enumerate(cmd):
+                if value == self.installer_path:
+                    cmd.insert(index, '--source')
         # TODO we'll need some error checking here
         self.binary_path = self.get_output_from_command(cmd)

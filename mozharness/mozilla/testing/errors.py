@@ -52,14 +52,14 @@ TinderBoxPrint = {
     },
     "reftest_summary" : {
         'full_re_substr' : r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \(''',
-        'success_name' : "Successful",
-        'pass_name' : "Unexpected",
+        'pass_name' : "Successful",
+        'fail_name' : "Unexpected",
         'known_fail_name' : "known problems",
     },
     "xpcshell_summary" : {
         'full_re_substr' : r'''INFO \| (Passed|Failed): (\d+)''',
-        'success_name' : "Passed",
-        'pass_name' : "Failed",
+        'pass_name' : "Passed",
+        'fail_name' : "Failed",
         'known_fail_name' : None,
     },
 }

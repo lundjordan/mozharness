@@ -24,7 +24,7 @@ config = {
     }],
     "exes": {
         'python': 'c:/mozilla-build/python25/python',
-        'virtualenv': ['c:/mozilla-build/python25/python', 'c:/mozilla-build/buildbotve/virtualenv.py'],
+        'virtualenv': ['c:/mozilla-build/python27/python', 'c:/mozilla-build/buildbotve/virtualenv.py'],
         'hg': 'c:/mozilla-build/hg/hg',
     },
     "run_file_names" : {

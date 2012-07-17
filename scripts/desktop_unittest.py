@@ -24,7 +24,8 @@ from mozharness.base.log import OutputParser
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.base.log import WARNING
-from mozharness.mozilla.buildbot import TBPL_STATUS_DICT
+from mozharness.mozilla.buildbot import TBPL_FAILURE, TBPL_EXCEPTION, TBPL_RETRY
+from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WARNING, TBPL_STATUS_DICT
 
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
@@ -387,11 +388,12 @@ These are often OS specific and disabling them may result in spurious test resul
         suite_category_error_list = PythonErrorList
         if CategoryTestErrorList.get(suite_category):
             suite_category_error_list += CategoryTestErrorList[suite_category]
-        status_levels = TBPL_STATUS_DICT.keys()
+        status_levels = [TBPL_RETRY, TBPL_EXCEPTION, TBPL_FAILURE,
+                TBPL_WARNING, TBPL_SUCCESS]
 
         parser = OutputParser(config=c, log_obj=self.log_obj,
-                            error_list=suite_category_error_list)
-        parser.add_lines(output, status_levels=status_levels)
+                error_list=suite_category_error_list, status_levels=status_levels)
+        parser.add_lines(output)
         result_log_level = TBPL_STATUS_DICT.get(parser.result_status_level,
                 parser.result_log_level)
 

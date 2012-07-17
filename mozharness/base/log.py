@@ -120,7 +120,7 @@ buffered up to self.num_pre_context_lines (set to the largest
 pre-context-line setting in error_list.)
 """
     def __init__(self, config=None, log_obj=None, error_list=None,
-                 log_output=True):
+                 log_output=True, status_levels=None):
         self.config = config
         self.log_obj = log_obj
         self.error_list = error_list
@@ -133,7 +133,8 @@ pre-context-line setting in error_list.)
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
         self.result_log_level = INFO
-        self.result_status_level = None
+        if status_levels:
+            self.result_status_level = status_levels[0]
 
     def add_lines(self, output, status_levels=None):
         if isinstance(output, basestring):

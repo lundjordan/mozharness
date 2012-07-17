@@ -46,8 +46,9 @@ def create_tinderbox_summary(suite_name, pass_count, fail_count,
         str_fail_count = str(fail_count)
         if fail_count > 0:
             str_fail_count = emphasize_fail_text % str_fail_count
-        summary = "%d/%s/%d" % (pass_count,
-                emphasize_fail_text % str_fail_count, known_fail_count)
+        summary = "%d/%s" % (pass_count, str_fail_count)
+        if known_fail_count != None:
+            summary += "/%d" % known_fail_count
     # Format the crash status.
     if crashed:
         summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"

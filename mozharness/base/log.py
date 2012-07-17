@@ -133,10 +133,11 @@ pre-context-line setting in error_list.)
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
         self.result_log_level = INFO
+        self.status_levels = status_levels
         if status_levels:
             self.result_status_level = status_levels[-1]
 
-    def add_lines(self, output, status_levels=None):
+    def add_lines(self, output):
         if isinstance(output, basestring):
             output = [output]
         for line in output:
@@ -163,11 +164,11 @@ pre-context-line setting in error_list.)
                             message += '\n %s' % error_check['explanation']
                         if error_check.get('status_level'):
                             status_level = error_check['status_level']
-                            if not status_levels:
-                                self.fatal("result_status requires status_levels" + \
-                                        "to determine worst status_level")
+                            if not self.status_levels:
+                                self.fatal("status_levels can not be none. Its " + \
+                                        "needed to determine worst status_level")
                             self.result_status_level = self.worst_level(status_level,
-                                    self.result_status_level, levels=status_levels)
+                                    self.result_status_level, levels=self.status_levels)
                         if error_check.get('summary'):
                             self.add_summary(message, level=log_level)
                         else:

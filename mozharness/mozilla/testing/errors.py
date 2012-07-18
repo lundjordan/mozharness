@@ -33,12 +33,12 @@ CategoryTestErrorList = {
             'status_level' : TBPL_WARNING}
         ],
     'reftest' : BaseTestError + [
-        {'regex' : re.compile(r'''^REFTEST INFO \| Unexpected: 0 \('''),
+        {'regex' : re.compile(r'''REFTEST INFO \| Unexpected: [^0] \('''),
             'level' : WARNING, 'explanation' : "One or more unittests failed",
             'status_level' : TBPL_WARNING}
         ],
     'xpcshell' : BaseTestError + [
-        {'regex' : re.compile(r'''^INFO \| Failed: 0'''), 'level' : WARNING,
+        {'regex' : re.compile(r'''INFO \| Failed: [^0]'''), 'level' : WARNING,
                 'explanation' : "One or more unittests failed",
                 'status_level' : TBPL_WARNING}
         ],

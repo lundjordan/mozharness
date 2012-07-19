@@ -23,7 +23,7 @@ from mozharness.mozilla.buildbot import TBPL_WARNING
 
 BaseTestError = [
     {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level' : WARNING,
-        'explanation' : "One or more unittests unexpectingly failed." + \
+        'explanation' : "Test unexpectingly failed." + \
                 " This is a harness error", 'status_level' : TBPL_WARNING},
 ]
 CategoryTestErrorList = {

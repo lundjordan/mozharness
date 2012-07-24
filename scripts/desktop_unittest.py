@@ -18,11 +18,11 @@ import shutil
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.testing.errors import CategoryTestErrorList
-from mozharness.mozilla.testing.errors import TinderBoxPrint
-from mozharness.base.log import OutputParser
+from mozharness.mozilla.testing.errors import CategoryTestList, TinderBoxPrintRe
+from mozharness.mozilla.testing.errors import BaseTestError
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
+from mozharness.base.log import INFO, WARNING
 from mozharness.mozilla.buildbot import TBPL_FAILURE, TBPL_EXCEPTION, TBPL_RETRY
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WARNING, TBPL_STATUS_DICT
 
@@ -347,38 +347,111 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for suite in suites:
                 cmd =  abs_base_cmd + suites[suite]
-                output = self.get_output_from_command(cmd,
-                        cwd=dirs['abs_work_dir'], silent=True)
-                # TODO needed to split output line by line to assign write
-                # levels but str.split might be slow. Maybe write a generator?
-                self._parse_unittest(str.split(output, '\n'), suite_category, suite)
+                error_list = CategoryTestList.get(suite_category, [])
+                error_list.extend([BaseTestError, PythonErrorList])
+                parser = self.run_command(cmd, cwd=dirs['abs_mozilla_dir'],
+                                    error_list=error_list, return_type='parser')
+                result_status = self.evaluate_unittest_suite(parser,
+                        suite_category, suite)
+                result_log_level = TBPL_STATUS_DICT.get(result_status, INFO)
+                self.buildbot_status(result_status)
+                self.add_summary("The %s suite: %s ran with return status: %s" %
+                        (suite_category, suite, parser.result_status_level),
+                        level=result_log_level)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
 
-    def _parse_unittest(self, output, suite_category, suite):
+    def evaluate_unittest_suite(self, parser, suite_category, suite):
         """parses unittest and adds tinderboxprint summary"""
-        c = self.config
-        suite_category_error_list = PythonErrorList
-        if CategoryTestErrorList.get(suite_category):
-            suite_category_error_list += CategoryTestErrorList[suite_category]
-        status_levels = [TBPL_RETRY, TBPL_EXCEPTION, TBPL_FAILURE,
-                TBPL_WARNING, TBPL_SUCCESS]
+        result_status = TBPL_SUCCESS
+        if parser.num_errors:
+            result_status = self.worst_level(TBPL_FAILURE,
+                    result_status, levels=TBPL_STATUS_DICT.keys())
+        if parser.num_warnings:
+            result_status = self.worst_level(TBPL_WARNING,
+                    result_status, levels=TBPL_STATUS_DICT.keys())
+        if not parser.saved_lines:
+            self.add_summary("""No saved_lines of parsed log from suite %s could \
+                    be found. These are used for tinderboxprint summaries and \
+                    evaluates the (Failed/Unexpected): total count This may \
+                    cause inaccurate results""" % suite,
+                    level=WARNING)
+            return result_status
 
-        parser = OutputParser(config=c, log_obj=self.log_obj,
-                error_list=suite_category_error_list, status_levels=status_levels)
-        parser.add_lines(output)
-        result_log_level = TBPL_STATUS_DICT.get(parser.result_status_level,
-                parser.result_log_level)
+        result_status = self.eval_lines_and_append_tinderboxprint(suite_category,
+                suite, parser.saved_lines, result_status)
+        return result_status
 
+    def eval_lines_and_append_tinderboxprint(self, suite_category, suite,
+            saved_lines, current_result_status):
+        """append a tinderboxprint line in the log with summary info
+        and return the worst buildbot status"""
         suite_name = suite_category + '-' + suite
-        tbpl = TinderBoxPrint['%s_summary' % suite_category]
-        self.log_tinderbox_println(suite_name, output, tbpl['full_re_substr'],
-                tbpl['pass_name'], tbpl['fail_name'], tbpl['known_fail_name'])
-        self.buildbot_status(parser.result_status_level)
+        summary_suite_re = TinderBoxPrintRe.get('%s_summary' %
+                suite_category, {}).get('regex')
+        harness_error_re = TinderBoxPrintRe['global_harness_error']['regex']
+        pass_count, fail_count = -1, -1
+        known_fail_count = known_fail_name and -1
+        crashed, leaked = False, False
 
-        self.add_summary("The %s suite: %s ran with return status: %s" %
-                (suite_category, suite, parser.result_status_level),
-                level=result_log_level)
+        for line in output:
+            if not line or line.isspace():
+                continue
+            line = line.decode("utf-8").rstrip()
+            if summary_suite_re:
+                summary_m = summary_suite_re.match(line) # passed/failed/todo
+                if summary_m:
+                    r = summary_m.group(2)
+                    if r in ['Passed', 'Successful']:
+                        pass_count = int(summary_m.group(3))
+                    elif r in ['Failed', 'Unexpected']:
+                        fail_count = int(summary_m.group(3))
+                    # If otherIdent == None, then totals_re should not match it,
+                    # so this test is fine as is.
+                    elif r in ['Todo', 'known problems']:
+                        known_fail_count = int(summary_m.group(3))
+                    continue
+            harness_m = harness_error_re.match(line)
+            if harness_m:
+                r = harness_m.group(1)
+                if r == "Browser crashed (minidump found)":
+                    crashed = True
+                elif r == "missing output line for total leaks!":
+                    leaked = None
+                else:
+                    leaked = True
+                continue
+        summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
+                known_fail_count, crashed, leaked)
+        self.info(summary)
+
+    def create_tinderbox_summary(suite_name, pass_count, fail_count,
+            known_fail_count=False, crashed=False, leaked=False):
+        emphasize_fail_text = '<em class="testfail">%s</em>'
+
+        if pass_count < 0 or fail_count < 0 or \
+                (known_fail_count != None and known_fail_count < 0):
+            summary = emphasize_fail_text % 'T-FAIL'
+        elif pass_count == 0 and fail_count == 0 and \
+                (known_fail_count == None or known_fail_count == 0):
+            summary = emphasize_fail_text % 'T-FAIL'
+        else:
+            str_fail_count = str(fail_count)
+            if fail_count > 0:
+                str_fail_count = emphasize_fail_text % str_fail_count
+            summary = "%d/%s" % (pass_count, str_fail_count)
+            if known_fail_count != None:
+                summary += "/%d" % known_fail_count
+        # Format the crash status.
+        if crashed:
+            summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
+        # Format the leak status.
+        if leaked != False:
+            summary += "&nbsp;%s" % emphasize_fail_text % (
+                    (leaked and "LEAK") or "L-FAIL")
+
+        # Return the summary.
+        return "TinderboxPrint: %s<br/>%s\n" % (suite_name, summary)
 
 
 # main {{{1

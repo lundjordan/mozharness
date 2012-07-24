@@ -119,8 +119,7 @@ otherwise store a list of dictionaries in self.context_buffer that is
 buffered up to self.num_pre_context_lines (set to the largest
 pre-context-line setting in error_list.)
 """
-    def __init__(self, config=None, log_obj=None, error_list=None,
-                 log_output=True, status_levels=None):
+    def __init__(self, config=None, log_obj=None, error_list=None, log_output=True):
         self.config = config
         self.log_obj = log_obj
         self.error_list = error_list
@@ -132,10 +131,10 @@ pre-context-line setting in error_list.)
         self.context_buffer = []
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
-        self.result_log_level = INFO
-        self.status_levels = status_levels
-        if status_levels:
-            self.result_status_level = status_levels[-1]
+        self.saved_lines = []
+        # TODO set self.error_level to the worst error level hit
+        # (WARNING, ERROR, CRITICAL, FATAL)
+        # self.error_level = INFO
 
     def add_lines(self, output):
         if isinstance(output, basestring):
@@ -162,43 +161,28 @@ pre-context-line setting in error_list.)
                         message = ' %s' % line
                         if error_check.get('explanation'):
                             message += '\n %s' % error_check['explanation']
-                        if error_check.get('status_level'):
-                            status_level = error_check['status_level']
-                            if not self.status_levels:
-                                self.fatal("status_levels can not be none. Its " + \
-                                        "needed to determine worst status_level")
-                            self.result_status_level = self.worst_level(status_level,
-                                    self.result_status_level, levels=self.status_levels)
                         if error_check.get('summary'):
                             self.add_summary(message, level=log_level)
                         else:
                             self.log(message, level=log_level)
-                    # TODO ask Aki
-                    # if level is FATAL then will any lines below ever happen? If its
-                    # fatal then self.log on the above line will return an exit
-                    # code I think. Therefor we do not count fatal in num_errors
                     if log_level in (ERROR, CRITICAL, FATAL):
                         self.num_errors += 1
                     if log_level == WARNING:
                         self.num_warnings += 1
-                    # TODO maybe I don't want to call worst_level on every line in
-                    # the log but instead keep track of each seperate {level}_num_count
-                    # then assign worst_level after parsing. worst_level would depend on which level
-                    # has a non 0 {level}_num_count and is the worst in hierarchy
-                    self.result_log_level = self.worst_level(log_level, self.result_log_level)
-                    # TODO I dont think we want to break now if I want to
-                    # capture worst status? Make sure this does not brake
-                    # anything else
-                    # break 
+                    if error_check.get('save_line'):
+                        self.saved_lines.apppend(line)
+                    break
+            # TODO set self.error_status (or something)
+            # that sets the worst error level hit.
             else:
                 if self.log_output:
                     self.info(' %s' % line)
 
     def worst_level(self, target_level, existing_level, levels=None):
-        """returns the 'worst' level between the existing worst level and the level
-        being currently evaluated"""
+        """returns the either the existing_level or target level
+        this depends on which is closest to levels[0]
+        By default, levels is a list of log levels"""
         if not levels:
-            # TODO again here should I be checking for FATAL?
             levels = [FATAL, CRITICAL, ERROR, WARNING, INFO]
         if target_level not in levels:
             self.fatal("'%s' not in %s'." % (target_level, levels))

@@ -15,51 +15,52 @@ whether IGNORE, DEBUG, INFO, WARNING, ERROR, CRITICAL, or FATAL.
 """
 
 import re
-
-from mozharness.base.log import WARNING
-from mozharness.mozilla.buildbot import TBPL_WARNING
+from mozharness.base.log import INFO, WARNING
 
 # ErrorLists {{{1
-
+# TODO FIX COMMENTS
+# NOTE TinderBoxPrintRe is used in
+# evaluate_saved_lines_and_append_tinderboxprint(). Removing/editing existing
+# full_re_substr below may have spurious results
+TinderBoxPrintRe = {
+    "mochitest_summary" : {
+        'regex' : re.compile(r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))'''),
+        'pass_group' : "Passed",
+        'fail_group' : "Failed",
+        'known_fail_group' : "Todo",
+    },
+    "reftest_summary" : {
+        'regex' : re.compile(r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \('''),
+        'pass_group' : "Successful",
+        'fail_group' : "Unexpected",
+        'known_fail_group' : "known problems",
+    },
+    "xpcshell_summary" : {
+        'regex' : re.compile(r'''INFO \| (Passed|Failed): (\d+)'''),
+        'pass_group' : "Passed",
+        'fail_group' : "Failed",
+        'known_fail_group' : None,
+    },
+    "global_harness_error" : {
+        'regex' : re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)")
+    },
+}
 BaseTestError = [
     {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level' : WARNING,
         'explanation' : "Test unexpectingly failed." + \
-                " This is a harness error", 'status_level' : TBPL_WARNING},
+                " This is a harness error.", "save_line" : True},
 ]
-CategoryTestErrorList = {
-    'mochitest' : BaseTestError  + [
-        {'regex' : re.compile(r'''(\tFailed: [^0]|\d+ INFO Failed: [^0])'''),
-            'level' : WARNING, 'explanation' : "One or more unittests failed",
-            'status_level' : TBPL_WARNING}
+CategoryTestList = {
+    'mochitest' : [
+        {'regex' : TinderBoxPrintRe['mochitest_summary']['regex'],
+            'level' : INFO, "save_line" : True},
         ],
-    'reftest' : BaseTestError + [
-        {'regex' : re.compile(r'''REFTEST INFO \| Unexpected: [^0] \('''),
-            'level' : WARNING, 'explanation' : "One or more unittests failed",
-            'status_level' : TBPL_WARNING}
+    'reftest' : [
+        {'regex' : TinderBoxPrintRe['reftest_summary']['regex'],
+            'level' : INFO, "save_line" : True},
         ],
-    'xpcshell' : BaseTestError + [
-        {'regex' : re.compile(r'''INFO \| Failed: [^0]'''), 'level' : WARNING,
-                'explanation' : "One or more unittests failed",
-                'status_level' : TBPL_WARNING}
+    'xpcshell' : [
+        {'regex' : TinderBoxPrintRe['xpcshell_summary']['regex'],
+            'level' : INFO, "save_line" : True},
         ],
-}
-TinderBoxPrint = {
-    "mochitest_summary" : {
-        'full_re_substr' : r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))''',
-        'pass_name' : "Passed",
-        'fail_name' : "Failed",
-        'known_fail_name' : "Todo",
-    },
-    "reftest_summary" : {
-        'full_re_substr' : r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \(''',
-        'pass_name' : "Successful",
-        'fail_name' : "Unexpected",
-        'known_fail_name' : "known problems",
-    },
-    "xpcshell_summary" : {
-        'full_re_substr' : r'''INFO \| (Passed|Failed): (\d+)''',
-        'pass_name' : "Passed",
-        'fail_name' : "Failed",
-        'known_fail_name' : None,
-    },
 }

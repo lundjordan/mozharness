@@ -445,10 +445,11 @@ class ShellMixin(object):
             p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
                              cwd=cwd, stderr=subprocess.STDOUT, env=env)
         except OSError, e:
+            level = ERROR
             if halt_on_failure:
                 level = FATAL
             self.log('caught OS error %s: %s while running %s' % (e.errno,
-                    e.strerror, command))
+                    e.strerror, command), level=level)
             return -1
         parser = OutputParser(config=self.config, log_obj=self.log_obj,
                               error_list=error_list)
@@ -471,6 +472,8 @@ class ShellMixin(object):
                            exit_code=p.returncode)
         if return_type == 'num_errors':
             return parser.num_errors
+        if return_type == 'parser':
+            return parser
         return p.returncode
 
     def get_output_from_command(self, command, cwd=None,

@@ -32,34 +32,6 @@ TBPL_STATUS_DICT = {
     TBPL_RETRY: WARNING,
 }
 
-def create_tinderbox_summary(suite_name, pass_count, fail_count,
-        known_fail_count=False, crashed=False, leaked=False):
-    emphasize_fail_text = '<em class="testfail">%s</em>'
-
-    if pass_count < 0 or fail_count < 0 or \
-            (known_fail_count != None and known_fail_count < 0):
-        summary = emphasize_fail_text % 'T-FAIL'
-    elif pass_count == 0 and fail_count == 0 and \
-            (known_fail_count == None or known_fail_count == 0):
-        summary = emphasize_fail_text % 'T-FAIL'
-    else:
-        str_fail_count = str(fail_count)
-        if fail_count > 0:
-            str_fail_count = emphasize_fail_text % str_fail_count
-        summary = "%d/%s" % (pass_count, str_fail_count)
-        if known_fail_count != None:
-            summary += "/%d" % known_fail_count
-    # Format the crash status.
-    if crashed:
-        summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
-    # Format the leak status.
-    if leaked != False:
-        summary += "&nbsp;%s" % emphasize_fail_text % (
-                (leaked and "LEAK") or "L-FAIL")
-
-    # Return the summary.
-    return "TinderboxPrint: %s<br/>%s\n" % (suite_name, summary)
-
 class BuildbotMixin(object):
     buildbot_config = None
     buildbot_properties = {}
@@ -85,51 +57,38 @@ class BuildbotMixin(object):
                 level = TBPL_STATUS_DICT[tbpl_status]
             self.add_summary("# TBPL %s #" % tbpl_status, level=level)
 
-    def log_tinderbox_println(self, suite_name, output, full_re_substr, pass_name,
-            fail_name, known_fail_name=None):
-        """appends 'TinderboxPrint: foo, summary' to the output"""
-        full_re = re.compile(full_re_substr)
-        harness_errors_re = re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)")
-        pass_count, fail_count = -1, -1
-        known_fail_count = known_fail_name and -1
-        crashed, leaked = False, False
+    def evaluate_unittest_suite(self, parser, suite_category, suite):
+        """parses unittest and adds tinderboxprint summary"""
+        result_status = TBPL_SUCCESS
+        if parser.num_errors:
+            result_status = self.worst_level(TBPL_FAILURE,
+                    result_status, levels=TBPL_STATUS_DICT.keys())
+        if parser.num_warnings:
+            result_status = self.worst_level(TBPL_WARNING,
+                    result_status, levels=TBPL_STATUS_DICT.keys())
+        if not parser.saved_lines:
+            self.add_summary("""No saved_lines of parsed log from suite %s could \
+                    be found. These are used for tinderboxprint summaries and \
+                    evaluates the (Failed/Unexpected): total count This may \
+                    cause inaccurate results""" % suite,
+                    level=WARNING)
+            return result_status
 
-        for line in output:
-            if not line or line.isspace():
-                continue
-            line = line.decode("utf-8").rstrip()
-            m = full_re.match(line)
-            if m:
-                r = m.group(2)
-                if r == pass_name:
-                    pass_count = int(m.group(3))
-                elif r == fail_name:
-                    fail_count = int(m.group(3))
-                # If otherIdent == None, then totals_re should not match it,
-                # so this test is fine as is.
-                elif r == known_fail_name:
-                    known_fail_count = int(m.group(3))
-                continue
-            m = harness_errors_re.match(line)
-            if m:
-                r = m.group(1)
-                if r == "Browser crashed (minidump found)":
-                    crashed = True
-                elif r == "missing output line for total leaks!":
-                    leaked = None
-                else:
-                    leaked = True
-                continue
-        summary = create_tinderbox_summary(suite_name, pass_count, fail_count,
-                known_fail_count, crashed, leaked)
-        self.info(summary)
+        result_status = self.eval_lines_and_append_tinderboxprint(suite_category,
+                suite, parser.saved_lines, result_status)
+        return result_status
 
-    def set_buildbot_property(self, prop_name, prop_value, write_to_file=False):
-        self.info("Setting buildbot property %s to %s" % (prop_name, prop_value))
-        self.buildbot_properties[prop_name] = prop_value
-        if write_to_file:
-            return self.dump_buildbot_properties(prop_list=[prop_name], file_name=prop_name)
-        return self.buildbot_properties[prop_name]
+    def eval_lines_and_append_tinderboxprint(self, suite_category, suite,
+            saved_lines, result_status):
+        """This is a base method called from evaluate_unittest_suite. \
+        This should be overrided in your script"""
+        return self.create_tinderbox_summary() or result_status
+
+    def create_tinderbox_summary(self, suite_name=None, pass_count=None,
+            fail_count=None, known_fail_count=False, crashed=False, leaked=False):
+        """This is a base method called from eval_lines_and_append_tinderboxprint. \
+        This should be overrided in your script"""
+        return None
 
     def query_buildbot_property(self, prop_name):
         return self.buildbot_properties.get(prop_name)

@@ -96,9 +96,6 @@ class LogMixin(object):
     def fatal(self, message, exit_code=-1):
         self.log(message, level=FATAL, exit_code=exit_code)
 
-
-
-
 # OutputParser {{{1
 class OutputParser(LogMixin):
     """ Helper object to parse command output.

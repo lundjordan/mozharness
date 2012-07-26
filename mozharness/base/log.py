@@ -167,7 +167,7 @@ pre-context-line setting in error_list.)
                     if log_level == WARNING:
                         self.num_warnings += 1
                     if error_check.get('save_line'):
-                        self.saved_lines.apppend(line)
+                        self.saved_lines.append(line)
                     break
             # TODO set self.error_status (or something)
             # that sets the worst error level hit.
@@ -176,9 +176,9 @@ pre-context-line setting in error_list.)
                     self.info(' %s' % line)
 
     def worst_level(self, target_level, existing_level, levels=None):
-        """returns the either the existing_level or target level
-        this depends on which is closest to levels[0]
-        By default, levels is a list of log levels"""
+        """returns either existing_level or target level.
+        This depends on which is closest to levels[0]
+        By default, levels is the list of log levels"""
         if not levels:
             levels = [FATAL, CRITICAL, ERROR, WARNING, INFO]
         if target_level not in levels:

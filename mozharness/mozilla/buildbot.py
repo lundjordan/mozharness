@@ -16,6 +16,7 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.config import parse_config_file
 from mozharness.base.log import INFO, WARNING, ERROR
+from mozharness.base.log import OutputParser
 
 # BuildbotMixin {{{1
 
@@ -68,25 +69,25 @@ class BuildbotMixin(object):
         """parses unittest and adds tinderboxprint summary"""
         result_status = TBPL_SUCCESS
         if parser.num_errors:
-            result_status = self.worst_level(TBPL_FAILURE,
+            result_status = parser.worst_level(TBPL_FAILURE,
                     result_status, levels=TBPL_STATUS_DICT.keys())
         if parser.num_warnings:
-            result_status = self.worst_level(TBPL_WARNING,
+            result_status = parser.worst_level(TBPL_WARNING,
                     result_status, levels=TBPL_STATUS_DICT.keys())
         if not parser.saved_lines:
-            self.add_summary("""No saved_lines of parsed log from suite %s could \
+            self.add_summary("No saved_lines of parsed log from suite %s could \
                     be found. These are used for tinderboxprint summaries and \
                     evaluates the (Failed/Unexpected): total count This may \
-                    cause inaccurate results""" % suite,
+                    cause inaccurate results" % suite,
                     level=WARNING)
             return result_status
 
         result_status = self.eval_lines_and_append_tinderboxprint(suite_category,
-                suite, parser.saved_lines, result_status)
+                suite, parser, result_status)
         return result_status
 
     def eval_lines_and_append_tinderboxprint(self, suite_category, suite,
-            saved_lines, result_status):
+            parser, result_status):
         """This is a base method called from evaluate_unittest_suite. \
         This should be overrided in your script"""
         return self.create_tinderbox_summary() or result_status

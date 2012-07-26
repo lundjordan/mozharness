@@ -8,7 +8,7 @@
 Ideally this will go away if and when we retire buildbot.
 """
 
-import os, re
+import os
 import pprint
 import sys
 
@@ -56,6 +56,13 @@ class BuildbotMixin(object):
             if not level:
                 level = TBPL_STATUS_DICT[tbpl_status]
             self.add_summary("# TBPL %s #" % tbpl_status, level=level)
+
+    def set_buildbot_property(self, prop_name, prop_value, write_to_file=False):
+        self.info("Setting buildbot property %s to %s" % (prop_name, prop_value))
+        self.buildbot_properties[prop_name] = prop_value
+        if write_to_file:
+            return self.dump_buildbot_properties(prop_list=[prop_name], file_name=prop_name)
+        return self.buildbot_properties[prop_name]
 
     def evaluate_unittest_suite(self, parser, suite_category, suite):
         """parses unittest and adds tinderboxprint summary"""

@@ -348,7 +348,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 cmd =  abs_base_cmd + suites[suite]
                 error_list = CategoryTestList.get(suite_category, [])
                 error_list.extend([BaseTestError, PythonErrorList])
-                parser = self.run_command(cmd, cwd=dirs['abs_mozilla_dir'],
+                parser = self.run_command(cmd, cwd=dirs['abs_work_dir'],
                                     error_list=error_list, return_type='parser')
                 result_status = self.evaluate_unittest_suite(parser,
                         suite_category, suite)

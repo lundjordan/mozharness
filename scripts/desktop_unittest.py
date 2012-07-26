@@ -380,6 +380,9 @@ These are often OS specific and disabling them may result in spurious test resul
             if summary_suite_re:
                 summary_m = summary_suite_re['regex'].match(line) # passed/failed/todo
                 if summary_m:
+                    # remove all the none values in groups() so this will work
+                    # with all suites including mochitest browser-chrome
+                    summary_m = [group for group in summary_m.groups() if group is not None]
                     r = summary_m.group(2)
                     if r in summary_suite_re['pass_group']:
                         pass_count = int(summary_m.group(3))
@@ -392,7 +395,7 @@ These are often OS specific and disabling them may result in spurious test resul
                     continue
             harness_m = harness_error_re.match(line)
             if harness_m:
-                r = harness_m.group(1)
+                r = harness_m.group(2)
                 if r == "Browser crashed (minidump found)":
                     crashed = True
                 elif r == "missing output line for total leaks!":

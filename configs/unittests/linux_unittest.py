@@ -3,7 +3,7 @@ APP_NAME_DIR = "firefox"
 BINARY_PATH = "firefox-bin"
 INSTALLER_PATH = "installer.tar.bz2"
 XPCSHELL_NAME = "xpcshell"
-DISABLE_SCREEN_SAVER = False
+DISABLE_SCREEN_SAVER = True
 ADJUST_MOUSE_AND_SCREEN = False
 #####
 config = {
@@ -18,10 +18,10 @@ config = {
         "revision": "default",
         "dest": "tools"
     }],
-    # "exes": {
-    #     'python': '/tools/buildbot/bin/python',
-    #     'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-    # },
+    "exes": {
+        'python': '/tools/buildbot/bin/python',
+        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+    },
     "run_file_names" : {
         "mochitest" : "runtests.py",
         "reftest" : "runreftest.py",

@@ -382,20 +382,21 @@ These are often OS specific and disabling them may result in spurious test resul
                 if summary_m:
                     # remove all the none values in groups() so this will work
                     # with all suites including mochitest browser-chrome
-                    summary_m = [group for group in summary_m.groups() if group is not None]
-                    r = summary_m.group(2)
+                    summary_match_list = [group for group in summary_m.groups() \
+                            if group is not None]
+                    r = summary_match_list[1]
                     if r in summary_suite_re['pass_group']:
-                        pass_count = int(summary_m.group(3))
+                        pass_count = int(summary_match_list[2])
                     elif r in summary_suite_re['fail_group']:
-                        fail_count = int(summary_m.group(3))
+                        fail_count = int(summary_match_list[2])
                     # If otherIdent == None, then totals_re should not match it,
                     # so this test is fine as is.
                     elif r in summary_suite_re['known_fail_group']:
-                        known_fail_count = int(summary_m.group(3))
+                        known_fail_count = int(summary_match_list[2])
                     continue
-            harness_m = harness_error_re.match(line)
-            if harness_m:
-                r = harness_m.group(2)
+            harness_match = harness_error_re.match(line)
+            if harness_match:
+                r = harness_match.group(2)
                 if r == "Browser crashed (minidump found)":
                     crashed = True
                 elif r == "missing output line for total leaks!":

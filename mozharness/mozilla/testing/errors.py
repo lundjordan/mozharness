@@ -18,10 +18,6 @@ import re
 from mozharness.base.log import INFO, WARNING
 
 # ErrorLists {{{1
-# TODO FIX COMMENTS
-# NOTE TinderBoxPrintRe is used in
-# evaluate_saved_lines_and_append_tinderboxprint(). Removing/editing existing
-# full_re_substr below may have spurious results
 TinderBoxPrintRe = {
     "mochitest_summary" : {
         'regex' : re.compile(r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))'''),

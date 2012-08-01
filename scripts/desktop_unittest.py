@@ -23,7 +23,6 @@ from mozharness.mozilla.testing.errors import BaseTestError
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.base.log import INFO
-from mozharness.base.log import OutputParser
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_STATUS_DICT
 
 
@@ -115,7 +114,6 @@ in the config file under: preflight_run_cmd_suites""",
         self.installer_path = c.get('installer_path')
         self.binary_path = c.get('binary_path')
         self.symbols_url = c.get('symbols_url')
-        self.summaries = []
 
     ###### helper methods
 

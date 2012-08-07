@@ -472,8 +472,6 @@ class ShellMixin(object):
                            exit_code=p.returncode)
         if return_type == 'num_errors':
             return parser.num_errors
-        if return_type == 'parser':
-            return parser
         return p.returncode
 
     def get_output_from_command(self, command, cwd=None,

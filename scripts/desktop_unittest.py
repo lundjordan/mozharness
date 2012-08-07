@@ -12,18 +12,73 @@ author: Jordan Lund
 """
 
 import os, sys, copy, platform
-import shutil
+import shutil, re
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.testing.errors import CategoryTestList, TinderBoxPrintRe
-from mozharness.mozilla.testing.errors import BaseTestError
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import INFO
+from mozharness.base.log import OutputParser, INFO
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_STATUS_DICT
+
+class DesktopUnittestOutputParser(OutputParser):
+    """
+    A class that extends OutputParser such that it can parse the number of
+    passed/failed/todo tests from the output.
+    """
+
+    def __init__(self, suite_category, **kwargs):
+        super(DesktopUnittestOutputParser, self).__init__(**kwargs)
+        self.summary_suite_re = TinderBoxPrintRe.get('%s_summary' % suite_category, {})
+        self.harness_error_re = TinderBoxPrintRe['harness_error']['minimum_regex']
+        self.full_harness_error_re = TinderBoxPrintRe['harness_error']['full_regex']
+        self.fail_count = -1
+        self.pass_count = -1
+        # known_fail_count does not exist for some suites
+        self.known_fail_count = self.summary_suite_re.get('known_fail_group') and -1
+        self.crashed, self.leaked = False, False
+
+    def parse_single_line(self, line):
+        if self.summary_suite_re:
+            summary_m = self.summary_suite_re['regex'].match(line) # passed/failed/todo
+            if summary_m:
+                # remove all the none values in groups() so this will work
+                # with all suites including mochitest browser-chrome
+                summary_match_list = [group for group in summary_m.groups() \
+                        if group is not None]
+                r = summary_match_list[1]
+                if r in self.summary_suite_re['pass_group']:
+                    self.pass_count = int(summary_match_list[2])
+                elif r in self.summary_suite_re['fail_group']:
+                    self.fail_count = int(summary_match_list[2])
+                    if self.fail_count > 0:
+                        self.warning(' %s\n One or more unittests failed.' % line)
+                        self.result_status = self.worst_level(TBPL_WARNING,
+                                self.result_status, levels=TBPL_STATUS_DICT.keys())
+                # If otherIdent == None, then totals_re should not match it,
+                # so this test is fine as is.
+                elif r in self.summary_suite_re['known_fail_group']:
+                    self.known_fail_count = int(summary_match_list[2])
+                return # skip below and base parse_single_line
+        harness_match = self.harness_error_re.match(line)
+        if harness_match:
+            self.warning(' %s\n This is a harness error.' % line)
+            self.result_status = self.worst_level(TBPL_WARNING,
+                    self.result_status, levels=TBPL_STATUS_DICT.keys())
+            full_harness_match = self.full_harness_error_re.match(line)
+            if full_harness_match:
+                r = harness_match.group(2)
+                if r == "Browser crashed (minidump found)":
+                    self.crashed = True
+                elif r == "missing output line for total leaks!":
+                    self.leaked = None
+                else:
+                    self.leaked = True
+            return # skip base parse_single_line
+        super(DesktopUnittestOutputParser, self).parse_single_line(line)
 
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
@@ -365,43 +420,11 @@ These are often OS specific and disabling them may result in spurious test resul
         """append a tinderboxprint line in the log with summary info
         and return the worst buildbot status"""
         suite_name = suite_category + '-' + suite
-        summary_suite_re = TinderBoxPrintRe.get('%s_summary' % suite_category, {})
-        harness_error_re = TinderBoxPrintRe['global_harness_error']['regex']
-        pass_count, fail_count = -1, -1
-        known_fail_count = summary_suite_re.get('known_fail_group') and -1
-        crashed, leaked = False, False
 
         for line in parser.saved_lines:
             if not line or line.isspace():
                 continue
             line = line.decode("utf-8").rstrip()
-            if summary_suite_re:
-                summary_m = summary_suite_re['regex'].match(line) # passed/failed/todo
-                if summary_m:
-                    # remove all the none values in groups() so this will work
-                    # with all suites including mochitest browser-chrome
-                    summary_match_list = [group for group in summary_m.groups() \
-                            if group is not None]
-                    r = summary_match_list[1]
-                    if r in summary_suite_re['pass_group']:
-                        pass_count = int(summary_match_list[2])
-                    elif r in summary_suite_re['fail_group']:
-                        fail_count = int(summary_match_list[2])
-                    # If otherIdent == None, then totals_re should not match it,
-                    # so this test is fine as is.
-                    elif r in summary_suite_re['known_fail_group']:
-                        known_fail_count = int(summary_match_list[2])
-                    continue
-            harness_match = harness_error_re.match(line)
-            if harness_match:
-                r = harness_match.group(2)
-                if r == "Browser crashed (minidump found)":
-                    crashed = True
-                elif r == "missing output line for total leaks!":
-                    leaked = None
-                else:
-                    leaked = True
-                continue
         # we do a unittest result change here if fail count is more then 0
         if fail_count > 0:
             result_status = parser.worst_level(TBPL_WARNING,

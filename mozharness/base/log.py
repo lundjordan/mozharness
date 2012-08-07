@@ -129,9 +129,7 @@ pre-context-line setting in error_list.)
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
         self.saved_lines = []
-        # TODO set self.error_level to the worst error level hit
-        # (WARNING, ERROR, CRITICAL, FATAL)
-        # self.error_level = INFO
+        self.result_status = INFO
 
     def add_lines(self, output):
         if isinstance(output, basestring):

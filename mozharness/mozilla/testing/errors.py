@@ -37,26 +37,8 @@ TinderBoxPrintRe = {
         'fail_group' : ["Failed"],
         'known_fail_group' : [],
     },
-    "global_harness_error" : {
-        'regex' : re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)")
+    "harness_error" : {
+        'full_regex' : re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)"),
+        'minimum_regex' : re.compile(r'''TEST-UNEXPECTED''')
     },
-}
-BaseTestError = [
-    {'regex': re.compile(r'''TEST-UNEXPECTED'''), 'level' : WARNING,
-        'explanation' : "Test unexpectingly failed." + \
-                " This is a harness error.", "save_line" : True},
-]
-CategoryTestList = {
-    'mochitest' : [
-        {'regex' : TinderBoxPrintRe['mochitest_summary']['regex'],
-            'level' : INFO, "save_line" : True},
-        ],
-    'reftest' : [
-        {'regex' : TinderBoxPrintRe['reftest_summary']['regex'],
-            'level' : INFO, "save_line" : True},
-        ],
-    'xpcshell' : [
-        {'regex' : TinderBoxPrintRe['xpcshell_summary']['regex'],
-            'level' : INFO, "save_line" : True},
-        ],
 }

@@ -131,6 +131,42 @@ pre-context-line setting in error_list.)
         self.saved_lines = []
         self.result_status = INFO
 
+    def parse_single_line(self, line):
+        for error_check in self.error_list:
+            # TODO buffer for context_lines.
+            match = False
+            if 'substr' in error_check:
+                if error_check['substr'] in line:
+                    match = True
+            elif 'regex' in error_check:
+                if error_check['regex'].search(line):
+                    match = True
+            else:
+                self.warn("error_list: 'substr' and 'regex' not in %s" % \
+                            error_check)
+            if match:
+                log_level = error_check.get('level', INFO)
+                if self.log_output:
+                    message = ' %s' % line
+                    if error_check.get('explanation'):
+                        message += '\n %s' % error_check['explanation']
+                    if error_check.get('summary'):
+                        self.add_summary(message, level=log_level)
+                    else:
+                        self.log(message, level=log_level)
+                if log_level in (ERROR, CRITICAL, FATAL):
+                    self.num_errors += 1
+                if log_level == WARNING:
+                    self.num_warnings += 1
+                if error_check.get('save_line'):
+                    self.saved_lines.append(line)
+                break
+        # TODO set self.error_status (or something)
+        # that sets the worst error level hit.
+        else:
+            if self.log_output:
+                self.info(' %s' % line)
+
     def add_lines(self, output):
         if isinstance(output, basestring):
             output = [output]
@@ -138,40 +174,7 @@ pre-context-line setting in error_list.)
             if not line or line.isspace():
                 continue
             line = line.decode("utf-8").rstrip()
-            for error_check in self.error_list:
-                # TODO buffer for context_lines.
-                match = False
-                if 'substr' in error_check:
-                    if error_check['substr'] in line:
-                        match = True
-                elif 'regex' in error_check:
-                    if error_check['regex'].search(line):
-                        match = True
-                else:
-                    self.warn("error_list: 'substr' and 'regex' not in %s" % \
-                              error_check)
-                if match:
-                    log_level = error_check.get('level', INFO)
-                    if self.log_output:
-                        message = ' %s' % line
-                        if error_check.get('explanation'):
-                            message += '\n %s' % error_check['explanation']
-                        if error_check.get('summary'):
-                            self.add_summary(message, level=log_level)
-                        else:
-                            self.log(message, level=log_level)
-                    if log_level in (ERROR, CRITICAL, FATAL):
-                        self.num_errors += 1
-                    if log_level == WARNING:
-                        self.num_warnings += 1
-                    if error_check.get('save_line'):
-                        self.saved_lines.append(line)
-                    break
-            # TODO set self.error_status (or something)
-            # that sets the worst error level hit.
-            else:
-                if self.log_output:
-                    self.info(' %s' % line)
+            self.parse_single_line(line)
 
     def worst_level(self, target_level, existing_level, levels=None):
         """returns either existing_level or target level.
@@ -184,8 +187,6 @@ pre-context-line setting in error_list.)
         for l in levels:
             if l in (target_level, existing_level):
                 return l
-
-
 
 # BaseLogger {{{1
 class BaseLogger(object):

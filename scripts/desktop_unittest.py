@@ -12,7 +12,7 @@ author: Jordan Lund
 """
 
 import os, sys, copy, platform
-import shutil, re
+import shutil
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -21,8 +21,9 @@ from mozharness.base.errors import PythonErrorList, BaseErrorList
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import OutputParser, INFO
-from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_STATUS_DICT
+from mozharness.base.log import OutputParser, WARNING
+from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
+from mozharness.mozilla.buildbot import TBPL_SUCCESS
 
 class DesktopUnittestOutputParser(OutputParser):
     """
@@ -40,6 +41,7 @@ class DesktopUnittestOutputParser(OutputParser):
         # known_fail_count does not exist for some suites
         self.known_fail_count = self.summary_suite_re.get('known_fail_group') and -1
         self.crashed, self.leaked = False, False
+        self.tbpl_status = TBPL_SUCCESS
 
     def parse_single_line(self, line):
         if self.summary_suite_re:
@@ -56,21 +58,23 @@ class DesktopUnittestOutputParser(OutputParser):
                     self.fail_count = int(summary_match_list[2])
                     if self.fail_count > 0:
                         self.warning(' %s\n One or more unittests failed.' % line)
-                        self.result_status = self.worst_level(TBPL_WARNING,
-                                self.result_status, levels=TBPL_STATUS_DICT.keys())
+                        self.worst_log_level = self.worst_level(WARNING,
+                                self.worst_log_level)
+                        self.tbpl_status = self.worst_level(TBPL_WARNING,
+                                self.tbpl_status)
                 # If otherIdent == None, then totals_re should not match it,
                 # so this test is fine as is.
                 elif r in self.summary_suite_re['known_fail_group']:
                     self.known_fail_count = int(summary_match_list[2])
-                return # skip below and base parse_single_line
+                return # skip harness check and base parse_single_line
         harness_match = self.harness_error_re.match(line)
         if harness_match:
             self.warning(' %s\n This is a harness error.' % line)
-            self.result_status = self.worst_level(TBPL_WARNING,
-                    self.result_status, levels=TBPL_STATUS_DICT.keys())
+            self.worst_log_level = self.worst_level(WARNING, self.worst_log_level)
+            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status)
             full_harness_match = self.full_harness_error_re.match(line)
             if full_harness_match:
-                r = harness_match.group(2)
+                r = harness_match.group(1)
                 if r == "Browser crashed (minidump found)":
                     self.crashed = True
                 elif r == "missing output line for total leaks!":
@@ -400,49 +404,49 @@ These are often OS specific and disabling them may result in spurious test resul
             self.info('#### Running %s suites' % suite_category)
             for suite in suites:
                 cmd =  abs_base_cmd + suites[suite]
-                error_list = CategoryTestList.get(suite_category, [])
-                error_list.extend(BaseTestError +  PythonErrorList)
-                parser = self.run_command(cmd, cwd=dirs['abs_work_dir'],
-                                    error_list=error_list, return_type='parser')
-                result_status = self.evaluate_unittest_suite(parser,
-                        suite_category, suite)
-                result_log_level = TBPL_STATUS_DICT.get(result_status, INFO)
-                self.buildbot_status(result_status)
+                suite_name = suite_category + '-' + suite
+                tbpl_status, log_level = None, None
+                parser = DesktopUnittestOutputParser(config=self.config,
+                                            log_obj=self.log_obj,
+                                            error_list=PythonErrorList)
+                num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
+                                        output_parser=parser, return_type='num_errors')
+
+                # mochitests, reftests, and xpcshell suites do not return
+                # appropriate return codes. Therefore, we must parse the output
+                # to determine what the tbpl_status and worst_log_level must
+                # be. We do this by:
+                # 1) checking to see if our mozharness script ran into any
+                #    errors itself with 'num_errors' <- OutputParser
+                # 2) if num_errors is 0 then we trust in the 'parser' objects
+                #    findings for tbpl_status <- DesktopUnittestOutputParser
+
+                if num_errors: # mozharness ran into a script error. this is a failure
+                    tbpl_status = TBPL_FAILURE
+                else:
+                    tbpl_status = parser.tbpl_status
+                # we can trust in parser.worst_log_level in either case
+                log_level = parser.worst_log_level
+
+                self.append_tinderboxprint_line(suite_name, parser.pass_count,
+                        parser.fail_count, parser.known_fail_count,
+                        parser.crashed, parser.leaked)
+                self.buildbot_status(tbpl_status, level=log_level)
                 self.add_summary("The %s suite: %s ran with return status: %s" %
-                        (suite_category, suite, result_status),
-                        level=result_log_level)
+                        (suite_category, suite, tbpl_status),
+                        level=log_level)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
 
-    # This method is called from evaluate_unittest_suite in BuildbotMixin
-    def eval_lines_and_append_tinderboxprint(self, suite_category, suite,
-            parser, result_status):
-        """append a tinderboxprint line in the log with summary info
-        and return the worst buildbot status"""
-        suite_name = suite_category + '-' + suite
-
-        for line in parser.saved_lines:
-            if not line or line.isspace():
-                continue
-            line = line.decode("utf-8").rstrip()
-        # we do a unittest result change here if fail count is more then 0
-        if fail_count > 0:
-            result_status = parser.worst_level(TBPL_WARNING,
-                    result_status, levels=TBPL_STATUS_DICT.keys())
-        summary = self.create_tinderbox_summary(suite_name, pass_count, fail_count,
-                known_fail_count, crashed, leaked)
-        self.info(summary)
-
-        return result_status
-
-    def create_tinderbox_summary(self, suite_name, pass_count, fail_count,
-            known_fail_count=False, crashed=False, leaked=False):
+    def append_tinderboxprint_line(self, suite_name, pass_count, fail_count,
+            known_fail_count, crashed, leaked):
         emphasize_fail_text = '<em class="testfail">%s</em>'
 
-        if pass_count < 0 or fail_count < 0 or known_fail_count < 0:
+        if pass_count < 0 or fail_count < 0 or \
+                known_fail_count < 0:
             summary = emphasize_fail_text % 'T-FAIL'
-        elif pass_count == 0 and fail_count == 0 and (known_fail_count == 0 or \
-                known_fail_count == None):
+        elif pass_count == 0 and fail_count == 0 and \
+                (known_fail_count == 0 or known_fail_count == None):
             summary = emphasize_fail_text % 'T-FAIL'
         else:
             str_fail_count = str(fail_count)
@@ -460,7 +464,7 @@ These are often OS specific and disabling them may result in spurious test resul
                     (leaked and "LEAK") or "L-FAIL")
 
         # Return the summary.
-        return "TinderboxPrint: %s<br/>%s\n" % (suite_name, summary)
+        self.info("TinderboxPrint: %s<br/>%s\n" % (suite_name, summary))
 
 
 # main {{{1

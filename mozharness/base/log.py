@@ -128,8 +128,7 @@ pre-context-line setting in error_list.)
         self.context_buffer = []
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
-        self.saved_lines = []
-        self.result_status = INFO
+        self.worst_log_level = INFO
 
     def parse_single_line(self, line):
         for error_check in self.error_list:
@@ -158,8 +157,8 @@ pre-context-line setting in error_list.)
                     self.num_errors += 1
                 if log_level == WARNING:
                     self.num_warnings += 1
-                if error_check.get('save_line'):
-                    self.saved_lines.append(line)
+                self.worst_log_level = self.worst_level(log_level,
+                        self.worst_log_level)
                 break
         # TODO set self.error_status (or something)
         # that sets the worst error level hit.

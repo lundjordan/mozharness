@@ -65,39 +65,6 @@ class BuildbotMixin(object):
             return self.dump_buildbot_properties(prop_list=[prop_name], file_name=prop_name)
         return self.buildbot_properties[prop_name]
 
-    def evaluate_unittest_suite(self, parser, suite_category, suite):
-        """parses unittest and adds tinderboxprint summary"""
-        result_status = TBPL_SUCCESS
-        if parser.num_errors:
-            result_status = parser.worst_level(TBPL_FAILURE,
-                    result_status, levels=TBPL_STATUS_DICT.keys())
-        if parser.num_warnings:
-            result_status = parser.worst_level(TBPL_WARNING,
-                    result_status, levels=TBPL_STATUS_DICT.keys())
-        if not parser.saved_lines:
-            self.add_summary("No saved_lines of parsed log from suite %s could \
-                    be found. These are used for tinderboxprint summaries and \
-                    evaluates the (Failed/Unexpected): total count This may \
-                    cause inaccurate results" % suite,
-                    level=WARNING)
-            return result_status
-
-        result_status = self.eval_lines_and_append_tinderboxprint(suite_category,
-                suite, parser, result_status)
-        return result_status
-
-    def eval_lines_and_append_tinderboxprint(self, suite_category, suite,
-            parser, result_status):
-        """This is a base method called from evaluate_unittest_suite. \
-        This should be overrided in your script"""
-        return self.create_tinderbox_summary() or result_status
-
-    def create_tinderbox_summary(self, suite_name=None, pass_count=None,
-            fail_count=None, known_fail_count=False, crashed=False, leaked=False):
-        """This is a base method called from eval_lines_and_append_tinderboxprint. \
-        This should be overrided in your script"""
-        return None
-
     def query_buildbot_property(self, prop_name):
         return self.buildbot_properties.get(prop_name)
 

@@ -23,7 +23,7 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.base.log import OutputParser, WARNING
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
-from mozharness.mozilla.buildbot import TBPL_SUCCESS
+from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_STATUS_DICT
 
 class DesktopUnittestOutputParser(OutputParser):
     """
@@ -61,7 +61,7 @@ class DesktopUnittestOutputParser(OutputParser):
                         self.worst_log_level = self.worst_level(WARNING,
                                 self.worst_log_level)
                         self.tbpl_status = self.worst_level(TBPL_WARNING,
-                                self.tbpl_status)
+                                self.tbpl_status, levels=TBPL_STATUS_DICT.keys())
                 # If otherIdent == None, then totals_re should not match it,
                 # so this test is fine as is.
                 elif r in self.summary_suite_re['known_fail_group']:
@@ -71,7 +71,8 @@ class DesktopUnittestOutputParser(OutputParser):
         if harness_match:
             self.warning(' %s\n This is a harness error.' % line)
             self.worst_log_level = self.worst_level(WARNING, self.worst_log_level)
-            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status)
+            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status,
+                    levels=TBPL_STATUS_DICT.keys())
             full_harness_match = self.full_harness_error_re.match(line)
             if full_harness_match:
                 r = harness_match.group(1)
@@ -150,6 +151,8 @@ in the config file under: preflight_run_cmd_suites""",
     ]
 
     def __init__(self, require_config_file=True):
+        # abs_dirs defined already in BaseScript but is here to make pylint happy
+        self.abs_dirs = None
         MercurialScript.__init__(self,
                 config_options=self.config_options,
                 all_actions=[
@@ -167,12 +170,15 @@ in the config file under: preflight_run_cmd_suites""",
 
         c = self.config
         self.global_test_options = []
-        self.abs_dirs = None
         self.installer_url = c.get('installer_url')
         self.test_url = c.get('test_url')
-        self.installer_path = c.get('installer_path')
-        self.binary_path = c.get('binary_path')
         self.symbols_url = c.get('symbols_url')
+        # this is so mozinstall in install() doesn't bug out if we don't run the
+        # download_and_extract action
+        self.installer_path = os.path.join(self.abs_dirs['abs_work_dir'],
+                c.get('installer_path'))
+        self.binary_path = os.path.join(self.abs_dirs['abs_app_install_dir'],
+                c.get('binary_path'))
 
     ###### helper methods
 
@@ -347,21 +353,23 @@ in your config under %s_options""" % suite_category, suite_category)
         dirs = self.query_abs_dirs()
 
         if not c.get('preflight_run_commands_disabled'):
+            arch = platform.architecture()[0]
             for suite in c['preflight_run_cmd_suites']:
                 # XXX platform.architecture() may give incorrect values for some
                 # platforms like mac as excutable files may be universal
                 # files containing multiple architectures
                 # NOTE 'enabled' is only here while we have unconsolidated configs
-                if suite['enabled'] and \
-                        platform.architecture()[0] in suite['architectures']:
-
-                    self.info("Running pre test command %(name)s with '%(cmd)s'" % {
-                        'name' : suite['name'],
-                        'cmd' : ' '.join(suite['cmd'])})
-                    # TODO rather then checking for formatting on every string
-                    # in every preflight enabled cmd: find a better solution!
-                    # maybe I can implement WithProperties in mozharness?
-                    cmd = [x % (self.buildbot_config['properties']) for x in suite['cmd']]
+                if suite['enabled'] and arch in suite['architectures']:
+                    cmd = suite['cmd']
+                    name = suite['name']
+                    self.info("Running pre test command %(name)s with '%(cmd)s'" \
+                            % {'name' : name, 'cmd' : ' '.join(cmd)})
+                    if self.buildbot_config: # this cmd is for buildbot
+                        # TODO rather then checking for formatting on every string
+                        # in every preflight enabled cmd: find a better solution!
+                        # maybe I can implement WithProperties in mozharness?
+                        cmd = [x % (self.buildbot_config.get('properties')) \
+                                for x in cmd]
                     self.run_command(cmd,
                             cwd=dirs['abs_work_dir'],
                             error_list=BaseErrorList,
@@ -406,11 +414,11 @@ These are often OS specific and disabling them may result in spurious test resul
                 cmd =  abs_base_cmd + suites[suite]
                 suite_name = suite_category + '-' + suite
                 tbpl_status, log_level = None, None
-                parser = DesktopUnittestOutputParser(config=self.config,
-                                            log_obj=self.log_obj,
-                                            error_list=PythonErrorList)
+                parser = DesktopUnittestOutputParser(suite_category,
+                        config=self.config, log_obj=self.log_obj,
+                        error_list=PythonErrorList)
                 num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
-                                        output_parser=parser, return_type='num_errors')
+                        output_parser=parser, return_type='num_errors')
 
                 # mochitests, reftests, and xpcshell suites do not return
                 # appropriate return codes. Therefore, we must parse the output

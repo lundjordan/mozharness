@@ -14,7 +14,7 @@ config = {
     "buildbot_json_path": "buildprops.json",
     "virtualenv_path": 'c:/talos-slave/test/build/venv',
     "virtualenv_python_dll": 'c:/mozilla-build/python27/python27.dll',
-    "pywin32_url" : "http://downloads.sourceforge.net/project/pywin32/pywin32/Build%20217/pywin32-217.win32-py2.7.exe?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpywin32%2Ffiles%2Fpywin32%2FBuild%2520217%2F&ts=1344622048&use_mirror=superb-sea2",
+    "pywin32_url" : "http://downloads.sourceforge.net/project/pywin32/pywin32/Build%20217/pywin32-217.win32-py2.7.exe?use_mirror=superb-sea2",
     "distribute_url": "http://build.mozilla.org/talos/zips/distribute-0.6.24.tar.gz",
     "pip_url": "http://build.mozilla.org/talos/zips/pip-1.0.2.tar.gz",
     "repos": [{

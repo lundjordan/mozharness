@@ -12,7 +12,6 @@ config = {
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
     "buildbot_json_path": "buildprops.json",
-    "simplejson_url": "http://build.mozilla.org/talos/zips/simplejson-2.2.1.tar.gz",
     "virtualenv_path": 'c:/talos-slave/test/build/venv',
     "virtualenv_python_dll": 'c:/mozilla-build/python27/python27.dll',
     "distribute_url": "http://build.mozilla.org/talos/zips/distribute-0.6.24.tar.gz",
@@ -91,7 +90,8 @@ config = {
             "cmd" : [
                 # when configs are consolidated this python path will only show
                 # for windows.
-                "C:\\mozilla-build\\python25\\python.exe", "tools/scripts/support/mouse_and_screen_resolution.py",
+                # "C:\\mozilla-build\\python25\\python.exe", "tools/scripts/support/mouse_and_screen_resolution.py",
+                "python", "tools/scripts/support/mouse_and_screen_resolution.py",
                 "--configuration-url",
                 "http://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" + \
                         "testing/machine-configuration.json"],

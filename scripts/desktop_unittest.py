@@ -5,7 +5,6 @@
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 # ***** END LICENSE BLOCK *****
 """desktop_unittest.py
-
 The goal of this is to extract the unittestng from buildbot's factory.py
 
 author: Jordan Lund
@@ -85,9 +84,7 @@ class DesktopUnittestOutputParser(OutputParser):
             return # skip base parse_single_line
         super(DesktopUnittestOutputParser, self).parse_single_line(line)
 
-
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
-
 # DesktopUnittest {{{1
 class DesktopUnittest(TestingMixin, MercurialScript):
 

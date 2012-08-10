@@ -136,6 +136,7 @@ in the config file under: preflight_run_cmd_suites""",
     ] + copy.deepcopy(testing_config_options)
 
     virtualenv_modules = [
+      'pywin32',
      {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
      {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
      {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},

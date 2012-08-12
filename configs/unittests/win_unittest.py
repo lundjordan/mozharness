@@ -14,7 +14,6 @@ config = {
     "buildbot_json_path": "buildprops.json",
     "virtualenv_path": 'c:/talos-slave/test/build/venv',
     "virtualenv_python_dll": 'c:/mozilla-build/python27/python27.dll',
-    "pywin32_url" : "http://downloads.sourceforge.net/project/pywin32/pywin32/Build%20217/pywin32-217.win32-py2.7.exe?use_mirror=superb-sea2",
     "distribute_url": "http://build.mozilla.org/talos/zips/distribute-0.6.24.tar.gz",
     "pip_url": "http://build.mozilla.org/talos/zips/pip-1.0.2.tar.gz",
     "repos": [{
@@ -91,8 +90,7 @@ config = {
             "cmd" : [
                 # when configs are consolidated this python path will only show
                 # for windows.
-                # "C:\\mozilla-build\\python25\\python.exe", "tools/scripts/support/mouse_and_screen_resolution.py",
-                "python", "tools/scripts/support/mouse_and_screen_resolution.py",
+                "C:\\mozilla-build\\python25\\python.exe", "tools/scripts/support/mouse_and_screen_resolution.py",
                 "--configuration-url",
                 "http://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" + \
                         "testing/machine-configuration.json"],

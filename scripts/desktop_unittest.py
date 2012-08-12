@@ -5,7 +5,7 @@
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 # ***** END LICENSE BLOCK *****
 """desktop_unittest.py
-The goal of this is to extract the unittestng from buildbot's factory.py
+The goal of this is to extract desktop unittestng from buildbot's factory.py
 
 author: Jordan Lund
 """
@@ -125,10 +125,10 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                         Beware, this may take a while ;)""",
             }
         ],
-        [['--disable-preflight-run-commands',], {
-                "action": "store_true",
+        [['--enable-preflight-run-commands',], {
+                "action": "store_false",
                 "dest": "preflight_run_commands_disabled",
-                "default": False,
+                "default": True,
                 "help": """This will disable any run commands that are specified
 in the config file under: preflight_run_cmd_suites""",
             }
@@ -136,7 +136,6 @@ in the config file under: preflight_run_cmd_suites""",
     ] + copy.deepcopy(testing_config_options)
 
     virtualenv_modules = [
-      'pywin32',
      {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
      {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
      {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},

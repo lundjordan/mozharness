@@ -7,20 +7,22 @@ DISABLE_SCREEN_SAVER = False
 ADJUST_MOUSE_AND_SCREEN = False
 #####
 config = {
+    ### BUILDBOT
+    "buildbot_json_path": "buildprops.json",
+    "exes": {
+        'python': '/tools/buildbot/bin/python',
+        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+    },
+    ###
     "app_name_dir" : APP_NAME_DIR,
     "installer_path" : INSTALLER_PATH,
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
-    "buildbot_json_path": "buildprops.json",
     "repos": [{
         "repo": "http://hg.mozilla.org/build/tools",
         "revision": "default",
         "dest": "tools"
     }],
-    "exes": {
-        'python': '/tools/buildbot/bin/python',
-        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-    },
     "run_file_names" : {
         "mochitest" : "runtests.py",
         "reftest" : "runreftest.py",
@@ -69,6 +71,7 @@ config = {
             "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
     "preflight_run_cmd_suites" : [
+        # NOTE 'enabled' is only here while we have unconsolidated configs
         {
             "name" : "disable_screen_saver",
             "cmd" : ["xset", "s", "reset"],
@@ -77,7 +80,6 @@ config = {
             "enabled" : DISABLE_SCREEN_SAVER
         },
         {
-            #TODO add error list to this (global errors from buildbot)
             "name" : "run mouse & screen adjustment script",
             "cmd" : [
                 # when configs are consolidated this python path will only show

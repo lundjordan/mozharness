@@ -17,10 +17,10 @@ import shutil
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.testing.errors import TinderBoxPrintRe
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe, TestPassed
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import OutputParser, WARNING
+from mozharness.base.log import OutputParser, WARNING, INFO
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_STATUS_DICT
 
@@ -31,6 +31,9 @@ class DesktopUnittestOutputParser(OutputParser):
     """
 
     def __init__(self, suite_category, **kwargs):
+        # worst_log_level defined already in DesktopUnittestOutputParser
+        # but is here to make pylint happy
+        self.worst_log_level = INFO
         super(DesktopUnittestOutputParser, self).__init__(**kwargs)
         self.summary_suite_re = TinderBoxPrintRe.get('%s_summary' % suite_category, {})
         self.harness_error_re = TinderBoxPrintRe['harness_error']['minimum_regex']
@@ -129,7 +132,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 "action": "store_false",
                 "dest": "preflight_run_commands_disabled",
                 "default": True,
-                "help": """This will disable any run commands that are specified
+                "help": """This will enable any run commands that are specified
 in the config file under: preflight_run_cmd_suites""",
             }
         ]
@@ -177,12 +180,10 @@ in the config file under: preflight_run_cmd_suites""",
                 c.get('binary_path'))
 
     ###### helper methods
-
     def _pre_config_lock(self, rw_config):
         c = self.config
         if not c.get('run_all_suites'):
             return # configs are valid
-
         for category in SUITE_CATEGORIES:
             specific_suites = c.get('specified_%s_suites' % (category))
             if specific_suites:
@@ -199,18 +200,15 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
         c = self.config
         dirs = {}
         dirs['abs_app_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'application')
-
         dirs['abs_app_dir'] = os.path.join(dirs['abs_app_install_dir'], c['app_name_dir'])
         dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
         dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
-
         dirs['abs_test_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_test_bin_dir'] = os.path.join(dirs['abs_test_install_dir'], 'bin')
         dirs['abs_test_bin_plugins_dir'] = os.path.join(dirs['abs_test_bin_dir'],
                 'plugins')
         dirs['abs_test_bin_components_dir'] = os.path.join(dirs['abs_test_bin_dir'],
                 'components')
-
         dirs['abs_mochitest_dir'] = os.path.join(dirs['abs_test_install_dir'], "mochitest")
         dirs['abs_reftest_dir'] = os.path.join(dirs['abs_test_install_dir'], "reftest")
         dirs['abs_xpcshell_dir'] = os.path.join(dirs['abs_test_install_dir'], "xpcshell")
@@ -279,10 +277,9 @@ in your config under %s_options""" % suite_category, suite_category)
 
     def _query_specified_suites(self, category):
         # logic goes: if at least one '--{category}-suite' was given in the script
-        # then run only that(those) given suite(s). Elif, if no suites were
+        # then run only that(those) given suite(s). Elif no suites were
         # specified and the --run-all-suites flag was given,
         # run all {category} suites. Anything else, run no suites.
-
         c = self.config
         all_suites = c.get('all_%s_suites' % (category))
         specified_suites = c.get('specified_%s_suites' % (category)) # list
@@ -328,7 +325,6 @@ in your config under %s_options""" % suite_category, suite_category)
                 if c['run_all_suites'] or self._query_specified_suites(category) \
                         or 'run-tests' not in self.actions:
                     unzip_tests_dirs.extend(c['specific_tests_zip_dirs'][category])
-
         if self.test_url:
             self._download_test_zip()
             self._extract_test_zip(target_unzip_dirs=unzip_tests_dirs)
@@ -337,7 +333,6 @@ in your config under %s_options""" % suite_category, suite_category)
     def pull(self):
         dirs = self.query_abs_dirs()
         c = self.config
-
         if c.get('repos'):
             dirs = self.query_abs_dirs()
             self.vcs_checkout_repos(c['repos'],
@@ -383,7 +378,6 @@ These are often OS specific and disabling them may result in spurious test resul
     def preflight_xpcshell(self, suites):
         c = self.config
         dirs = self.query_abs_dirs()
-
         if suites: # there are xpcshell suites to run
             self.mkdir_p(dirs['abs_app_plugins_dir'])
             self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
@@ -403,7 +397,6 @@ These are often OS specific and disabling them may result in spurious test resul
 
         if preflight_run_method:
             preflight_run_method(suites)
-
         if suites:
             self.info('#### Running %s suites' % suite_category)
             for suite in suites:
@@ -412,7 +405,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 tbpl_status, log_level = None, None
                 parser = DesktopUnittestOutputParser(suite_category,
                         config=self.config, log_obj=self.log_obj,
-                        error_list=PythonErrorList)
+                        error_list=TestPassed + PythonErrorList)
                 num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
                         output_parser=parser, return_type='num_errors')
 
@@ -422,8 +415,8 @@ These are often OS specific and disabling them may result in spurious test resul
                 # be. We do this by:
                 # 1) checking to see if our mozharness script ran into any
                 #    errors itself with 'num_errors' <- OutputParser
-                # 2) if num_errors is 0 then we trust in the 'parser' objects
-                #    findings for tbpl_status <- DesktopUnittestOutputParser
+                # 2) if num_errors is 0 then we look in the subclassed 'parser'
+                #    object findings for tbpl_status <- DesktopUnittestOutputParser
 
                 if num_errors: # mozharness ran into a script error. this is a failure
                     tbpl_status = TBPL_FAILURE

@@ -7,11 +7,18 @@ DISABLE_SCREEN_SAVER = False
 ADJUST_MOUSE_AND_SCREEN = True
 #####
 config = {
+    ### BUILDBOT
+    "buildbot_json_path": "buildprops.json",
+    "exes": {
+        'python': 'c:/mozilla-build/python27/python',
+        'virtualenv': ['c:/mozilla-build/python27/python', 'c:/mozilla-build/buildbotve/virtualenv.py'],
+        'hg': 'c:/mozilla-build/hg/hg',
+    },
+    ###
     "app_name_dir" : APP_NAME_DIR,
     "installer_path" : INSTALLER_PATH,
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
-    "buildbot_json_path": "buildprops.json",
     "virtualenv_path": 'c:/talos-slave/test/build/venv',
     "virtualenv_python_dll": 'c:/mozilla-build/python27/python27.dll',
     "distribute_url": "http://build.mozilla.org/talos/zips/distribute-0.6.24.tar.gz",
@@ -21,11 +28,6 @@ config = {
         "revision": "default",
         "dest": "tools"
     }],
-    "exes": {
-        'python': 'c:/mozilla-build/python27/python',
-        'virtualenv': ['c:/mozilla-build/python27/python', 'c:/mozilla-build/buildbotve/virtualenv.py'],
-        'hg': 'c:/mozilla-build/hg/hg',
-    },
     "run_file_names" : {
         "mochitest" : "runtests.py",
         "reftest" : "runreftest.py",
@@ -77,6 +79,7 @@ config = {
             "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
     "preflight_run_cmd_suites" : [
+        # NOTE 'enabled' is only here while we have unconsolidated configs
         {
             "name" : "disable_screen_saver",
             "cmd" : ["xset", "s", "reset"],
@@ -85,7 +88,6 @@ config = {
             "enabled" : DISABLE_SCREEN_SAVER
         },
         {
-            # TODO add error list to this (global errors from buildbot)
             "name" : "run mouse & screen adjustment script",
             "cmd" : [
                 # when configs are consolidated this python path will only show
@@ -100,4 +102,3 @@ config = {
         },
     ],
 }
-

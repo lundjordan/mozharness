@@ -15,7 +15,7 @@ whether IGNORE, DEBUG, INFO, WARNING, ERROR, CRITICAL, or FATAL.
 """
 
 import re
-from mozharness.base.log import INFO, WARNING
+from mozharness.base.log import INFO
 
 # ErrorLists {{{1
 TinderBoxPrintRe = {
@@ -42,3 +42,7 @@ TinderBoxPrintRe = {
         'minimum_regex' : re.compile(r'''TEST-UNEXPECTED''')
     },
 }
+
+TestPassed = [
+ {'substr': r'''(TEST-INFO|TEST-KNOWN-FAIL|TEST-PASS)''', 'level': INFO},
+]

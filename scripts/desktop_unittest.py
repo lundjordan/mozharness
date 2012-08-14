@@ -49,6 +49,8 @@ class DesktopUnittestOutputParser(OutputParser):
         if self.summary_suite_re:
             summary_m = self.summary_suite_re['regex'].match(line) # passed/failed/todo
             if summary_m:
+                message = ' %s' % line
+                log_level = INFO
                 # remove all the none values in groups() so this will work
                 # with all suites including mochitest browser-chrome
                 summary_match_list = [group for group in summary_m.groups() \
@@ -59,8 +61,9 @@ class DesktopUnittestOutputParser(OutputParser):
                 elif r in self.summary_suite_re['fail_group']:
                     self.fail_count = int(summary_match_list[2])
                     if self.fail_count > 0:
-                        self.warning(' %s\n One or more unittests failed.' % line)
-                        self.worst_log_level = self.worst_level(WARNING,
+                        message += '\n One or more unittests failed.'
+                        log_level = WARNING
+                        self.worst_log_level = self.worst_level(log_level,
                                 self.worst_log_level)
                         self.tbpl_status = self.worst_level(TBPL_WARNING,
                                 self.tbpl_status, levels=TBPL_STATUS_DICT.keys())
@@ -68,6 +71,7 @@ class DesktopUnittestOutputParser(OutputParser):
                 # so this test is fine as is.
                 elif r in self.summary_suite_re['known_fail_group']:
                     self.known_fail_count = int(summary_match_list[2])
+                self.log(message, log_level)
                 return # skip harness check and base parse_single_line
         harness_match = self.harness_error_re.match(line)
         if harness_match:

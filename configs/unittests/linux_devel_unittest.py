@@ -7,17 +7,11 @@ DISABLE_SCREEN_SAVER = True
 ADJUST_MOUSE_AND_SCREEN = False
 #####
 config = {
-    ### BUILDBOT
-    "buildbot_json_path": "buildprops.json",
-    "exes": {
-        'python': '/tools/buildbot/bin/python',
-        'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
-    },
-    ###
     "app_name_dir" : APP_NAME_DIR,
     "installer_path" : INSTALLER_PATH,
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
+    # we use this simplejson_url to avoid build vpn with developers
     "simplejson_url": "http://build.mozilla.org/talos/zips/simplejson-2.2.1.tar.gz",
     "repos": [{
         "repo": "http://hg.mozilla.org/build/tools",
@@ -73,7 +67,6 @@ config = {
             "application/" + APP_NAME_DIR + "/" + XPCSHELL_NAME]
     },
     "preflight_run_cmd_suites" : [
-        # NOTE 'enabled' is only here while we have unconsolidated configs
         {
             "name" : "disable_screen_saver",
             "cmd" : ["xset", "s", "reset"],
@@ -96,3 +89,4 @@ config = {
         },
     ],
 }
+

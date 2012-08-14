@@ -21,8 +21,7 @@ config = {
     "xpcshell_name" : XPCSHELL_NAME,
     "virtualenv_path": 'c:/talos-slave/test/build/venv',
     "virtualenv_python_dll": 'c:/mozilla-build/python27/python27.dll',
-    "distribute_url": "http://build.mozilla.org/talos/zips/distribute-0.6.24.tar.gz",
-    "pip_url": "http://build.mozilla.org/talos/zips/pip-1.0.2.tar.gz",
+    "simplejson_url": "http://build.mozilla.org/talos/zips/simplejson-2.2.1.tar.gz",
     "repos": [{
         "repo": "http://hg.mozilla.org/build/tools",
         "revision": "default",

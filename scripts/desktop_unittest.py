@@ -399,6 +399,9 @@ These are often OS specific and disabling them may result in spurious test resul
         dirs = self.query_abs_dirs()
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
+        # I am disabling parsing for PythonErrorList in run-tests as the suites themselves
+        # are conficting and triggering match's when there shouldn't be
+        # error_list = TestPassed + PythonErrorList
 
         if preflight_run_method:
             preflight_run_method(suites)
@@ -409,8 +412,7 @@ These are often OS specific and disabling them may result in spurious test resul
                 suite_name = suite_category + '-' + suite
                 tbpl_status, log_level = None, None
                 parser = DesktopUnittestOutputParser(suite_category,
-                        config=self.config, log_obj=self.log_obj,
-                        error_list=TestPassed + PythonErrorList)
+                        config=self.config, log_obj=self.log_obj)
                 num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
                         output_parser=parser, return_type='num_errors')
 

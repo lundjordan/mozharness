@@ -12,7 +12,7 @@ config = {
     "binary_path" : APP_NAME_DIR + "/" + BINARY_PATH,
     "xpcshell_name" : XPCSHELL_NAME,
     # we use this simplejson_url to avoid build vpn with developers
-    "simplejson_url": "http://build.mozilla.org/talos/zips/simplejson-2.2.1.tar.gz",
+    "simplejson_url": "https://github.com/simplejson/simplejson/zipball/v2.2.1",
     "repos": [{
         "repo": "http://hg.mozilla.org/build/tools",
         "revision": "default",

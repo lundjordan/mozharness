@@ -412,7 +412,8 @@ These are often OS specific and disabling them may result in spurious test resul
                 suite_name = suite_category + '-' + suite
                 tbpl_status, log_level = None, None
                 parser = DesktopUnittestOutputParser(suite_category,
-                        config=self.config, log_obj=self.log_obj)
+                        config=self.config, log_obj=self.log_obj,
+                        error_list=[])
                 num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
                         output_parser=parser, return_type='num_errors')
 

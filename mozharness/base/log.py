@@ -119,7 +119,7 @@ pre-context-line setting in error_list.)
     def __init__(self, config=None, log_obj=None, error_list=None, log_output=True):
         self.config = config
         self.log_obj = log_obj
-        self.error_list = error_list
+        self.error_list = error_list or []
         self.log_output = log_output
         self.num_errors = 0
         self.num_warnings = 0

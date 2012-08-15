@@ -422,8 +422,6 @@ class ShellMixin(object):
         ]
         (context_lines isn't written yet)
         """
-        if error_list is None:
-            error_list = []
         if success_codes is None:
             success_codes = [0]
         if cwd:

@@ -127,7 +127,8 @@ pre-context-line setting in error_list.)
         self.num_errors = 0
         # TODO context_lines.
         # Not in use yet, but will be based off error_list.
-        self.context_buffer = []
+        self.buffer_limit = 20 # even number only
+        self.context_buffer = deque(maxlen=self.buffer_limit)
         self.num_pre_context_lines = 0
         self.num_post_context_lines = 0
         # TODO set self.error_level to the worst error level hit
@@ -169,11 +170,28 @@ pre-context-line setting in error_list.)
             if self.log_output:
                 self.info(' %s' % line)
 
+    def append_to_buffer(self, line):
+        message_and_level = line, INFO
+        if self.context_buffer.maxlen == self.buffer_limit:
+            # parse 10th elem
+            line_to_parse = self.context_buffer[self.buffer_limit / 2]
+            self.parse_single_line(line_to_parse)
+            log_message, log_level = self.pre_context_buffer.popleft()
+            self.log(log_message, log_level)
+        self.context_buffer.append(message_and_level)
+
     def add_lines(self, output):
+        for error_check in self.error_list:
+            if error_check.get('context_lines'):
+                self.use_buffer = True
         if str(output) == output:
             output = [output]
-        for line in output:
-            self.parse_single_line(line)
+        if self.use_buffer:
+            for line in output:
+                self.append_to_buffer(line)
+        else:
+            for line in output:
+                self.parse_single_line(line)
 
 
 # BaseLogger {{{1

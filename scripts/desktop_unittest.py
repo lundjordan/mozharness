@@ -16,13 +16,14 @@ import shutil
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
-from mozharness.base.errors import PythonErrorList, BaseErrorList
-from mozharness.mozilla.testing.errors import TinderBoxPrintRe, TestPassed
+from mozharness.base.errors import BaseErrorList
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.base.log import OutputParser, WARNING, INFO
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_STATUS_DICT
+
 
 class DesktopUnittestOutputParser(OutputParser):
     """
@@ -245,7 +246,7 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
                 self.fatal("self.installer_url was found but symbols_url could \
                         not be determined")
         else:
-            self.fatal("self.installer_url was not found in self.config") 
+            self.fatal("self.installer_url was not found in self.config")
         self.info("setting symbols_url as %s" % (symbols_url))
         self.symbols_url = symbols_url
         return self.symbols_url
@@ -270,7 +271,7 @@ then do not specify to run only specific suites like '--mochitest-suite browser-
             else:
                 self.warning("""Suite options for %s could not be determined.
 If you meant to have options for this suite, please make sure they are specified
-in your config under %s_options""" % suite_category, suite_category)
+in your config under %s_options""" % (suite_category, suite_category))
         else:
             self.fatal("""'binary_path' could not be determined.
             This should be something like '/root/path/with/build/application/firefox/firefox-bin'

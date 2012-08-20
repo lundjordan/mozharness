@@ -192,13 +192,9 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
         dirs = self.query_abs_dirs()
         target_dir = dirs.get('abs_app_install_dir',
                               os.path.join(dirs['abs_work_dir'],
-                             'application'))
+                              'application'))
         self.mkdir_p(target_dir)
-        cmd.extend(['--destination', target_dir, self.installer_path])
-        # TODO find out if --source is deprectiated
-        if '--source' in output:
-            for index, value in enumerate(cmd):
-                if value == self.installer_path:
-                    cmd.insert(index, '--source')
+        cmd.extend([self.installer_path,
+                    '--destination', target_dir])
         # TODO we'll need some error checking here
         self.binary_path = self.get_output_from_command(cmd)

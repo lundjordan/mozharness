@@ -16,7 +16,6 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.config import parse_config_file
 from mozharness.base.log import INFO, WARNING, ERROR
-from mozharness.base.log import OutputParser
 
 # BuildbotMixin {{{1
 

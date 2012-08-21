@@ -153,8 +153,8 @@ class OSMixin(object):
                      exit_code=exit_code)
             return
         except urllib2.URLError, e:
-            self.log("URL Error: %s %s" % (e.code, url), level=error_level,
-                     exit_code=exit_code)
+            self.log("URL Error: %s" % (url), level=error_level,
+                                            exit_code=exit_code)
             return
         return file_name
 

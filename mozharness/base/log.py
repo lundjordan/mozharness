@@ -127,7 +127,7 @@ pre-context-line setting in error_list.)
                  log_output=True):
         self.config = config
         self.log_obj = log_obj
-        self.error_list = error_list
+        self.error_list = error_list or []
         self.log_output = log_output
         self.num_errors = 0
         self.buffer_limit = 21  # gives 10 contexts lines on either side
@@ -181,6 +181,11 @@ pre-context-line setting in error_list.)
                 if self.log_output:
                     self.info(' %s' % line)
 
+    def _validate_line(self, line):
+        if not line or line.isspace():
+            return None
+        return line.decode("utf-8").rstrip()
+
     def add_lines(self, output):
         self.use_buffer = False
         # allows us to enable context_buffer by simply adding
@@ -192,17 +197,19 @@ pre-context-line setting in error_list.)
             if error_check.get('context_lines'):
                 self.use_buffer = True
                 break
-        if str(output) == output:
+        if isinstance(output, basestring):
             output = [output]
         if self.use_buffer:
             for line in output:
-                self.append_to_buffer_and_parse(line)
+                line = self._validate_line(line)
+                self.append_to_buffer_and_parse(line) if line else None
             # now empty the remaining lines left in the buffer
             self.flush_buffer_and_parse()
         else:
             # behave normally
             for line in output:
-                self.parse_single_line(line)
+                line = self._validate_line(line)
+                self.parse_single_line(line) if line else None
 
     def append_to_buffer_and_parse(self, line):
         message_and_level = line, INFO

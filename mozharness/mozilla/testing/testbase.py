@@ -137,10 +137,7 @@ You can set this by:
                                     os.path.join(dirs['abs_work_dir'], 'tests'))
         self.mkdir_p(test_install_dir)
         # TODO error_list
-        # adding overwrite flag otherwise subprocess.Popen hangs on waiting for
-        # input in a hidden pipe whenever this action is run twice without
-        # clobber
-        self.run_command([unzip, '-o', self.test_zip_path],
+        self.run_command([unzip, self.test_zip_path],
                          cwd=test_install_dir)
 
     def _download_installer(self):

@@ -411,8 +411,7 @@ class ShellMixin(object):
             # OutputParser.add_lines() loops with a for line in output
             # already and I think this can do p.stdout (type file)
             # Changed as buffer needs all output in add_lines
-            for line in p.stdout:
-                parser.add_lines(line)
+            parser.add_lines(p.stdout)
         return_level = INFO
         if p.returncode not in success_codes:
             return_level = ERROR

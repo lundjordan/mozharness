@@ -136,7 +136,10 @@ You can set this by:
         test_install_dir = dirs.get('abs_test_install_dir',
                                     os.path.join(dirs['abs_work_dir'], 'tests'))
         self.mkdir_p(test_install_dir)
-        unzip_cmd = [unzip, self.test_zip_path]
+        # adding overwrite flag otherwise subprocess.Popen hangs on waiting for
+        # input in a hidden pipe whenever this action is run twice without
+        # clobber
+        unzip_cmd = [unzip, '-o', self.test_zip_path]
         if target_unzip_dirs:
             unzip_cmd.extend(target_unzip_dirs)
         # TODO error_list

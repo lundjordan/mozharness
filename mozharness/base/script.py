@@ -407,6 +407,10 @@ class ShellMixin(object):
             if p.poll() is not None:
                 """Avoid losing the final lines of the log?"""
                 loop = False
+            # TODO make sure this doesn't break anything.
+            # OutputParser.add_lines() loops with a for line in output
+            # already and I think this can do p.stdout (type file)
+            # Changed as buffer needs all output in add_lines
             for line in p.stdout:
                 parser.add_lines(line)
         return_level = INFO

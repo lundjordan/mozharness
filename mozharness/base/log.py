@@ -150,7 +150,6 @@ pre-context-line setting in error_list.)
                 self.warning("error_list: 'substr' and 'regex' not in %s" %
                              error_check)
             if match:
-                # import pdb; pdb.set_trace()
                 level = error_check.get('level', INFO)
                 if self.log_output:
                     message = ' %s' % line

@@ -19,30 +19,30 @@ from mozharness.base.log import INFO
 
 # ErrorLists {{{1
 TinderBoxPrintRe = {
-    "mochitest_summary" : {
-        'regex' : re.compile(r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))'''),
-        'pass_group' : ["Passed"],
-        'fail_group' : ["Failed"],
-        'known_fail_group' : ["Todo"],
+    "mochitest_summary": {
+        'regex': re.compile(r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))'''),
+        'pass_group': ["Passed"],
+        'fail_group': ["Failed"],
+        'known_fail_group': ["Todo"],
     },
-    "reftest_summary" : {
-        'regex' : re.compile(r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \('''),
-        'pass_group' : ["Successful"],
-        'fail_group' : ["Unexpected"],
-        'known_fail_group' : ["known problems"],
+    "reftest_summary": {
+        'regex': re.compile(r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \('''),
+        'pass_group': ["Successful"],
+        'fail_group': ["Unexpected"],
+        'known_fail_group': ["known problems"],
     },
-    "xpcshell_summary" : {
-        'regex' : re.compile(r'''INFO \| (Passed|Failed): (\d+)'''),
-        'pass_group' : ["Passed"],
-        'fail_group' : ["Failed"],
-        'known_fail_group' : [],
+    "xpcshell_summary": {
+        'regex': re.compile(r'''INFO \| (Passed|Failed): (\d+)'''),
+        'pass_group': ["Passed"],
+        'fail_group': ["Failed"],
+        'known_fail_group': [],
     },
-    "harness_error" : {
-        'full_regex' : re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)"),
-        'minimum_regex' : re.compile(r'''TEST-UNEXPECTED''')
+    "harness_error": {
+        'full_regex': re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)"),
+        'minimum_regex': re.compile(r'''TEST-UNEXPECTED''')
     },
 }
 
 TestPassed = [
- {'regex': re.compile('''(TEST-INFO|TEST-KNOWN-FAIL|TEST-PASS|INFO \| )'''), 'level': INFO},
+    {'regex': re.compile('''(TEST-INFO|TEST-KNOWN-FAIL|TEST-PASS|INFO \| )'''), 'level': INFO},
 ]

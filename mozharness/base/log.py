@@ -141,8 +141,8 @@ pre-context-line setting in error_list.)
                 if error_check['regex'].search(line):
                     match = True
             else:
-                self.warn("error_list: 'substr' and 'regex' not in %s" % \
-                            error_check)
+                self.warning("error_list: 'substr' and 'regex' not in %s" %
+                             error_check)
             if match:
                 log_level = error_check.get('level', INFO)
                 if self.log_output:
@@ -158,10 +158,8 @@ pre-context-line setting in error_list.)
                 if log_level == WARNING:
                     self.num_warnings += 1
                 self.worst_log_level = self.worst_level(log_level,
-                        self.worst_log_level)
+                                                        self.worst_log_level)
                 break
-        # TODO set self.error_status (or something)
-        # that sets the worst error level hit.
         else:
             if self.log_output:
                 self.info(' %s' % line)
@@ -180,12 +178,13 @@ pre-context-line setting in error_list.)
         This depends on which is closest to levels[0]
         By default, levels is the list of log levels"""
         if not levels:
-            levels = [FATAL, CRITICAL, ERROR, WARNING, INFO]
+            levels = [IGNORE, FATAL, CRITICAL, ERROR, WARNING, INFO, DEBUG]
         if target_level not in levels:
             self.fatal("'%s' not in %s'." % (target_level, levels))
         for l in levels:
             if l in (target_level, existing_level):
                 return l
+
 
 # BaseLogger {{{1
 class BaseLogger(object):

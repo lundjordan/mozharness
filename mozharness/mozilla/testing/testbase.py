@@ -94,7 +94,7 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin):
             if missing:
                 self.fatal("%s!" % (message % ('+'.join(missing))))
         else:
-            self.warning("self.buildbot_config isn't set after running read_buildbot_config!")
+            self.fatal("self.buildbot_config isn't set after running read_buildbot_config!")
 
 
     def preflight_download_and_extract(self):

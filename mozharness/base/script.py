@@ -187,7 +187,7 @@ class OSMixin(object):
                 return -1
 
     def copytree(self, src, dest, overwrite='no_overwrite', log_level=INFO,
-            error_level=ERROR):
+                 error_level=ERROR):
         """an implementation of shutil.copytree however it allows for
         dest to exist and implements differen't overwrite levels.
         overwrite uses:
@@ -210,31 +210,34 @@ class OSMixin(object):
                     if not os.path.exists(abs_dest_f):
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='clobber')
+                            self.copytree(abs_src_f, abs_dest_f,
+                                          overwrite='clobber')
                         else:
                             shutil.copy2(abs_src_f, abs_dest_f)
-                    elif overwrite == 'no_overwrite': # and destination path exists
+                    elif overwrite == 'no_overwrite':  # destination path exists
                         if os.path.isdir(abs_src_f) and os.path.isdir(abs_dest_f):
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='no_overwrite')
+                            self.copytree(abs_src_f, abs_dest_f,
+                                          overwrite='no_overwrite')
                         else:
                             self.debug('ignoring path: %s as destination: \
                                     %s exists' % (abs_src_f, abs_dest_f))
-                    else: # overwrite == 'overwrite_if_exists' and destination path exists
-                        self.debug('overwriting: %s with: %s' % (abs_dest_f, abs_src_f))
+                    else:  # overwrite == 'overwrite_if_exists' and destination exists
+                        self.debug('overwriting: %s with: %s' %
+                                   (abs_dest_f, abs_src_f))
                         self.rmtree(abs_dest_f)
 
                         if os.path.isdir(abs_src_f):
                             self.mkdir_p(abs_dest_f)
-                            self.copytree(abs_src_f, abs_dest_f, overwrite='overwrite_if_exists')
+                            self.copytree(abs_src_f, abs_dest_f,
+                                          overwrite='overwrite_if_exists')
                         else:
                             shutil.copy2(abs_src_f, abs_dest_f)
             else:
                 self.fatal("%s is not a valid argument for param overwrite" % (overwrite))
         except (IOError, shutil.Error):
             self.dump_exception("There was an error while copying %s to %s!" % (src, dest),
-                    level=error_level)
+                                level=error_level)
             return -1
-
 
     def write_to_file(self, file_path, contents, verbose=True,
                       open_mode='w', create_parent_dir=False,
@@ -445,13 +448,13 @@ class ShellMixin(object):
             shell = False
         try:
             p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
-                             cwd=cwd, stderr=subprocess.STDOUT, env=env)
+                                 cwd=cwd, stderr=subprocess.STDOUT, env=env)
         except OSError, e:
             level = ERROR
             if halt_on_failure:
                 level = FATAL
             self.log('caught OS error %s: %s while running %s' % (e.errno,
-                    e.strerror, command), level=level)
+                     e.strerror, command), level=level)
             return -1
         if output_parser is None:
             parser = OutputParser(config=self.config, log_obj=self.log_obj,

@@ -64,7 +64,7 @@ config = {
     #local reftests suites
     "all_reftest_suites": {
         "reftest": ["tests/reftest/tests/layout/reftests/reftest.list"],
-        "crashtest": ["tests/reftest/tests/layout/reftests/crashtests.list"],
+        "crashtest": ["tests/reftest/tests/testing/crashtest/crashtests.list"],
         "jsreftest": ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftests/jstests.list"],
     },
     "all_xpcshell_suites": {

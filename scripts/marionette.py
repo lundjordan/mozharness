@@ -62,22 +62,24 @@ class MarionetteTest(TestingMixin, BaseScript):
         [["--test-manifest"],
         {"action": "store",
          "dest": "test_manifest",
-         "default": None,
-         "help": "Path to test manifest to run",
+         "default": "unit-tests.ini",
+         "help": "Path to test manifest to run relative to the Marionette "
+                 "tests directory",
         }]] + copy.deepcopy(testing_config_options)
 
     error_list = [
         {'substr': r'''FAILED (errors=''', 'level': ERROR},
     ]
 
+    mozbase_dir = os.path.join('tests', 'mozbase')
     virtualenv_modules = [
-     'datazilla',
-     'mozinstall',
-     'mozhttpd',
-     'manifestdestiny',
-     'mozprofile',
-     'mozprocess',
-     'mozrunner',
+        { 'manifestparser': os.path.join(mozbase_dir, 'manifestdestiny') },
+        { 'mozhttpd': os.path.join(mozbase_dir, 'mozhttpd') },
+        { 'mozinfo': os.path.join(mozbase_dir, 'mozinfo') },
+        { 'mozinstall': os.path.join(mozbase_dir, 'mozinstall') },
+        { 'mozprofile': os.path.join(mozbase_dir, 'mozprofile') },
+        { 'mozprocess': os.path.join(mozbase_dir, 'mozprocess') },
+        { 'mozrunner': os.path.join(mozbase_dir, 'mozrunner') },
     ]
 
     def __init__(self, require_config_file=False):
@@ -147,10 +149,8 @@ class MarionetteTest(TestingMixin, BaseScript):
         cmd.extend(self._build_arg('--binary', self.binary_path))
         cmd.extend(self._build_arg('--type', self.config['test_type']))
         cmd.extend(self._build_arg('--address', self.config['marionette_address']))
-        manifest = self.config.get('test_manifest')
-        if not manifest:
-            manifest = os.path.join(dirs['abs_marionette_tests_dir'],
-                                    'unit-tests.ini')
+        manifest = os.path.join(dirs['abs_marionette_tests_dir'],
+                                self.config['test_manifest'])
         cmd.append(manifest)
 
         marionette_parser = MarionetteOutputParser(config=self.config,

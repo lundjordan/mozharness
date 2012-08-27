@@ -43,12 +43,9 @@ config = {
     "locales_file": "buildbot-configs/mozilla/l10n-changesets_mobile-beta.json",
     "release_config_file": "buildbot-configs/mozilla/staging_release-fennec-mozilla-beta.py",
 
-    "platforms": ['android', 'android-xul', 'android-armv6'],
+    "platforms": ['android', 'android-armv6'],
     "platform_config": {
         'android': {},
-        'android-xul': {
-            'locales': ['en-US', 'multi'],
-        },
         'android-armv6': {
             'locales': ['en-US'],
             'apk_base_name': 'fennec-%(version)s.%(locale)s.android-arm-armv6.apk',
@@ -57,7 +54,6 @@ config = {
     "update_platforms": ['android'],
     "update_platform_map": {
         'android': 'Android_arm-eabi-gcc3',
-        'android-xul': 'Android_arm-eabi-gcc3-xul',
         'android-armv6': 'Android_arm-eabi-gcc3-armv6',
     },
 #    "enable_partner_repacks": True,
@@ -95,7 +91,6 @@ config = {
     "download_unsigned_base_subdir": "unsigned/%(platform)s/%(locale)s",
     "download_signed_base_subdir": "%(platform)s/%(locale)s",
     "buildid_base_url": BUILDID_BASE_URL,
-    "old_buildid_base_url": BUILDID_BASE_URL,
 
     "keystore": KEYSTORE,
     "key_alias": KEY_ALIAS,

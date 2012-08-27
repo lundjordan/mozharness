@@ -12,7 +12,6 @@ TODO:
 """
 
 from datetime import datetime
-from collections import deque
 import logging
 import os
 import sys
@@ -26,6 +25,9 @@ logging.addLevelName(FATAL_LEVEL, 'FATAL')
 DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL, IGNORE = (
     'debug', 'info', 'warning', 'error', 'critical', 'fatal', 'ignore')
 
+CONTEXT_WARN_MESSAGE = "Warning: missing context. Current "\
+    "%(type)s buffer size: %(buffer)d, Requested %(type)s context lines:"\
+    " %(context)d. Setting context length to: %(buffer)d"
 
 # LogMixin {{{1
 class LogMixin(object):
@@ -98,11 +100,6 @@ class LogMixin(object):
         self.log(message, level=FATAL, exit_code=exit_code)
 
 
-CONTEXT_WARN_MESSAGE = "Warning: missing context. Current "\
-    "%(type)s buffer size: %(buffer)d, Requested %(type)s context lines:"\
-    " %(context)d. Setting context length to: %(buffer)d"
-
-
 # OutputParser {{{1
 class OutputParser(LogMixin):
     """ Helper object to parse command output.
@@ -130,8 +127,20 @@ pre-context-line setting in error_list.)
         self.error_list = error_list or []
         self.log_output = log_output
         self.num_errors = 0
-        self.buffer_limit = 21  # gives 10 contexts lines on either side
-        self.context_buffer = deque(maxlen=self.buffer_limit)
+        self.use_buffer = False
+
+        buffer_limit = None
+        for error_check in self.error_list:
+            if error_check.get('context_lines'):
+                self.use_buffer = True
+                target_limit = error_check.get('context_lines')['pre'] + \
+                    error_check.get('context_lines')['post'] + 1
+                if self.buffer_limit > target_limit:
+                    buffer_limit = target_limit
+        if self.use_buffer:
+            self.context_buffer = []
+            self.buffer_limit = buffer_limit
+            self.match_strings = dict(match='>>>', context='>')
         # TODO set self.error_level to the worst error level hit
         # (WARNING, ERROR, CRITICAL, FATAL)
         # self.error_level = INFO
@@ -186,16 +195,6 @@ pre-context-line setting in error_list.)
         return line.decode("utf-8").rstrip()
 
     def add_lines(self, output):
-        self.use_buffer = False
-        # allows us to enable context_buffer by simply adding
-        # 'context_lines' to any error at any point in the future
-        # This allows OutputParser to be optimized for the occasion
-        # but no flags need to be passed to inform OutputParser to
-        # use a buffer
-        for error_check in self.error_list:
-            if error_check.get('context_lines'):
-                self.use_buffer = True
-                break
         if isinstance(output, basestring):
             output = [output]
         if self.use_buffer:
@@ -218,7 +217,7 @@ pre-context-line setting in error_list.)
             middle_elem = self.buffer_limit / 2
             line_to_parse = self.context_buffer[middle_elem][0]
             self.parse_single_line(line_to_parse, buffer_index=middle_elem)
-            log_message, log_level = self.context_buffer.popleft()
+            log_message, log_level = self.context_buffer.pop(0)
             self.log(log_message, log_level)
         # keep adding new lines to the buffer
         self.context_buffer.append(message_and_level)
@@ -244,13 +243,13 @@ pre-context-line setting in error_list.)
             buffer_index = i + pre
             message, log_level = message_and_level
             if buffer_index == target_index:
-                message = "$ %s" % message.lstrip()
+                message = "%s %s" % (self.match_strings['match'], message.lstrip())
                 if warn_message:
                     message += warn_message
             else:  # context
                 if message.startswith('$'):
                     continue  # ignore other regex's that want context
-                message = ">  %s" % message
+                message = "%s %s" % (self.match_strings['context'], message)
                 log_level = self.worst_level(target_level, log_level)
             self.context_buffer[buffer_index] = (message, log_level)
 
@@ -262,7 +261,7 @@ pre-context-line setting in error_list.)
             middle_elem = len(self.context_buffer) / 2
             line_to_parse = self.context_buffer[middle_elem][0]
             self.parse_single_line(line_to_parse, buffer_index=middle_elem)
-            log_message, log_level = self.context_buffer.popleft()
+            log_message, log_level = self.context_buffer.pop(0)
             self.log(log_message, log_level)
 
     def worst_level(self, target_level, existing_level, levels=None):

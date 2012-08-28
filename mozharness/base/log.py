@@ -169,7 +169,9 @@ pre-context-line setting in error_list.)
                     else:
                         if self.use_buffer:
                             # we don't log anything, just modify the buffer
-                            self.context_buffer[buffer_index] = (message, level)
+                            self.context_buffer[buffer_index]['message'] = message
+                            self.context_buffer[buffer_index]['level'] = level
+                            self.context_buffer[buffer_index]['match'] = True
                             if error_check.get('context_lines'):
                                 limits = error_check['context_lines']
                                 self.generate_context_lines(buffer_index, level,
@@ -210,17 +212,17 @@ pre-context-line setting in error_list.)
                 self.parse_single_line(line) if line else None
 
     def append_to_buffer_and_parse(self, line):
-        message_and_level = line, INFO
+        message_dict_elem = dict(message=line, level=INFO, match=False)
         if len(self.context_buffer) == self.buffer_limit:
             # buffer is full, start parsing middle elem and
             # then behave like a queue FIFO
             middle_elem = self.buffer_limit / 2
             line_to_parse = self.context_buffer[middle_elem][0]
             self.parse_single_line(line_to_parse, buffer_index=middle_elem)
-            log_message, log_level = self.context_buffer.pop(0)
+            log_message, log_level, match = self.context_buffer.pop(0).values()
             self.log(log_message, log_level)
         # keep adding new lines to the buffer
-        self.context_buffer.append(message_and_level)
+        self.context_buffer.append(message_dict_elem)
 
     def generate_context_lines(self, target_index, target_level, limits):
         # check that the requested pre and post context lengths are doable
@@ -251,7 +253,9 @@ pre-context-line setting in error_list.)
                     continue  # ignore other regex's that want context
                 message = "%s %s" % (self.match_strings['context'], message)
                 log_level = self.worst_level(target_level, log_level)
-            self.context_buffer[buffer_index] = (message, log_level)
+            self.context_buffer[buffer_index]['message'] = message
+            self.context_buffer[buffer_index]['level'] = log_level
+            self.context_buffer[buffer_index]['match'] = True
 
     def flush_buffer_and_parse(self):
         # behave like append_to_buffer_and_parse but continue in a
@@ -259,9 +263,9 @@ pre-context-line setting in error_list.)
         # elem of the buffer to maximize remaining context lines
         while self.context_buffer:
             middle_elem = len(self.context_buffer) / 2
-            line_to_parse = self.context_buffer[middle_elem][0]
+            line_to_parse = self.context_buffer[middle_elem]['message']
             self.parse_single_line(line_to_parse, buffer_index=middle_elem)
-            log_message, log_level = self.context_buffer.pop(0)
+            log_message, log_level, match = self.context_buffer.pop(0)
             self.log(log_message, log_level)
 
     def worst_level(self, target_level, existing_level, levels=None):

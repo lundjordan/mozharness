@@ -27,6 +27,8 @@ from mozharness.base.log import OutputParser, WARNING, INFO
 from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_STATUS_DICT
 
+SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
+
 
 class DesktopUnittestOutputParser(OutputParser):
     """
@@ -51,7 +53,7 @@ class DesktopUnittestOutputParser(OutputParser):
 
     def parse_single_line(self, line):
         if self.summary_suite_re:
-            summary_m = self.summary_suite_re['regex'].match(line)  # passed/failed/todo
+            summary_m = self.summary_suite_re['regex'].match(line)  # pass/fail/todo
             if summary_m:
                 message = ' %s' % line
                 log_level = INFO
@@ -67,13 +69,8 @@ class DesktopUnittestOutputParser(OutputParser):
                     if self.fail_count > 0:
                         message += '\n One or more unittests failed.'
                         log_level = WARNING
-                        self.worst_log_level = self.worst_level(
-                            log_level, self.worst_log_level)
-                        self.tbpl_status = self.worst_level(
-                            TBPL_WARNING, self.tbpl_status,
-                            levels=TBPL_STATUS_DICT.keys())
-                # If otherIdent == None, then totals_re should not match it,
-                # so this test is fine as is.
+                # If self.summary_suite_re['known_fail_group'] == None,
+                # then r should not match it, # so this test is fine as is.
                 elif r in self.summary_suite_re['known_fail_group']:
                     self.known_fail_count = int(summary_match_list[2])
                 self.log(message, log_level)
@@ -96,7 +93,49 @@ class DesktopUnittestOutputParser(OutputParser):
             return  # skip base parse_single_line
         super(DesktopUnittestOutputParser, self).parse_single_line(line)
 
-SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
+    def evaluate_parser(self, return_code):
+        if self.num_errors:  # mozharness ran into a script error
+            self.tbpl_status = TBPL_FAILURE
+
+        # I have to put this outside of parse_single_line because this checks not
+        # only if fail_count was more then 0 but also if fail_count is still -1
+        # (no fail summary line was found)
+        if self.fail_count != 0:
+            self.worst_log_level = self.worst_level(WARNING, self.worst_log_level)
+            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status,
+                                                levels=TBPL_STATUS_DICT.keys())
+        # we can trust in parser.worst_log_level in either case
+        return (self.tbpl_status, self.worst_log_level)
+
+    def append_tinderboxprint_line(self, suite_name):
+        # We are duplicating a condition (fail_count) from evaluate_parser and
+        # parse parse_single_line but at little cost since we are not parsing
+        # the log more then once.  I figured this method should stay isolated as
+        # it is only here for tbpl highlighted summaries and is not part of
+        # buildbot evaluation or result status IIUC.
+        emphasize_fail_text = '<em class="testfail">%s</em>'
+
+        if self.pass_count < 0 or self.fail_count < 0 or self.known_fail_count < 0:
+            summary = emphasize_fail_text % 'T-FAIL'
+        elif self.pass_count == 0 and self.fail_count == 0 and \
+                (self.known_fail_count == 0 or self.known_fail_count is None):
+            summary = emphasize_fail_text % 'T-FAIL'
+        else:
+            str_fail_count = str(self.fail_count)
+            if self.fail_count > 0:
+                str_fail_count = emphasize_fail_text % str_fail_count
+            summary = "%d/%s" % (self.pass_count, str_fail_count)
+            if self.known_fail_count is not None:
+                summary += "/%d" % self.known_fail_count
+        # Format the crash status.
+        if self.crashed:
+            summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
+        # Format the leak status.
+        if self.leaked is not False:
+            summary += "&nbsp;%s" % emphasize_fail_text % (
+                (self.leaked and "LEAK") or "L-FAIL")
+        # Return the summary.
+        self.info("TinderboxPrint: %s<br/>%s\n" % (suite_name, summary))
 
 
 # DesktopUnittest {{{1
@@ -409,9 +448,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
-        # I am disabling parsing for PythonErrorList in run-tests as the suites themselves
-        # are conficting and triggering match's when there shouldn't be
-        # error_list = TestPassed + PythonErrorList
 
         if preflight_run_method:
             preflight_run_method(suites)
@@ -423,10 +459,11 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 tbpl_status, log_level = None, None
                 parser = DesktopUnittestOutputParser(suite_category,
                                                      config=self.config,
+                                                     error_list=BaseErrorList,
                                                      log_obj=self.log_obj)
-                num_errors = self.run_command(cmd, cwd=dirs['abs_work_dir'],
-                                              output_parser=parser,
-                                              return_type='num_errors')
+
+                return_code = self.run_command(cmd, cwd=dirs['abs_work_dir'],
+                                               output_parser=parser)
 
                 # mochitests, reftests, and xpcshell suites do not return
                 # appropriate return codes. Therefore, we must parse the output
@@ -435,52 +472,16 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 # 1) checking to see if our mozharness script ran into any
                 #    errors itself with 'num_errors' <- OutputParser
                 # 2) if num_errors is 0 then we look in the subclassed 'parser'
-                #    object findings for tbpl_status <- DesktopUnittestOutputParser
+                #    findings for harness/suite errors <- DesktopUnittestOutputParser
+                tbpl_status = self.evaluate_parser(return_code)
+                parser.append_tinderboxprint_line(suite_name)
 
-                if num_errors:  # mozharness ran into a script error. this is a failure
-                    tbpl_status = TBPL_FAILURE
-                else:
-                    tbpl_status = parser.tbpl_status
-                # we can trust in parser.worst_log_level in either case
-                log_level = parser.worst_log_level
-
-                self.append_tinderboxprint_line(
-                    suite_name, parser.pass_count, parser.fail_count,
-                    parser.known_fail_count, parser.crashed, parser.leaked)
                 self.buildbot_status(tbpl_status, level=log_level)
                 self.add_summary("The %s suite: %s ran with return status: %s" %
                                  (suite_category, suite, tbpl_status),
                                  level=log_level)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
-
-    def append_tinderboxprint_line(self, suite_name, pass_count, fail_count,
-                                   known_fail_count, crashed, leaked):
-        emphasize_fail_text = '<em class="testfail">%s</em>'
-
-        if pass_count < 0 or fail_count < 0 or \
-                known_fail_count < 0:
-            summary = emphasize_fail_text % 'T-FAIL'
-        elif pass_count == 0 and fail_count == 0 and \
-                (known_fail_count == 0 or known_fail_count is None):
-            summary = emphasize_fail_text % 'T-FAIL'
-        else:
-            str_fail_count = str(fail_count)
-            if fail_count > 0:
-                str_fail_count = emphasize_fail_text % str_fail_count
-            summary = "%d/%s" % (pass_count, str_fail_count)
-            if known_fail_count is not None:
-                summary += "/%d" % known_fail_count
-        # Format the crash status.
-        if crashed:
-            summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
-        # Format the leak status.
-        if leaked is not False:
-            summary += "&nbsp;%s" % emphasize_fail_text % (
-                (leaked and "LEAK") or "L-FAIL")
-
-        # Return the summary.
-        self.info("TinderboxPrint: %s<br/>%s\n" % (suite_name, summary))
 
 
 # main {{{1

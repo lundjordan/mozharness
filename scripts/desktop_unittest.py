@@ -473,7 +473,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 #    errors itself with 'num_errors' <- OutputParser
                 # 2) if num_errors is 0 then we look in the subclassed 'parser'
                 #    findings for harness/suite errors <- DesktopUnittestOutputParser
-                tbpl_status = self.evaluate_parser(return_code)
+                tbpl_status, log_level = parser.evaluate_parser(return_code)
                 parser.append_tinderboxprint_line(suite_name)
 
                 self.buildbot_status(tbpl_status, level=log_level)

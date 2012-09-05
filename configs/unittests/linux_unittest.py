@@ -66,7 +66,7 @@ config = {
     "all_reftest_suites": {
         "reftest": ["tests/reftest/tests/layout/reftests/reftest.list"],
         "crashtest": ["tests/reftest/tests/testing/crashtest/crashtests.list"],
-        "jsreftest": ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftests/jstests.list"],
+        "jsreftest": ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftest/tests/jstests.list"],
     },
     "all_xpcshell_suites": {
         "xpcshell": ["--manifest=tests/xpcshell/tests/all-test-dirs.list",

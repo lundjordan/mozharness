@@ -35,7 +35,7 @@ TinderBoxPrintRe = {
         'regex': re.compile(r'''INFO \| (Passed|Failed): (\d+)'''),
         'pass_group': "Passed",
         'fail_group': "Failed",
-        'known_fail_group': "",
+        'known_fail_group': None,
     },
     "harness_error": {
         'full_regex': re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)"),

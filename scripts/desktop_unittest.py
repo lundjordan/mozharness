@@ -61,18 +61,18 @@ class DesktopUnittestOutputParser(OutputParser):
                 # with all suites including mochitest browser-chrome
                 summary_match_list = [group for group in summary_m.groups()
                                       if group is not None]
-                r = summary_match_list[1]
-                if r in self.summary_suite_re['pass_group']:
-                    self.pass_count = int(summary_match_list[2])
-                elif r in self.summary_suite_re['fail_group']:
-                    self.fail_count = int(summary_match_list[2])
+                r = summary_match_list[0]
+                if self.summary_suite_re['pass_group'] in r:
+                    self.pass_count = int(summary_match_list[-1])
+                elif self.summary_suite_re['fail_group'] in r:
+                    self.fail_count = int(summary_match_list[-1])
                     if self.fail_count > 0:
                         message += '\n One or more unittests failed.'
                         log_level = WARNING
                 # If self.summary_suite_re['known_fail_group'] == None,
                 # then r should not match it, # so this test is fine as is.
-                elif r in self.summary_suite_re['known_fail_group']:
-                    self.known_fail_count = int(summary_match_list[2])
+                elif self.summary_suite_re['known_fail_group'] in r:
+                    self.known_fail_count = int(summary_match_list[-1])
                 self.log(message, log_level)
                 return  # skip harness check and base parse_single_line
         harness_match = self.harness_error_re.match(line)

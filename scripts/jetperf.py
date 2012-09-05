@@ -75,9 +75,9 @@ class JetPerf(Talos, MercurialScript):
                        require_config_file=require_config_file)
 
         # set instance defaults
-        self.addon_sdk = os.path.join(self.workdir, 'addon-sdk')
+        self.addon_sdk = self.config.get('addon_sdk_path', os.path.join(self.workdir, 'addon-sdk'))
         self.addonsdir = os.path.join(self.workdir, 'addons')
-        self.test_addons_clone = os.path.join(self.workdir, 'addons_clone')
+        self.test_addons_clone = self.config.get('test_addons_clone_path', os.path.join(self.workdir, 'addons_clone'))
 
         # ensure we have tests
         self.preflight_generate_config()
@@ -157,7 +157,7 @@ class JetPerf(Talos, MercurialScript):
                 # package.json modified: please re-run 'cfx xpi'
                 # """
                 # see https://bugzilla.mozilla.org/show_bug.cgi?id=613587
-                code = self.run_command([cfx, 'xpi'], cwd=path)
+                code = self.run_command([sys.executable, cfx, 'xpi'], cwd=path)
                 if code:
                     self.fatal("Error creating xpi file")
             xpi = os.path.join(path, '%s.xpi' % package)

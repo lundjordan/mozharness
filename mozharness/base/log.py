@@ -178,7 +178,7 @@ pre-context-line setting in error_list.)
         This depends on which is closest to levels[0]
         By default, levels is the list of log levels"""
         if not levels:
-            levels = [IGNORE, FATAL, CRITICAL, ERROR, WARNING, INFO, DEBUG]
+            levels = [FATAL, CRITICAL, ERROR, WARNING, INFO, DEBUG, IGNORE]
         if target_level not in levels:
             self.fatal("'%s' not in %s'." % (target_level, levels))
         for l in levels:

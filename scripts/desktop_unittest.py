@@ -146,25 +146,25 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             "action": "append",
             "dest": "specified_mochitest_suites",
             "type": "string",
-            "help": """Specify which mochi suite to run.
-            Suites are defined in the config file.
-            Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"""}
+            "help": "Specify which mochi suite to run."
+                    "Suites are defined in the config file.\n"
+                    "Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"}
          ],
         [['--reftest-suite', ], {
             "action": "append",
             "dest": "specified_reftest_suites",
             "type": "string",
-            "help": """Specify which reftest suite to run.
-            Suites are defined in the config file.
-            Examples: 'all', 'crashplan', or 'jsreftest'"""}
+            "help": "Specify which reftest suite to run."
+                    "Suites are defined in the config file.\n"
+                    "Examples: 'all', 'crashplan', or 'jsreftest'"}
          ],
         [['--xpcshell-suite', ], {
             "action": "append",
             "dest": "specified_xpcshell_suites",
             "type": "string",
-            "help": """Specify which xpcshell suite to run.
-            Suites are defined in the config file.
-            Examples: 'xpcshell'"""}
+            "help": "Specify which xpcshell suite to run."
+                    "Suites are defined in the config file\n."
+                    "Examples: 'xpcshell'"}
          ],
         [['--run-all-suites', ], {
             "action": "store_true",

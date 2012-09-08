@@ -122,8 +122,7 @@ otherwise store a list of dictionaries in self.context_buffer that is
 buffered up to self.num_pre_context_lines (set to the largest
 pre-context-line setting in error_list.)
 """
-    def __init__(self, config=None, log_obj=None, error_list=None,
-                 log_output=True):
+    def __init__(self, config=None, log_obj=None, error_list=None, log_output=True):
         self.config = config
         self.log_obj = log_obj
         self.error_list = error_list or []

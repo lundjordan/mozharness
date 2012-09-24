@@ -196,7 +196,7 @@ pre-context-line setting in error_list.)
 
     def add_lines(self, output):
         if isinstance(output, basestring):
-            output = [output]
+            output = output.splitlines()
         if self.use_buffer:
             for line in output:
                 line = self._validate_line(line)

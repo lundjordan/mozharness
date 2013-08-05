@@ -92,6 +92,12 @@ class Talos(TestingMixin, MercurialScript):
            "dest": "branch",
            "help": "Graphserver branch to report to"
            }],
+        [["--metro-immersive"],
+          {"action": "store_true",
+           "dest": "metro_immersive",
+           "default": False,
+           "help": "Tells windows 8 machines to run tests with Metro Browser"
+           }],
         [["--system-bits"],
           {"action": "store",
            "dest": "system_bits",
@@ -151,6 +157,20 @@ class Talos(TestingMixin, MercurialScript):
         self.pagesets_manifest_parent_path = None
         if 'run-tests' in self.actions:
             self.preflight_run_tests()
+
+    def query_abs_dirs(self):
+        c = self.config
+        if self.abs_dirs:
+            return self.abs_dirs
+        abs_dirs = super(Talos, self).query_abs_dirs()
+        dirs = {}
+        dirs['abs_test_dir'] = os.path.join(abs_dirs['abs_work_dir'],
+                                            'tests')
+        dirs['abs_metro_harness_dir'] = os.path.join(dirs['abs_test_dir'],
+                                                     c.get('metro_harness_dir', '')
+        abs_dirs.update(dirs)
+        self.abs_dirs = abs_dirs
+        return self.abs_dirs
 
     def query_talos_json_url(self):
         """Hacky, but I haven't figured out a better way to get the
@@ -480,6 +500,18 @@ class Talos(TestingMixin, MercurialScript):
             manifest_target = os.path.join(self.query_python_site_packages_path(), pagesets_path)
             self.mkdir_p(os.path.dirname(manifest_target))
             self.copyfile(manifest_source, manifest_target)
+
+    def install(self):
+        """decorates TestingMixin.install() to handle win metro browser"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        super(Talos, self).install()
+        if c.get('metro_immersive'):
+            # overwrite self.binary_path set from TestingMixin.install()
+            self.binary_path = os.path.join(dirs['abs_metro_harness_dir'],
+                                            c.get('metro_test_harness_exe')
+            if not os.path.exists(self.binary_path):
+                self.fatal("metrotestharness executable could not be found")
 
     def preflight_run_tests(self):
         if not self.query_tests():

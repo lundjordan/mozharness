@@ -14,11 +14,11 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import PythonErrorList
 from mozharness.base.log import DEBUG, INFO, WARNING, ERROR, FATAL
-from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.base.script import BaseScript
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_FAILURE
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 
-class PepTest(TestingMixin, MercurialScript):
+class PepTest(TestingMixin, BaseScript):
     config_options = [
         [["--test-manifest"],
         {"action":"store",
@@ -62,7 +62,6 @@ class PepTest(TestingMixin, MercurialScript):
         super(PepTest, self).__init__(
             config_options=self.config_options,
             all_actions=['clobber',
-                         'pull',
                          'read-buildbot-config',
                          'download-and-extract',
                          'create-virtualenv',
@@ -70,7 +69,6 @@ class PepTest(TestingMixin, MercurialScript):
                          'install-tp5n',
                          'run-peptest'],
             default_actions=['clobber',
-                             'pull',
                              'download-and-extract',
                              'create-virtualenv',
                              'install',
@@ -122,14 +120,6 @@ class PepTest(TestingMixin, MercurialScript):
 
     # Actions {{{1
     # clobber is in BaseScript.
-
-    def pull(self):
-        if self.config.get('repos'):
-            dirs = self.query_abs_dirs()
-            self.vcs_checkout_repos(self.config['repos'],
-                                    parent_dir=dirs['abs_work_dir'])
-
-
     # read_buildbot_config is in BuildbotMixin.
     # postflight_read_buildbot_config is in TestingMixin.
     # preflight_download_and_extract is in TestingMixin.
@@ -284,14 +274,12 @@ class PepTest(TestingMixin, MercurialScript):
 
         # TODO create a better summary for peptest
         #      for now just display return code
-        self.add_summary("%s exited with return code %s: %s" % (cmd[0],
-                                                                code,
-                                                                status),
-                         level=level)
+        self.log("%s exited with return code %s: %s" % (cmd[0], code, status),
+                 level=level)
         self.buildbot_status(tbpl_status)
 
 
 
 if __name__ == '__main__':
     peptest = PepTest()
-    peptest.run()
+    peptest.run_and_exit()

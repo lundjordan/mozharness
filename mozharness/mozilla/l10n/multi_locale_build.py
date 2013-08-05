@@ -23,6 +23,10 @@ from mozharness.mozilla.l10n.locales import LocalesMixin
 
 # MultiLocaleBuild {{{1
 class MultiLocaleBuild(LocalesMixin, MercurialScript):
+    """ This class targets Fennec multilocale builds.
+        We were considering this for potential Firefox desktop multilocale.
+        Now that we have a different approach for B2G multilocale,
+        it's most likely misnamed. """
     config_options = [[
      ["--locale",],
      {"action": "extend",
@@ -99,7 +103,7 @@ class MultiLocaleBuild(LocalesMixin, MercurialScript):
                                               'backup-objdir',
                                               'restore-objdir',
                                               'add-locales', 'package-multi',
-                                              'upload-multi'],
+                                              'upload-multi', 'summary'],
                                  require_config_file=require_config_file)
 
     def clobber(self):
@@ -181,7 +185,6 @@ class MultiLocaleBuild(LocalesMixin, MercurialScript):
         # TODO deal with buildsymbols
 
     def package(self, package_type='en-US'):
-        c = self.config
         dirs = self.query_abs_dirs()
 
         command = "make package"
@@ -195,10 +198,6 @@ class MultiLocaleBuild(LocalesMixin, MercurialScript):
             env['MOZ_CHROME_MULTILOCALE'] = "en-US " + \
                                             ' '.join(self.query_locales())
             self.info("MOZ_CHROME_MULTILOCALE is %s" % env['MOZ_CHROME_MULTILOCALE'])
-        # TODO remove once bug 611648 fixed
-        if 'jarsigner' in c:
-            env['JARSIGNER'] = os.path.join(dirs['abs_work_dir'],
-                                            c['jarsigner'])
         self._process_command(command=command, cwd=dirs['abs_objdir'],
                               env=env, error_list=MakefileErrorList,
                               halt_on_failure=True)

@@ -1,15 +1,16 @@
 import gc
+import mock
 import os
 import re
-import shutil
-import subprocess
-import sys
 import unittest
+PYWIN32 = False
+if os.name == 'nt':
+    try:
+        import win32file
+        PYWIN32 = True
+    except:
+        pass
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 import mozharness.base.errors as errors
 import mozharness.base.log as log
@@ -20,19 +21,20 @@ test_string = '''foo
 bar
 baz'''
 
-class CleanupObj(script.OSMixin, log.LogMixin):
+
+class CleanupObj(script.ScriptMixin, log.LogMixin):
     def __init__(self):
         super(CleanupObj, self).__init__()
         self.log_obj = None
         self.config = {'log_level': ERROR}
 
+
 def cleanup():
     gc.collect()
-    # I'm using MercurialVCS here because that gives me access to
-    #
     c = CleanupObj()
     for f in ('test_logs', 'test_dir', 'tmpfile_stdout', 'tmpfile_stderr'):
         c.rmtree(f)
+
 
 def get_debug_script_obj():
     s = script.BaseScript(config={'log_type': 'multi',
@@ -40,17 +42,15 @@ def get_debug_script_obj():
                           initial_config_file='test/test.json')
     return s
 
-def get_noop_script_obj():
-    s = script.BaseScript(config={'noop': True},
-                          initial_config_file='test/test.json')
-    return s
 
+# TestScript {{{1
 class TestScript(unittest.TestCase):
     def setUp(self):
         cleanup()
         self.s = None
 
     def tearDown(self):
+        # Close the logfile handles, or windows can't remove the logs
         if hasattr(self, 's') and isinstance(self.s, object):
             del(self.s)
         cleanup()
@@ -68,41 +68,12 @@ class TestScript(unittest.TestCase):
         self.assertTrue(os.path.isdir('test_dir/foo/bar/baz'),
                         msg="mkdir_p error when dir exists")
 
-    def test_noop_mkdir_p(self):
-        self.s = get_noop_script_obj()
-        self.s.mkdir_p('test_dir/foo/bar/baz')
-        self.assertFalse(os.path.exists('test_dir'),
-                         msg="mkdir_p noop error")
-
-    def test_noop_mkdir_p(self):
-        self.s = get_noop_script_obj()
-        self.s.download_file("http://www.mozilla.com", file_name="test_logs/mozilla.com",
-                        error_level=IGNORE)
-        self.assertFalse(os.path.exists('test_logs/mozilla.com'),
-                         msg="download_file noop error")
-
-    def test_noop_get_output_from_command(self):
-        self.s = get_noop_script_obj()
-        contents1 = self.s.get_output_from_command("cat test/test.json", cwd="configs")
-        self.assertEqual(contents1, '',
-                         msg="get_output_from_command noop error")
-
-    def test_noop_run_command(self):
-        self.s = get_noop_script_obj()
-        self.s.run_command("touch test_logs/foo")
-        self.assertFalse(os.path.exists('test_logs/foo'),
-                         msg="run_command noop error")
-
     def test_chdir(self):
-        self.s = get_noop_script_obj()
+        self.s = script.BaseScript(initial_config_file='test/test.json')
         cwd = os.getcwd()
-        self.s.chdir('test_logs', ignore_if_noop=True)
-        self.assertEqual(cwd, os.getcwd(),
-                         msg="chdir noop error")
-        os.chdir(cwd)
         self.s.chdir('test_logs')
         self.assertEqual(os.path.join(cwd, "test_logs"), os.getcwd(),
-                         msg="chdir noop noignore error")
+                         msg="chdir error")
         self.s.chdir(cwd)
 
     def _test_log_helper(self, obj):
@@ -119,7 +90,7 @@ class TestScript(unittest.TestCase):
 
     def test_log(self):
         self.s = get_debug_script_obj()
-        self.s.log_obj=None
+        self.s.log_obj = None
         self._test_log_helper(self.s)
         del(self.s)
         self.s = script.BaseScript(initial_config_file='test/test.json')
@@ -128,8 +99,8 @@ class TestScript(unittest.TestCase):
     def test_run_nonexistent_command(self):
         self.s = get_debug_script_obj()
         self.s.run_command(command="this_cmd_should_not_exist --help",
-                      env={'GARBLE': 'FARG'},
-                      error_list=errors.PythonErrorList)
+                           env={'GARBLE': 'FARG'},
+                           error_list=errors.PythonErrorList)
         error_logsize = os.path.getsize("test_logs/test_error.log")
         self.assertTrue(error_logsize > 0,
                         msg="command not found error not hit")
@@ -137,50 +108,52 @@ class TestScript(unittest.TestCase):
     def test_run_command_in_bad_dir(self):
         self.s = get_debug_script_obj()
         self.s.run_command(command="ls",
-                      cwd='/this_dir_should_not_exist',
-                      error_list=errors.PythonErrorList)
+                           cwd='/this_dir_should_not_exist',
+                           error_list=errors.PythonErrorList)
         error_logsize = os.path.getsize("test_logs/test_error.log")
         self.assertTrue(error_logsize > 0,
                         msg="bad dir error not hit")
 
     def test_get_output_from_command_in_bad_dir(self):
         self.s = get_debug_script_obj()
-        output = self.s.get_output_from_command(command="ls",
-                     cwd='/this_dir_should_not_exist')
+        self.s.get_output_from_command(command="ls", cwd='/this_dir_should_not_exist')
         error_logsize = os.path.getsize("test_logs/test_error.log")
         self.assertTrue(error_logsize > 0,
                         msg="bad dir error not hit")
 
     def test_get_output_from_command_with_missing_file(self):
         self.s = get_debug_script_obj()
-        output = self.s.get_output_from_command(command="ls /this_file_should_not_exist")
+        self.s.get_output_from_command(command="ls /this_file_should_not_exist")
         error_logsize = os.path.getsize("test_logs/test_error.log")
         self.assertTrue(error_logsize > 0,
                         msg="bad file error not hit")
 
-    def test_get_output_from_command_with_missing_file(self):
+    def test_get_output_from_command_with_missing_file2(self):
         self.s = get_debug_script_obj()
-        self.s.run_command(command="cat mozharness/base/errors.py",
-                      error_list=[{
-                       'substr': "error", 'level': ERROR
-                      },{
-                       'regex': re.compile(',$'), 'level': IGNORE,
-                      },{
-                       'substr': ']$', 'level': WARNING,
-                      }])
+        self.s.run_command(
+            command="cat mozharness/base/errors.py",
+            error_list=[{
+                'substr': "error", 'level': ERROR
+            }, {
+                'regex': re.compile(',$'), 'level': IGNORE,
+            }, {
+                'substr': ']$', 'level': WARNING,
+            }])
         error_logsize = os.path.getsize("test_logs/test_error.log")
         self.assertTrue(error_logsize > 0,
                         msg="error list not working properly")
 
 
-
+# TestHelperFunctions {{{1
 class TestHelperFunctions(unittest.TestCase):
     temp_file = "test_dir/mozilla"
+
     def setUp(self):
         cleanup()
         self.s = None
 
     def tearDown(self):
+        # Close the logfile handles, or windows can't remove the logs
         if hasattr(self, 's') and isinstance(self.s, object):
             del(self.s)
         cleanup()
@@ -200,8 +173,7 @@ class TestHelperFunctions(unittest.TestCase):
     def test_get_output_from_command(self):
         self._create_temp_file()
         self.s = script.BaseScript(initial_config_file='test/test.json')
-        contents = self.s.get_output_from_command("cat %s" % self.temp_file)
-        del(self.s)
+        contents = self.s.get_output_from_command(["bash", "-c", "cat %s" % self.temp_file])
         self.assertEqual(test_string, contents,
                          msg="get_output_from_command('cat file') differs from fh.write")
 
@@ -210,7 +182,7 @@ class TestHelperFunctions(unittest.TestCase):
         self.s = script.BaseScript(initial_config_file='test/test.json')
         temp_file_name = os.path.basename(self.temp_file)
         self.assertEqual(self.s.run_command("cat %s" % temp_file_name,
-                                       cwd="test_dir"), 0,
+                                            cwd="test_dir"), 0,
                          msg="run_command('cat file') did not exit 0")
 
     def test_move1(self):
@@ -236,7 +208,7 @@ class TestHelperFunctions(unittest.TestCase):
         self.s.copyfile(self.temp_file, temp_file2)
         self.assertEqual(os.path.getsize(self.temp_file),
                          os.path.getsize(temp_file2),
-                         msg="%s and %s are different sizes after copyfile()" % \
+                         msg="%s and %s are different sizes after copyfile()" %
                              (self.temp_file, temp_file2))
 
     def test_existing_rmtree(self):
@@ -252,21 +224,38 @@ class TestHelperFunctions(unittest.TestCase):
         status = self.s.rmtree('test_dir')
         self.assertFalse(status, msg="nonexistent rmtree error")
 
-    def test_existing_rmdir_recursive(self):
-        self._create_temp_file()
+    @unittest.skipUnless(PYWIN32, "PyWin32 specific")
+    def test_long_dir_rmtree(self):
         self.s = script.BaseScript(initial_config_file='test/test.json')
-        self.s.mkdir_p('test_dir/foo/bar/baz')
-        self.s._rmdir_recursive('test_dir')
-        self.assertFalse(os.path.exists('test_dir'),
-                         msg="_rmdir_recursive unsuccessful")
+        # create a very long path that the command-prompt cannot delete
+        # by using unicode format (max path length 32000)
+        path = u'\\\\?\\%s\\test_dir' % os.getcwd()
+        win32file.CreateDirectoryExW(u'.', path)
 
+        for x in range(0, 20):
+            print("path=%s" % path)
+            path = path + u'\\%sxxxxxxxxxxxxxxxxxxxx' % x
+            win32file.CreateDirectoryExW(u'.', path)
+        self.s.rmtree('test_dir')
+        self.assertFalse(os.path.exists('test_dir'),
+                         msg="rmtree unsuccessful")
+
+    @unittest.skipUnless(PYWIN32, "PyWin32 specific")
+    def test_chmod_rmtree(self):
+        self._create_temp_file()
+        win32file.SetFileAttributesW(self.temp_file, win32file.FILE_ATTRIBUTE_READONLY)
+        self.s = script.BaseScript(initial_config_file='test/test.json')
+        self.s.rmtree('test_dir')
+        self.assertFalse(os.path.exists('test_dir'),
+                         msg="rmtree unsuccessful")
+
+    @unittest.skipIf(os.name == "nt", "Not for Windows")
     def test_chmod(self):
         self._create_temp_file()
         self.s = script.BaseScript(initial_config_file='test/test.json')
-        if not self.s._is_windows():
-            self.s.chmod(self.temp_file, 0100700)
-            self.assertEqual(os.stat(self.temp_file)[0], 33216,
-                             msg="chmod unsuccessful")
+        self.s.chmod(self.temp_file, 0100700)
+        self.assertEqual(os.stat(self.temp_file)[0], 33216,
+                         msg="chmod unsuccessful")
 
     def test_env_normal(self):
         self.s = script.BaseScript(initial_config_file='test/test.json')
@@ -293,8 +282,28 @@ class TestHelperFunctions(unittest.TestCase):
         script_env = self.s.query_env(partial_env={'PATH': partial_path})
         self.assertEqual(script_env['PATH'], full_path)
 
+    def test_query_exe(self):
+        self.s = script.BaseScript(
+            initial_config_file='test/test.json',
+            config={'exes': {'foo': 'bar'}},
+        )
+        path = self.s.query_exe('foo')
+        self.assertEqual(path, 'bar')
+
+    def test_query_exe_string_replacement(self):
+        self.s = script.BaseScript(
+            initial_config_file='test/test.json',
+            config={
+                'base_work_dir': 'foo',
+                'work_dir': 'bar',
+                'exes': {'foo': os.path.join('%(abs_work_dir)s', 'baz')},
+            },
+        )
+        path = self.s.query_exe('foo')
+        self.assertEqual(path, os.path.join('foo', 'bar', 'baz'))
 
 
+# TestScriptLogging {{{1
 class TestScriptLogging(unittest.TestCase):
     # I need a log watcher helper function, here and in test_log.
     def setUp(self):
@@ -302,20 +311,21 @@ class TestScriptLogging(unittest.TestCase):
         self.s = None
 
     def tearDown(self):
+        # Close the logfile handles, or windows can't remove the logs
         if hasattr(self, 's') and isinstance(self.s, object):
             del(self.s)
         cleanup()
 
     def test_info_logsize(self):
         self.s = script.BaseScript(config={'log_type': 'multi'},
-                              initial_config_file='test/test.json')
+                                   initial_config_file='test/test.json')
         info_logsize = os.path.getsize("test_logs/test_info.log")
         self.assertTrue(info_logsize > 0,
                         msg="initial info logfile missing/size 0")
 
     def test_add_summary_info(self):
         self.s = script.BaseScript(config={'log_type': 'multi'},
-                              initial_config_file='test/test.json')
+                                   initial_config_file='test/test.json')
         info_logsize = os.path.getsize("test_logs/test_info.log")
         self.s.add_summary('one')
         info_logsize2 = os.path.getsize("test_logs/test_info.log")
@@ -324,7 +334,7 @@ class TestScriptLogging(unittest.TestCase):
 
     def test_add_summary_warning(self):
         self.s = script.BaseScript(config={'log_type': 'multi'},
-                              initial_config_file='test/test.json')
+                                   initial_config_file='test/test.json')
         warning_logsize = os.path.getsize("test_logs/test_warning.log")
         self.s.add_summary('two', level=WARNING)
         warning_logsize2 = os.path.getsize("test_logs/test_warning.log")
@@ -333,7 +343,7 @@ class TestScriptLogging(unittest.TestCase):
 
     def test_summary(self):
         self.s = script.BaseScript(config={'log_type': 'multi'},
-                              initial_config_file='test/test.json')
+                                   initial_config_file='test/test.json')
         self.s.add_summary('one')
         self.s.add_summary('two', level=WARNING)
         info_logsize = os.path.getsize("test_logs/test_info.log")
@@ -350,7 +360,7 @@ class TestScriptLogging(unittest.TestCase):
 
     def _test_log_level(self, log_level, log_level_file_list):
         self.s = script.BaseScript(config={'log_type': 'multi'},
-                              initial_config_file='test/test.json')
+                                   initial_config_file='test/test.json')
         if log_level != FATAL:
             self.s.log('testing', level=log_level)
         else:
@@ -391,5 +401,289 @@ class TestScriptLogging(unittest.TestCase):
     def test_fatal(self):
         self._test_log_level(FATAL, [INFO, WARNING, ERROR, CRITICAL, FATAL])
 
+
+# TestRetry {{{1
+class NewError(Exception):
+    pass
+
+
+class OtherError(Exception):
+    pass
+
+
+class TestRetry(unittest.TestCase):
+    def setUp(self):
+        self.ATTEMPT_N = 1
+        self.s = script.BaseScript(initial_config_file='test/test.json')
+
+    def tearDown(self):
+        # Close the logfile handles, or windows can't remove the logs
+        if hasattr(self, 's') and isinstance(self.s, object):
+            del(self.s)
+        cleanup()
+
+    def _succeedOnSecondAttempt(self, foo=None, exception=Exception):
+        if self.ATTEMPT_N == 2:
+            self.ATTEMPT_N += 1
+            return
+        self.ATTEMPT_N += 1
+        raise exception("Fail")
+
+    def _raiseCustomException(self):
+        return self._succeedOnSecondAttempt(exception=NewError)
+
+    def _alwaysPass(self):
+        self.ATTEMPT_N += 1
+        return True
+
+    def _mirrorArgs(self, *args, **kwargs):
+        return args, kwargs
+
+    def _alwaysFail(self):
+        raise Exception("Fail")
+
+    def testRetrySucceed(self):
+        # Will raise if anything goes wrong
+        self.s.retry(self._succeedOnSecondAttempt, attempts=2, sleeptime=0)
+
+    def testRetryFailWithoutCatching(self):
+        self.assertRaises(Exception, self.s.retry, self._alwaysFail, sleeptime=0,
+                          exceptions=())
+
+    def testRetryFailEnsureRaisesLastException(self):
+        self.assertRaises(SystemExit, self.s.retry, self._alwaysFail, sleeptime=0,
+                          error_level=FATAL)
+
+    def testRetrySelectiveExceptionSucceed(self):
+        self.s.retry(self._raiseCustomException, attempts=2, sleeptime=0,
+                     retry_exceptions=(NewError,))
+
+    def testRetrySelectiveExceptionFail(self):
+        self.assertRaises(NewError, self.s.retry, self._raiseCustomException, attempts=2,
+                          sleeptime=0, retry_exceptions=(OtherError,))
+
+    # TODO: figure out a way to test that the sleep actually happened
+    def testRetryWithSleep(self):
+        self.s.retry(self._succeedOnSecondAttempt, attempts=2, sleeptime=1)
+
+    def testRetryOnlyRunOnce(self):
+        """Tests that retry() doesn't call the action again after success"""
+        self.s.retry(self._alwaysPass, attempts=3, sleeptime=0)
+        # self.ATTEMPT_N gets increased regardless of pass/fail
+        self.assertEquals(2, self.ATTEMPT_N)
+
+    def testRetryReturns(self):
+        ret = self.s.retry(self._alwaysPass, sleeptime=0)
+        self.assertEquals(ret, True)
+
+    def testRetryCleanupIsCalled(self):
+        cleanup = mock.Mock()
+        self.s.retry(self._succeedOnSecondAttempt, cleanup=cleanup, sleeptime=0)
+        self.assertEquals(cleanup.call_count, 1)
+
+    def testRetryArgsPassed(self):
+        args = (1, 'two', 3)
+        kwargs = dict(foo='a', bar=7)
+        ret = self.s.retry(self._mirrorArgs, args=args, kwargs=kwargs.copy(), sleeptime=0)
+        print ret
+        self.assertEqual(ret[0], args)
+        self.assertEqual(ret[1], kwargs)
+
+
+class BaseScriptWithDecorators(script.BaseScript):
+    def __init__(self, *args, **kwargs):
+        super(BaseScriptWithDecorators, self).__init__(*args, **kwargs)
+
+        self.pre_run_1_args = []
+        self.raise_during_pre_run_1 = False
+        self.pre_action_1_args = []
+        self.raise_during_pre_action_1 = False
+        self.pre_action_2_args = []
+        self.pre_action_3_args = []
+        self.post_action_1_args = []
+        self.raise_during_post_action_1 = False
+        self.post_action_2_args = []
+        self.post_action_3_args = []
+        self.post_run_1_args = []
+        self.raise_during_post_run_1 = False
+        self.post_run_2_args = []
+        self.raise_during_build = False
+
+    @script.PreScriptRun
+    def pre_run_1(self, *args, **kwargs):
+        self.pre_run_1_args.append((args, kwargs))
+
+        if self.raise_during_pre_run_1:
+            raise Exception(self.raise_during_pre_run_1)
+
+    @script.PreScriptAction
+    def pre_action_1(self, *args, **kwargs):
+        self.pre_action_1_args.append((args, kwargs))
+
+        if self.raise_during_pre_action_1:
+            raise Exception(self.raise_during_pre_action_1)
+
+    @script.PreScriptAction
+    def pre_action_2(self, *args, **kwargs):
+        self.pre_action_2_args.append((args, kwargs))
+
+    @script.PreScriptAction('clobber')
+    def pre_action_3(self, *args, **kwargs):
+        self.pre_action_3_args.append((args, kwargs))
+
+    @script.PostScriptAction
+    def post_action_1(self, *args, **kwargs):
+        self.post_action_1_args.append((args, kwargs))
+
+        if self.raise_during_post_action_1:
+            raise Exception(self.raise_during_post_action_1)
+
+    @script.PostScriptAction
+    def post_action_2(self, *args, **kwargs):
+        self.post_action_2_args.append((args, kwargs))
+
+    @script.PostScriptAction('build')
+    def post_action_3(self, *args, **kwargs):
+        self.post_action_3_args.append((args, kwargs))
+
+    @script.PostScriptRun
+    def post_run_1(self, *args, **kwargs):
+        self.post_run_1_args.append((args, kwargs))
+
+        if self.raise_during_post_run_1:
+            raise Exception(self.raise_during_post_run_1)
+
+    @script.PostScriptRun
+    def post_run_2(self, *args, **kwargs):
+        self.post_run_2_args.append((args, kwargs))
+
+    def build(self):
+        if self.raise_during_build:
+            raise Exception(self.raise_during_build)
+
+
+class TestScriptDecorators(unittest.TestCase):
+    def setUp(self):
+        cleanup()
+        self.s = None
+
+    def tearDown(self):
+        if hasattr(self, 's') and isinstance(self.s, object):
+            del self.s
+
+        cleanup()
+
+    def test_decorators_registered(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+
+        self.assertEqual(len(self.s._listeners['pre_run']), 1)
+        self.assertEqual(len(self.s._listeners['pre_action']), 3)
+        self.assertEqual(len(self.s._listeners['post_action']), 3)
+        self.assertEqual(len(self.s._listeners['post_run']), 2)
+
+    def test_pre_post_fired(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.run()
+
+        self.assertEqual(len(self.s.pre_run_1_args), 1)
+        self.assertEqual(len(self.s.pre_action_1_args), 2)
+        self.assertEqual(len(self.s.pre_action_2_args), 2)
+        self.assertEqual(len(self.s.pre_action_3_args), 1)
+        self.assertEqual(len(self.s.post_action_1_args), 2)
+        self.assertEqual(len(self.s.post_action_2_args), 2)
+        self.assertEqual(len(self.s.post_action_3_args), 1)
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+
+        self.assertEqual(self.s.pre_run_1_args[0], ((), {}))
+
+        self.assertEqual(self.s.pre_action_1_args[0], (('clobber',), {}))
+        self.assertEqual(self.s.pre_action_1_args[1], (('build',), {}))
+
+        # pre_action_3 should only get called for the action it is registered
+        # with.
+        self.assertEqual(self.s.pre_action_3_args[0], (('clobber',), {}))
+
+        self.assertEqual(self.s.post_action_1_args[0][0], ('clobber',))
+        self.assertEqual(self.s.post_action_1_args[0][1], dict(success=True))
+        self.assertEqual(self.s.post_action_1_args[1][0], ('build',))
+        self.assertEqual(self.s.post_action_1_args[1][1], dict(success=True))
+
+        # post_action_3 should only get called for the action is is registered
+        # with.
+        self.assertEqual(self.s.post_action_3_args[0], (('build',),
+            dict(success=True)))
+
+        self.assertEqual(self.s.post_run_1_args[0], ((), {}))
+
+    def test_post_always_fired(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.raise_during_build = 'Testing post always fired.'
+
+        with self.assertRaises(SystemExit):
+            self.s.run()
+
+        self.assertEqual(len(self.s.pre_run_1_args), 1)
+        self.assertEqual(len(self.s.pre_action_1_args), 2)
+        self.assertEqual(len(self.s.post_action_1_args), 2)
+        self.assertEqual(len(self.s.post_action_2_args), 2)
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+        self.assertEqual(len(self.s.post_run_2_args), 1)
+
+        self.assertEqual(self.s.post_action_1_args[0][1], dict(success=True))
+        self.assertEqual(self.s.post_action_1_args[1][1], dict(success=False))
+        self.assertEqual(self.s.post_action_2_args[1][1], dict(success=False))
+
+    def test_pre_run_exception(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.raise_during_pre_run_1 = 'Error during pre run 1'
+
+        with self.assertRaises(SystemExit):
+            self.s.run()
+
+        self.assertEqual(len(self.s.pre_run_1_args), 1)
+        self.assertEqual(len(self.s.pre_action_1_args), 0)
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+        self.assertEqual(len(self.s.post_run_2_args), 1)
+
+    def test_pre_action_exception(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.raise_during_pre_action_1 = 'Error during pre 1'
+
+        with self.assertRaises(SystemExit):
+            self.s.run()
+
+        self.assertEqual(len(self.s.pre_run_1_args), 1)
+        self.assertEqual(len(self.s.pre_action_1_args), 1)
+        self.assertEqual(len(self.s.pre_action_2_args), 0)
+        self.assertEqual(len(self.s.post_action_1_args), 1)
+        self.assertEqual(len(self.s.post_action_2_args), 1)
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+        self.assertEqual(len(self.s.post_run_2_args), 1)
+
+    def test_post_action_exception(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.raise_during_post_action_1 = 'Error during post 1'
+
+        with self.assertRaises(SystemExit):
+            self.s.run()
+
+        self.assertEqual(len(self.s.pre_run_1_args), 1)
+        self.assertEqual(len(self.s.post_action_1_args), 1)
+        self.assertEqual(len(self.s.post_action_2_args), 1)
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+        self.assertEqual(len(self.s.post_run_2_args), 1)
+
+    def test_post_run_exception(self):
+        self.s = BaseScriptWithDecorators(initial_config_file='test/test.json')
+        self.s.raise_during_post_run_1 = 'Error during post run 1'
+
+        with self.assertRaises(SystemExit):
+            self.s.run()
+
+        self.assertEqual(len(self.s.post_run_1_args), 1)
+        self.assertEqual(len(self.s.post_run_2_args), 1)
+
+
+# main {{{1
 if __name__ == '__main__':
     unittest.main()

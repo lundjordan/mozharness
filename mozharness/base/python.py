@@ -8,37 +8,52 @@
 '''
 
 import os
+import traceback
 
+from mozharness.base.script import (
+    PostScriptAction,
+    PostScriptRun,
+    PreScriptAction,
+)
 from mozharness.base.errors import VirtualenvErrorList
 from mozharness.base.log import WARNING, FATAL
 
 # Virtualenv {{{1
-virtualenv_config_options = [[
- ["--venv-path", "--virtualenv-path"],
- {"action": "store",
-  "dest": "virtualenv_path",
-  "default": "venv",
-  "help": "Specify the path to the virtualenv top level directory"
- }
-],
-[["--virtualenv"],
- {"action": "store",
-  "dest": "virtualenv",
-  "help": "Specify the virtualenv executable to use"
-  }
-],
-[["--pypi-url"],
- {"action": "store",
-  "dest": "pypi_url",
-  "help": "Base URL of Python Package Index (default http://pypi.python.org/simple/)"
-  }
-],
-[["--find-links"],
-{"action": "extend",
- "dest": "find_links",
- "help": "URL to look for packages at"
-}
-]]
+virtualenv_config_options = [
+    [["--venv-path", "--virtualenv-path"], {
+        "action": "store",
+        "dest": "virtualenv_path",
+        "default": "venv",
+        "help": "Specify the path to the virtualenv top level directory"
+    }],
+    [["--virtualenv"], {
+        "action": "store",
+        "dest": "virtualenv",
+        "help": "Specify the virtualenv executable to use"
+    }],
+    [["--pypi-url"], {
+        "action": "store",
+        "dest": "pypi_url",
+        "help": "Base URL of Python Package Index (default http://pypi.python.org/simple/)"
+    }],
+    [["--find-links"], {
+        "action": "extend",
+        "dest": "find_links",
+        "help": "URL to look for packages at"
+    }],
+    [["--pip-index"], {
+        "action": "store_true",
+        "default": True,
+        "dest": "pip_index",
+        "help": "Use pip indexes (default)"
+    }],
+    [["--no-pip-index"], {
+        "action": "store_false",
+        "dest": "pip_index",
+        "help": "Don't use pip indexes"
+    }],
+]
+
 
 class VirtualenvMixin(object):
     '''BaseScript mixin, designed to create and use virtualenvs.
@@ -48,10 +63,27 @@ class VirtualenvMixin(object):
      * virtualenv_modules lists the module names.
      * MODULE_url list points to the module URLs (optional)
     Requires virtualenv to be in PATH.
-    Depends on OSMixin
+    Depends on ScriptMixin
     '''
     python_paths = {}
     site_packages_path = None
+
+    def __init__(self, *args, **kwargs):
+        self._virtualenv_modules = []
+        super(VirtualenvMixin, self).__init__(*args, **kwargs)
+
+    def register_virtualenv_module(self, name, url=None, method=None,
+            requirements=None, optional=False):
+        """Register a module to be installed with the virtualenv.
+
+        This method can be called up until create_virtualenv() to register
+        modules that should be installed in the virtualenv.
+
+        See the documentation for install_module for how the arguments are
+        applied.
+        """
+        self._virtualenv_modules.append((name, url, method, requirements,
+            optional))
 
     def query_virtualenv_path(self):
         c = self.config
@@ -85,11 +117,11 @@ class VirtualenvMixin(object):
         python = self.query_python_path()
         self.site_packages_path = self.get_output_from_command(
             [python, '-c',
-             'from distutils.sysconfig import get_python_lib; ' + \
+             'from distutils.sysconfig import get_python_lib; ' +
              'print(get_python_lib())'])
         return self.site_packages_path
 
-    def package_versions(self, pip_freeze_output=None, error_level=WARNING):
+    def package_versions(self, pip_freeze_output=None, error_level=WARNING, log_output=False):
         """
         reads packages from `pip freeze` output and returns a dict of
         {package_name: 'version'}
@@ -120,6 +152,11 @@ class VirtualenvMixin(object):
             package, version = line.split('==', 1)
             packages[package] = version
 
+        if log_output:
+            self.info("Current package versions:")
+            for package in packages:
+                self.info("  %s == %s" % (package, packages[package]))
+
         return packages
 
     def is_python_package_installed(self, package_name, error_level=WARNING):
@@ -135,13 +172,19 @@ class VirtualenvMixin(object):
                      level=error_level)
             return True
 
-    def install_module(self, module, module_url=None, install_method=None):
+    def install_module(self, module=None, module_url=None, install_method=None,
+                       requirements=(), optional=False):
         """
         Install module via pip.
 
         module_url can be a url to a python package tarball, a path to
         a directory containing a setup.py (absolute or relative to work_dir)
         or None, in which case it will default to the module name.
+
+        requirements is a list of pip requirements files.  If specified, these
+        will be combined with the module_url (if any), like so:
+
+        pip install -r requirements1.txt -r requirements2.txt module_url
         """
         c = self.config
         dirs = self.query_abs_dirs()
@@ -150,6 +193,8 @@ class VirtualenvMixin(object):
         if not module_url:
             module_url = module
         if install_method in (None, 'pip'):
+            if not module_url and not requirements:
+                self.fatal("Must specify module and/or requirements")
             pip = self.query_python_path("pip")
             command = [pip, "install"]
             pypi_url = c.get("pypi_url")
@@ -159,10 +204,28 @@ class VirtualenvMixin(object):
             if virtualenv_cache_dir:
                 self.mkdir_p(virtualenv_cache_dir)
                 command += ["--download-cache", virtualenv_cache_dir]
+            for requirement in requirements:
+                command += ["-r", requirement]
+            if c.get('find_links') and not c["pip_index"]:
+                command += ['--no-index']
         elif install_method == 'easy_install':
+            if not module:
+                self.fatal("module parameter required with install_method='easy_install'")
+            if requirements:
+                # Install pip requirements files separately, since they're
+                # not understood by easy_install.
+                self.install_module(requirements=requirements,
+                                    install_method='pip')
             # Allow easy_install to be overridden by
             # self.config['exes']['easy_install']
-            command = self.query_exe('easy_install', default=self.query_python_path('easy_install'), return_type="list")
+            default = 'easy_install'
+            if self._is_windows():
+                # Don't invoke `easy_install` directly on windows since
+                # the 'install' in the executable name hits UAC
+                # - http://answers.microsoft.com/en-us/windows/forum/windows_7-security/uac-message-do-you-want-to-allow-the-following/bea30ad8-9ef8-4897-aab4-841a65f7af71
+                # - https://bugzilla.mozilla.org/show_bug.cgi?id=791840
+                default = [self.query_python_path(), self.query_python_path('easy_install-script.py')]
+            command = self.query_exe('easy_install', default=default, return_type="list")
         else:
             self.fatal("install_module() doesn't understand an install_method of %s!" % install_method)
 
@@ -170,14 +233,27 @@ class VirtualenvMixin(object):
         for link in c.get('find_links', []):
             command.extend(["--find-links", link])
 
+        # module_url can be None if only specifying requirements files
+        if module_url:
+            command += [module_url]
+
+        # Prevents a return code of 1 being marked as an ERROR in the log
+        # for optional packages.
+        success_codes = [0, 1] if optional else [0]
+
         # Allow for errors while building modules, but require a
         # return status of 0.
-        if self.run_command(command + [module_url],
+        if self.run_command(command,
                             error_list=VirtualenvErrorList,
+                            success_codes=success_codes,
                             cwd=dirs['abs_work_dir']) != 0:
-            self.fatal("Unable to install %s!" % module_url)
+            if optional:
+                self.warning("Unable to install optional package %s." %
+                    module_url)
+            else:
+                self.fatal("Unable to install %s!" % module_url)
 
-    def create_virtualenv(self):
+    def create_virtualenv(self, modules=(), requirements=()):
         """
         Create a python virtualenv.
 
@@ -199,6 +275,14 @@ class VirtualenvMixin(object):
                 'module1',
                 {'module2': 'http://url/to/package'},
                 {'module3': os.path.join('path', 'to', 'setup_py', 'dir')},
+            ]
+
+        virtualenv_requirements is an optional list of pip requirements files to
+        use when invoking pip, e.g.,
+
+            virtualenv_requirements = [
+                '/path/to/requirements1.txt',
+                '/path/to/requirements2.txt'
             ]
         """
         c = self.config
@@ -223,7 +307,7 @@ class VirtualenvMixin(object):
             target = self.query_python_path(dll_name)
             scripts_dir = os.path.dirname(target)
             self.mkdir_p(scripts_dir)
-            self.copyfile(c['virtualenv_python_dll'], target)
+            self.copyfile(c['virtualenv_python_dll'], target, error_level=WARNING)
         else:
             self.mkdir_p(dirs['abs_work_dir'])
 
@@ -240,18 +324,151 @@ class VirtualenvMixin(object):
                          cwd=dirs['abs_work_dir'],
                          error_list=VirtualenvErrorList,
                          halt_on_failure=True)
-        for module in c.get('virtualenv_modules', []):
+        if not modules:
+            modules = c.get('virtualenv_modules', [])
+        if not requirements:
+            requirements = c.get('virtualenv_requirements', [])
+        if not modules and requirements:
+            self.install_module(requirements=requirements,
+                                install_method='pip')
+        for module in modules:
             module_url = module
             if isinstance(module, dict):
                 (module, module_url) = module.items()[0]
-            module_url = self.config.get('%s_url' % module, module_url)
+            else:
+                module_url = self.config.get('%s_url' % module, module_url)
             install_method = 'pip'
             if module in ('pywin32',):
                 install_method = 'easy_install'
-            self.install_module(module, module_url,
-                                install_method=install_method)
+            self.install_module(module=module,
+                                module_url=module_url,
+                                install_method=install_method,
+                                requirements=requirements)
+
+        for module, url, method, requirements,optional in \
+            self._virtualenv_modules:
+            self.install_module(module=module, module_url=url,
+                install_method=method, requirements=requirements or (),
+                optional=optional)
+
         self.info("Done creating virtualenv %s." % venv_path)
 
+        self.package_versions(log_output=True)
+
+    def activate_virtualenv(self):
+        """Import the virtualenv's packages into this Python interpreter."""
+        bin_dir = os.path.dirname(self.query_python_path())
+        activate = os.path.join(bin_dir, 'activate_this.py')
+        execfile(activate, dict(__file__=activate))
+
+
+class ResourceMonitoringMixin(object):
+    """Provides resource monitoring capabilities to scripts.
+
+    When this class is in the inheritance chain, resource usage stats of the
+    executing script will be recorded.
+
+    This class requires the VirtualenvMixin in order to install a package used
+    for recording resource usage.
+
+    While we would like to record resource usage for the entirety of a script,
+    since we require an external package, we can only record resource usage
+    after that package is installed (as part of creating the virtualenv).
+    That's just the way things have to be.
+    """
+    def __init__(self, *args, **kwargs):
+        super(ResourceMonitoringMixin, self).__init__(*args, **kwargs)
+
+        self.register_virtualenv_module('psutil==0.7.1', method='pip',
+            optional=True)
+        self.register_virtualenv_module('mozsystemmonitor==0.0.0',
+            method='pip', optional=True)
+        self._resource_monitor = None
+
+    @PostScriptAction('create-virtualenv')
+    def _start_resource_monitoring(self, action, success=None):
+        self.activate_virtualenv()
+
+        try:
+            from mozsystemmonitor.resourcemonitor import SystemResourceMonitor
+
+            self.info("Starting resource monitoring.")
+            self._resource_monitor = SystemResourceMonitor(poll_interval=1.0)
+            self._resource_monitor.start()
+        except Exception:
+            self.warning("Unable to start resource monitor: %s" %
+                traceback.format_exc())
+
+    @PreScriptAction
+    def _resource_record_pre_action(self, action):
+        # Resource monitor isn't available until after create-virtualenv.
+        if not self._resource_monitor:
+            return
+
+        self._resource_monitor.begin_phase(action)
+
+    @PostScriptAction
+    def _resource_record_post_action(self, action, success=None):
+        # Resource monitor isn't available until after create-virtualenv.
+        if not self._resource_monitor:
+            return
+
+        self._resource_monitor.finish_phase(action)
+
+    @PostScriptRun
+    def _resource_record_post_run(self):
+        if not self._resource_monitor:
+            return
+
+        # This should never raise an exception. This is a workaround until
+        # mozsystemmonitor is fixed. See bug 895388.
+        try:
+            self._resource_monitor.stop()
+            self._log_resource_usage()
+        except Exception:
+            self.warning("Exception when reporting resource usage: %s" %
+                traceback.format_exc())
+
+    def _log_resource_usage(self):
+        rm = self._resource_monitor
+
+        if rm.start_time is None:
+            return
+
+        def resources(phase):
+            cpu_percent = rm.aggregate_cpu_percent(phase=phase, per_cpu=False)
+            cpu_times = rm.aggregate_cpu_times(phase=phase, per_cpu=False)
+            io = rm.aggregate_io(phase=phase)
+
+            return cpu_percent, cpu_times, io
+
+        def log_usage(prefix, duration, cpu_percent, cpu_times, io):
+            message = '{prefix} - Wall time: {duration:.0f}s; ' \
+                'CPU: {cpu_percent:.0f}%; ' \
+                'Read bytes: {io_read_bytes}; Write bytes: {io_write_bytes}; ' \
+                'Read time: {io_read_time}; Write time: {io_write_time}'
+
+            # XXX Some test harnesses are complaining about a string being
+            # being fed into a 'f' formatter. This will help diagnose the
+            # issue.
+            try:
+                self.info(message.format(prefix=prefix, duration=duration,
+                    cpu_percent=cpu_percent, io_read_bytes=io.read_bytes,
+                    io_write_bytes=io.write_bytes, io_read_time=io.read_time,
+                    io_write_time=io.write_time))
+            except ValueError:
+                self.warning("Exception when formatting: %s" %
+                    traceback.format_exc())
+
+        cpu_percent, cpu_times, io = resources(None)
+        duration = rm.end_time - rm.start_time
+
+        log_usage('Total resource usage', duration, cpu_percent, cpu_times, io)
+
+        for phase in rm.phases.keys():
+            start_time, end_time = rm.phases[phase]
+            cpu_percent, cpu_times, io = resources(phase)
+            log_usage(phase, end_time - start_time, cpu_percent, cpu_times, io)
 
 
 # __main__ {{{1

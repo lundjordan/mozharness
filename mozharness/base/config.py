@@ -28,13 +28,15 @@ from copy import deepcopy
 from optparse import OptionParser, Option, OptionGroup
 import os
 import sys
+import urllib2
+import socket
+import time
 try:
     import simplejson as json
 except ImportError:
     import json
 
 from mozharness.base.log import DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL
-
 
 
 # optparse {{{1
@@ -44,6 +46,7 @@ class ExtendedOptionParser(OptionParser):
     def __init__(self, **kwargs):
         kwargs['option_class'] = ExtendOption
         OptionParser.__init__(self, **kwargs)
+
 
 class ExtendOption(Option):
     """from http://docs.python.org/library/optparse.html?highlight=optparse#adding-new-actions"""
@@ -59,7 +62,6 @@ class ExtendOption(Option):
         else:
             Option.take_action(
                 self, action, dest, opt, value, values, parser)
-
 
 
 # ReadOnlyDict {{{1
@@ -103,7 +105,6 @@ class ReadOnlyDict(dict):
         dict.update(self, *args)
 
 
-
 # parse_config_file {{{1
 def parse_config_file(file_name, quiet=False, search_path=None,
                       config_dict_name="config"):
@@ -121,7 +122,7 @@ def parse_config_file(file_name, quiet=False, search_path=None,
                 file_path = os.path.join(path, file_name)
                 break
         else:
-            raise IOError, "Can't find %s in %s!" % (file_name, search_path)
+            raise IOError("Can't find %s in %s!" % (file_name, search_path))
     if file_name.endswith('.py'):
         global_dict = {}
         local_dict = {}
@@ -134,10 +135,43 @@ def parse_config_file(file_name, quiet=False, search_path=None,
         config = dict(json_config)
         fh.close()
     else:
-        raise RuntimeError, "Unknown config file type %s!" % file_name
+        raise RuntimeError("Unknown config file type %s!" % file_name)
     # TODO return file_path
     return config
 
+
+def download_config_file(url, file_name):
+    n = 0
+    attempts = 5
+    sleeptime = 60
+    max_sleeptime = 5 * 60
+    while True:
+        if n >= attempts:
+            print "Failed to download from url %s after %d attempts, quiting..." % (url, attempts)
+            raise SystemError(-1)
+        try:
+            contents = urllib2.urlopen(url, timeout=30).read()
+            break
+        except urllib2.URLError, e:
+            print "Error downloading from url %s: %s" % (url, str(e))
+        except socket.timeout, e:
+            print "Time out accessing %s: %s" % (url, str(e))
+        except socket.error, e:
+            print "Socket error when accessing %s: %s" % (url, str(e))
+        print "Sleeping %d seconds before retrying" % sleeptime
+        time.sleep(sleeptime)
+        sleeptime = sleeptime * 2
+        if sleeptime > max_sleeptime:
+            sleeptime = max_sleeptime
+        n += 1
+
+    try:
+        f = open(file_name, 'w')
+        f.write(contents)
+        f.close()
+    except IOError, e:
+        print "Error writing downloaded contents to file %s: %s" % (file_name, str(e))
+        raise SystemError(-1)
 
 
 # BaseConfig {{{1
@@ -185,88 +219,82 @@ class BaseConfig(object):
     def _create_config_parser(self, config_options, usage):
         self.config_parser = ExtendedOptionParser(usage=usage)
         self.config_parser.add_option(
-         "--work-dir", action="store", dest="work_dir",
-         type="string", default="build",
-         help="Specify the work_dir (subdir of base_work_dir)"
+            "--work-dir", action="store", dest="work_dir",
+            type="string", default="build",
+            help="Specify the work_dir (subdir of base_work_dir)"
         )
         self.config_parser.add_option(
-         "--base-work-dir", action="store", dest="base_work_dir",
-         type="string", default=os.getcwd(),
-         help="Specify the absolute path of the parent of the working directory"
+            "--base-work-dir", action="store", dest="base_work_dir",
+            type="string", default=os.getcwd(),
+            help="Specify the absolute path of the parent of the working directory"
         )
         self.config_parser.add_option(
-         "--config-file", "--cfg", action="store", dest="config_file",
-         type="string", help="Specify the config file (required)"
+            "-c", "--config-file", "--cfg", action="extend", dest="config_files",
+            type="string", help="Specify the config files"
+        )
+        self.config_parser.add_option(
+            "-C", "--opt-config-file", "--opt-cfg", action="extend",
+            dest="opt_config_files", type="string", default=[],
+            help="Specify the optional config files"
         )
 
         # Logging
         log_option_group = OptionGroup(self.config_parser, "Logging")
         log_option_group.add_option(
-         "--log-level", action="store",
-         type="choice", dest="log_level", default=INFO,
-         choices=[DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL],
-         help="Set log level (debug|info|warning|error|critical|fatal)"
+            "--log-level", action="store",
+            type="choice", dest="log_level", default=INFO,
+            choices=[DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL],
+            help="Set log level (debug|info|warning|error|critical|fatal)"
         )
         log_option_group.add_option(
-         "-q", "--quiet", action="store_false", dest="log_to_console",
-         default=True, help="Don't log to the console"
+            "-q", "--quiet", action="store_false", dest="log_to_console",
+            default=True, help="Don't log to the console"
         )
         log_option_group.add_option(
-         "--append-to-log", action="store_true",
-         dest="append_to_log", default=False,
-         help="Append to the log"
+            "--append-to-log", action="store_true",
+            dest="append_to_log", default=False,
+            help="Append to the log"
         )
         log_option_group.add_option(
-         "--multi-log", action="store_const", const="multi",
-         dest="log_type", help="Log using MultiFileLogger"
+            "--multi-log", action="store_const", const="multi",
+            dest="log_type", help="Log using MultiFileLogger"
         )
         log_option_group.add_option(
-         "--simple-log", action="store_const", const="simple",
-          dest="log_type", help="Log using SimpleFileLogger"
+            "--simple-log", action="store_const", const="simple",
+            dest="log_type", help="Log using SimpleFileLogger"
         )
         self.config_parser.add_option_group(log_option_group)
 
-
-        # TODO deal with noop properly.
-        #self.config_parser.add_option(
-        # "--noop", "--dry-run", action="store_true", default=False,
-        # dest="noop",
-        # help="Echo commands without executing them."
-        #)
-
         # Actions
-        action_option_group = OptionGroup(self.config_parser, "Actions",
-         "Use these options to list or enable/disable actions.")
-        action_option_group.add_option(
-         "--list-actions", action="store_true",
-         dest="list_actions",
-         help="List all available actions, then exit"
+        action_option_group = OptionGroup(
+            self.config_parser, "Actions",
+            "Use these options to list or enable/disable actions."
         )
         action_option_group.add_option(
-         "--action", action="extend",
-         dest="actions", metavar="ACTIONS",
-         help="Do action %s" % self.all_actions
+            "--list-actions", action="store_true",
+            dest="list_actions",
+            help="List all available actions, then exit"
         )
         action_option_group.add_option(
-         "--add-action", action="extend",
-         dest="add_actions", metavar="ACTIONS",
-         help="Add action %s to the list of actions" % self.all_actions
+            "--add-action", action="extend",
+            dest="add_actions", metavar="ACTIONS",
+            help="Add action %s to the list of actions" % self.all_actions
         )
         action_option_group.add_option(
-         "--no-action", action="extend",
-         dest="no_actions", metavar="ACTIONS",
-         help="Don't perform action"
+            "--no-action", action="extend",
+            dest="no_actions", metavar="ACTIONS",
+            help="Don't perform action"
         )
         for action in self.all_actions:
             action_option_group.add_option(
-             "--only-%s" % action, "--%s" % action, action="append_const",
-             dest="actions", const=action,
-             help="Add %s to the limited list of actions" % action
+                "--%s" % action, action="append_const",
+                dest="actions", const=action,
+                help="Add %s to the limited list of actions" % action
             )
             action_option_group.add_option(
-             "--no-%s" % action, action="append_const",
-             dest="no_actions", const=action,
-             help="Remove %s from the list of actions to perform" % action
+                "--no-%s" % action, action="append_const",
+                dest="no_actions", const=action,
+                help="Remove %s from the list of actions to perform" % action
             )
         self.config_parser.add_option_group(action_option_group)
         # Child-specified options
@@ -320,14 +348,31 @@ class BaseConfig(object):
 
         defaults = self.config_parser.defaults.copy()
 
-        if not options.config_file:
+        if not options.config_files:
             if self.require_config_file:
                 if options.list_actions:
                     self.list_actions()
                 print("Required config file not set! (use --config-file option)")
                 raise SystemExit(-1)
         else:
-            self.set_config(parse_config_file(options.config_file))
+            config = {}
+            # append opt_config to allow them to overwrite previous configs
+            all_config_files = options.config_files + options.opt_config_files
+            for cf in all_config_files:
+                try:
+                    if '://' in cf: # config file is an url
+                        file_name = os.path.basename(cf)
+                        file_path = os.path.join(os.getcwd(), file_name)
+                        download_config_file(cf, file_path)
+                        config.update(parse_config_file(file_path))
+                    else:
+                        config.update(parse_config_file(cf))
+                except Exception:
+                    if cf in options.opt_config_files:
+                        print("WARNING: optional config file not found %s" % cf)
+                    else:
+                        raise
+            self.set_config(config)
         for key in defaults.keys():
             value = getattr(options, key)
             if value is None:
@@ -387,7 +432,6 @@ class BaseConfig(object):
         self.options = options
         self.args = args
         return (self.options, self.args)
-
 
 
 # __main__ {{{1

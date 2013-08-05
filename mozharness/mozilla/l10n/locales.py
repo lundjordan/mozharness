@@ -8,6 +8,7 @@
 """
 
 import os
+from urlparse import urljoin
 import sys
 
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -16,8 +17,8 @@ from mozharness.base.config import parse_config_file
 from mozharness.base.errors import PythonErrorList
 from mozharness.base.parallel import ChunkingMixin
 
-# LocalesMixin {{{1
 
+# LocalesMixin {{{1
 class LocalesMixin(ChunkingMixin):
     def __init__(self, **kwargs):
         """ Mixins generally don't have an __init__.
@@ -26,6 +27,7 @@ class LocalesMixin(ChunkingMixin):
         """
         self.abs_dirs = None
         self.locales = None
+        self.gecko_locale_revisions = None
 
     def query_locales(self):
         if self.locales is not None:
@@ -78,10 +80,14 @@ class LocalesMixin(ChunkingMixin):
             locales_json = parse_config_file(locales_file)
             self.locale_dict = {}
             for locale in locales_json.keys():
-                if platform and platform not in locales_json[locale]['platforms']:
-                    continue
+                if isinstance(locales_json[locale], dict):
+                    if platform and platform not in locales_json[locale]['platforms']:
+                        continue
+                    self.locale_dict[locale] = locales_json[locale]['revision']
+                else:
+                    # some other way of getting this?
+                    self.locale_dict[locale] = 'default'
                 locales.append(locale)
-                self.locale_dict[locale] = locales_json[locale]['revision']
         else:
             locales = self.read_from_file(locales_file).split()
         return locales
@@ -143,25 +149,29 @@ class LocalesMixin(ChunkingMixin):
         return self.abs_dirs
 
     # This requires self to inherit a VCSMixin.
-    def pull_locale_source(self):
+    def pull_locale_source(self, hg_l10n_base=None, parent_dir=None, vcs='hg'):
         c = self.config
-        dirs = self.query_abs_dirs()
-        self.mkdir_p(dirs['abs_l10n_dir'])
+        if not hg_l10n_base:
+            hg_l10n_base = c['hg_l10n_base']
+        if parent_dir is None:
+            parent_dir = self.query_abs_dirs()['abs_l10n_dir']
+        self.mkdir_p(parent_dir)
         repos = []
         replace_dict = {}
-        # Replace %(user_repo_override)s with c['user_repo_override']
-        if c.get("user_repo_override"):
-            replace_dict['user_repo_override'] = c['user_repo_override']
-            for repo_dict in c.get('l10n_repos', []):
-                repo_dict['repo'] = repo_dict['repo'] % replace_dict
-                repos.append(repo_dict)
-        else:
-            repos = c.get("l10n_repos")
-        if repos:
+        # This block is to allow for pulling buildbot-configs in Fennec
+        # release builds, since we don't pull it in MBF anymore.
+        if c.get("l10n_repos"):
+            if c.get("user_repo_override"):
+                replace_dict['user_repo_override'] = c['user_repo_override']
+                for repo_dict in c['l10n_repos']:
+                    repo_dict['repo'] = repo_dict['repo'] % replace_dict
+                    repos.append(repo_dict)
+            else:
+                repos = c.get("l10n_repos")
             self.vcs_checkout_repos(repos, tag_override=c.get('tag_override'))
+        # Pull locales
         locales = self.query_locales()
         locale_repos = []
-        hg_l10n_base = c['hg_l10n_base']
         if c.get("user_repo_override"):
             hg_l10n_base = hg_l10n_base % {"user_repo_override": c["user_repo_override"]}
         for locale in locales:
@@ -170,11 +180,34 @@ class LocalesMixin(ChunkingMixin):
                 tag = self.locale_dict[locale]
             locale_repos.append({
                 'repo': "%s/%s" % (hg_l10n_base, locale),
-                'tag': tag
+                'tag': tag,
+                'vcs': vcs
             })
-        self.vcs_checkout_repos(repo_list=locale_repos,
-                                parent_dir=dirs['abs_l10n_dir'],
-                                tag_override=c.get('tag_override'))
+        revs = self.vcs_checkout_repos(repo_list=locale_repos,
+                                       parent_dir=parent_dir,
+                                       tag_override=c.get('tag_override'))
+        self.gecko_locale_revisions = revs
+
+
+# GaiaLocalesMixin {{{1
+class GaiaLocalesMixin(object):
+    gaia_locale_revisions = None
+
+    def pull_gaia_locale_source(self, l10n_config, locales, base_dir):
+        root = l10n_config['root']
+        # urljoin will strip the last part of root if it doesn't end with "/"
+        if not root.endswith('/'):
+            root = root + '/'
+        vcs = l10n_config['vcs']
+        repos = []
+        for locale in locales:
+            repos.append({
+                'repo': urljoin(root, locale),
+                'dest': locale,
+                'vcs': vcs,
+            })
+        self.gaia_locale_revisions = self.vcs_checkout_repos(repo_list=repos, parent_dir=base_dir)
+
 
 # __main__ {{{1
 

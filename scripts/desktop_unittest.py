@@ -11,131 +11,21 @@ author: Jordan Lund
 """
 
 import os
+import re
 import sys
 import copy
-import platform
 import shutil
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import BaseErrorList
-from mozharness.mozilla.testing.errors import TinderBoxPrintRe
+from mozharness.base.log import INFO, ERROR
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.base.log import OutputParser, WARNING, INFO
-from mozharness.mozilla.buildbot import TBPL_WARNING, TBPL_FAILURE
-from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_STATUS_DICT
+from mozharness.mozilla.testing.unittest import DesktopUnittestOutputParser
 
 SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
-
-
-class DesktopUnittestOutputParser(OutputParser):
-    """
-    A class that extends OutputParser such that it can parse the number of
-    passed/failed/todo tests from the output.
-    """
-
-    def __init__(self, suite_category, **kwargs):
-        # worst_log_level defined already in DesktopUnittestOutputParser
-        # but is here to make pylint happy
-        self.worst_log_level = INFO
-        super(DesktopUnittestOutputParser, self).__init__(**kwargs)
-        self.summary_suite_re = TinderBoxPrintRe.get('%s_summary' % suite_category, {})
-        self.harness_error_re = TinderBoxPrintRe['harness_error']['minimum_regex']
-        self.full_harness_error_re = TinderBoxPrintRe['harness_error']['full_regex']
-        self.fail_count = -1
-        self.pass_count = -1
-        # known_fail_count does not exist for some suites
-        self.known_fail_count = self.summary_suite_re.get('known_fail_group') and -1
-        self.crashed, self.leaked = False, False
-        self.tbpl_status = TBPL_SUCCESS
-
-    def parse_single_line(self, line):
-        if self.summary_suite_re:
-            summary_m = self.summary_suite_re['regex'].match(line)  # pass/fail/todo
-            if summary_m:
-                message = ' %s' % line
-                log_level = INFO
-                # remove all the none values in groups() so this will work
-                # with all suites including mochitest browser-chrome
-                summary_match_list = [group for group in summary_m.groups()
-                                      if group is not None]
-                r = summary_match_list[0]
-                if self.summary_suite_re['pass_group'] in r:
-                    self.pass_count = int(summary_match_list[-1])
-                elif self.summary_suite_re['fail_group'] in r:
-                    self.fail_count = int(summary_match_list[-1])
-                    if self.fail_count > 0:
-                        message += '\n One or more unittests failed.'
-                        log_level = WARNING
-                # If self.summary_suite_re['known_fail_group'] == None,
-                # then r should not match it, # so this test is fine as is.
-                elif self.summary_suite_re['known_fail_group'] in r:
-                    self.known_fail_count = int(summary_match_list[-1])
-                self.log(message, log_level)
-                return  # skip harness check and base parse_single_line
-        harness_match = self.harness_error_re.match(line)
-        if harness_match:
-            self.warning(' %s\n This is a harness error.' % line)
-            self.worst_log_level = self.worst_level(WARNING, self.worst_log_level)
-            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status,
-                                                levels=TBPL_STATUS_DICT.keys())
-            full_harness_match = self.full_harness_error_re.match(line)
-            if full_harness_match:
-                r = harness_match.group(1)
-                if r == "Browser crashed (minidump found)":
-                    self.crashed = True
-                elif r == "missing output line for total leaks!":
-                    self.leaked = None
-                else:
-                    self.leaked = True
-            return  # skip base parse_single_line
-        super(DesktopUnittestOutputParser, self).parse_single_line(line)
-
-    def evaluate_parser(self, return_code):
-        if self.num_errors:  # mozharness ran into a script error
-            self.tbpl_status = TBPL_FAILURE
-
-        # I have to put this outside of parse_single_line because this checks not
-        # only if fail_count was more then 0 but also if fail_count is still -1
-        # (no fail summary line was found)
-        if self.fail_count != 0:
-            self.worst_log_level = self.worst_level(WARNING, self.worst_log_level)
-            self.tbpl_status = self.worst_level(TBPL_WARNING, self.tbpl_status,
-                                                levels=TBPL_STATUS_DICT.keys())
-        # we can trust in parser.worst_log_level in either case
-        return (self.tbpl_status, self.worst_log_level)
-
-    def append_tinderboxprint_line(self, suite_name):
-        # We are duplicating a condition (fail_count) from evaluate_parser and
-        # parse parse_single_line but at little cost since we are not parsing
-        # the log more then once.  I figured this method should stay isolated as
-        # it is only here for tbpl highlighted summaries and is not part of
-        # buildbot evaluation or result status IIUC.
-        emphasize_fail_text = '<em class="testfail">%s</em>'
-
-        if self.pass_count < 0 or self.fail_count < 0 or self.known_fail_count < 0:
-            summary = emphasize_fail_text % 'T-FAIL'
-        elif self.pass_count == 0 and self.fail_count == 0 and \
-                (self.known_fail_count == 0 or self.known_fail_count is None):
-            summary = emphasize_fail_text % 'T-FAIL'
-        else:
-            str_fail_count = str(self.fail_count)
-            if self.fail_count > 0:
-                str_fail_count = emphasize_fail_text % str_fail_count
-            summary = "%d/%s" % (self.pass_count, str_fail_count)
-            if self.known_fail_count is not None:
-                summary += "/%d" % self.known_fail_count
-        # Format the crash status.
-        if self.crashed:
-            summary += "&nbsp;%s" % emphasize_fail_text % "CRASH"
-        # Format the leak status.
-        if self.leaked is not False:
-            summary += "&nbsp;%s" % emphasize_fail_text % (
-                (self.leaked and "LEAK") or "L-FAIL")
-        # Return the summary.
-        self.info("TinderboxPrint: %s<br/>%s\n" % (suite_name, summary))
 
 
 # DesktopUnittest {{{1
@@ -143,26 +33,26 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
     config_options = [
         [['--mochitest-suite', ], {
-            "action": "append",
+            "action": "extend",
             "dest": "specified_mochitest_suites",
             "type": "string",
-            "help": "Specify which mochi suite to run."
+            "help": "Specify which mochi suite to run. "
                     "Suites are defined in the config file.\n"
                     "Examples: 'all', 'plain1', 'plain5', 'chrome', or 'a11y'"}
          ],
         [['--reftest-suite', ], {
-            "action": "append",
+            "action": "extend",
             "dest": "specified_reftest_suites",
             "type": "string",
-            "help": "Specify which reftest suite to run."
+            "help": "Specify which reftest suite to run. "
                     "Suites are defined in the config file.\n"
                     "Examples: 'all', 'crashplan', or 'jsreftest'"}
          ],
         [['--xpcshell-suite', ], {
-            "action": "append",
+            "action": "extend",
             "dest": "specified_xpcshell_suites",
             "type": "string",
-            "help": "Specify which xpcshell suite to run."
+            "help": "Specify which xpcshell suite to run. "
                     "Suites are defined in the config file\n."
                     "Examples: 'xpcshell'"}
          ],
@@ -170,26 +60,24 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             "action": "store_true",
             "dest": "run_all_suites",
             "default": False,
-            "help": "This will run all suites that are specified"
+            "help": "This will run all suites that are specified "
                     "in the config file. You do not need to specify "
                     "any other suites.\nBeware, this may take a while ;)"}
          ],
-        [['--enable-preflight-run-commands', ], {
-            "action": "store_false",
-            "dest": "preflight_run_commands_disabled",
-            "default": True,
-            "help": "This will enable any run commands that are specified"
-                    "in the config file under: preflight_run_cmd_suites"}
-         ]
     ] + copy.deepcopy(testing_config_options)
 
+    # XXX Bug 879765: Dependent modules need to be listed before parent
+    # modules, otherwise they will get installed from the pypi server.
     virtualenv_modules = [
         "simplejson",
+        {'mozfile': os.path.join('tests', 'mozbase', 'mozfile')},
         {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
         {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
         {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},
+        {'mozcrash': os.path.join('tests', 'mozbase', 'mozcrash')},
         {'mozinstall': os.path.join('tests', 'mozbase', 'mozinstall')},
         {'manifestdestiny': os.path.join('tests', 'mozbase', 'manifestdestiny')},
+        {'mozdevice': os.path.join('tests', 'mozbase', 'mozdevice')},
         {'mozprofile': os.path.join('tests', 'mozbase', 'mozprofile')},
         {'mozprocess': os.path.join('tests', 'mozbase', 'mozprocess')},
         {'mozrunner': os.path.join('tests', 'mozbase', 'mozrunner')},
@@ -198,8 +86,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
     def __init__(self, require_config_file=True):
         # abs_dirs defined already in BaseScript but is here to make pylint happy
         self.abs_dirs = None
-        MercurialScript.__init__(
-            self,
+        super(DesktopUnittest, self).__init__(
             config_options=self.config_options,
             all_actions=[
                 'clobber',
@@ -219,12 +106,11 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         self.installer_url = c.get('installer_url')
         self.test_url = c.get('test_url')
         self.symbols_url = c.get('symbols_url')
-        # this is so mozinstall in install() doesn't bug out if we don't run the
-        # download_and_extract action
-        self.installer_path = os.path.join(self.abs_dirs['abs_work_dir'],
-                                           c.get('installer_path'))
-        self.binary_path = os.path.join(self.abs_dirs['abs_app_install_dir'],
-                                        c.get('binary_path'))
+        # this is so mozinstall in install() doesn't bug out if we don't run
+        # the download_and_extract action
+        self.installer_path = c.get('installer_path')
+        self.binary_path = c.get('binary_path')
+        self.abs_app_dir = None
 
     ###### helper methods
     def _pre_config_lock(self, rw_config):
@@ -248,9 +134,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         c = self.config
         dirs = {}
         dirs['abs_app_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'application')
-        dirs['abs_app_dir'] = os.path.join(dirs['abs_app_install_dir'], c['app_name_dir'])
-        dirs['abs_app_plugins_dir'] = os.path.join(dirs['abs_app_dir'], 'plugins')
-        dirs['abs_app_components_dir'] = os.path.join(dirs['abs_app_dir'], 'components')
         dirs['abs_test_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_test_bin_dir'] = os.path.join(dirs['abs_test_install_dir'], 'bin')
         dirs['abs_test_bin_plugins_dir'] = os.path.join(dirs['abs_test_bin_dir'],
@@ -270,6 +153,17 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         self.abs_dirs = abs_dirs
 
         return self.abs_dirs
+
+    def query_abs_app_dir(self):
+        """We can't set this in advance, because OSX install directories
+        change depending on branding and opt/debug.
+        """
+        if self.abs_app_dir:
+            return self.abs_app_dir
+        if not self.binary_path:
+            self.fatal("Can't determine abs_app_dir (binary_path not set!)")
+        self.abs_app_dir = os.path.dirname(self.binary_path)
+        return self.abs_app_dir
 
     def _query_symbols_url(self):
         """query the full symbols URL based upon binary URL"""
@@ -297,7 +191,6 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         if self.binary_path:
             c = self.config
             dirs = self.query_abs_dirs()
-            options = []
             run_file = c['run_file_names'][suite_category]
             base_cmd = [self.query_python_path('python'), '-u']
             base_cmd.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
@@ -305,9 +198,16 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 'binary_path': self.binary_path,
                 'symbols_path': self._query_symbols_url()
             }
-            if self.config['%s_options' % suite_category]:
-                for option in self.config['%s_options' % suite_category]:
-                    options.append(option % str_format_values)
+            # TestingMixin._download_and_extract_symbols() will set
+            # self.symbols_path when downloading/extracting.
+            if self.symbols_path:
+                str_format_values['symbols_path'] = self.symbols_path
+
+            name = '%s_options' % suite_category
+            options = self.tree_config.get(name, self.config.get(name))
+            if options:
+                for i, option in enumerate(options):
+                    options[i] = option % str_format_values
                 abs_base_cmd = base_cmd + options
                 return abs_base_cmd
             else:
@@ -367,58 +267,18 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         optimizes which subfolders to extract from tests zip
         """
         c = self.config
-        unzip_tests_dirs = None
 
+        target_unzip_dirs = None
         if c['specific_tests_zip_dirs']:
-            unzip_tests_dirs = c['minimum_tests_zip_dirs']
+            target_unzip_dirs = c['minimum_tests_zip_dirs']
             for category in c['specific_tests_zip_dirs'].keys():
                 if c['run_all_suites'] or self._query_specified_suites(category) \
                         or 'run-tests' not in self.actions:
-                    unzip_tests_dirs.extend(c['specific_tests_zip_dirs'][category])
-        if self.test_url:
-            self._download_test_zip()
-            self._extract_test_zip(target_unzip_dirs=unzip_tests_dirs)
-        self._download_installer()
+                    target_unzip_dirs.extend(c['specific_tests_zip_dirs'][category])
+        super(DesktopUnittest, self).download_and_extract(target_unzip_dirs=target_unzip_dirs)
 
-    def pull(self):
-        dirs = self.query_abs_dirs()
-        c = self.config
-        if c.get('repos'):
-            dirs = self.query_abs_dirs()
-            self.vcs_checkout_repos(c['repos'],
-                                    parent_dir=dirs['abs_work_dir'])
-
-    def preflight_run_tests(self):
-        """preflight commands for all tests"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-
-        if not c.get('preflight_run_commands_disabled'):
-            arch = platform.architecture()[0]
-            for suite in c['preflight_run_cmd_suites']:
-                # XXX platform.architecture() may give incorrect values for some
-                # platforms like mac as excutable files may be universal
-                # files containing multiple architectures
-                # NOTE 'enabled' is only here while we have unconsolidated configs
-                if suite['enabled'] and arch in suite['architectures']:
-                    cmd = suite['cmd']
-                    name = suite['name']
-                    self.info("Running pre test command %(name)s with '%(cmd)s'"
-                              % {'name': name, 'cmd': ' '.join(cmd)})
-                    if self.buildbot_config:  # this cmd is for buildbot
-                        # TODO rather then checking for formatting on every string
-                        # in every preflight enabled cmd: find a better solution!
-                        # maybe I can implement WithProperties in mozharness?
-                        cmd = [x % (self.buildbot_config.get('properties'))
-                               for x in cmd]
-                    self.run_command(cmd,
-                                     cwd=dirs['abs_work_dir'],
-                                     error_list=BaseErrorList,
-                                     halt_on_failure=suite['halt_on_failure'])
-        else:
-            self.warning("Proceeding without running prerun test commands."
-                         " These are often OS specific and disabling them may"
-                         " result in spurious test results!")
+    # pull defined in VCSScript.
+    # preflight_run_tests defined in TestingMixin.
 
     def run_tests(self):
         self._run_category_suites('mochitest')
@@ -429,43 +289,72 @@ class DesktopUnittest(TestingMixin, MercurialScript):
     def preflight_xpcshell(self, suites):
         c = self.config
         dirs = self.query_abs_dirs()
+        abs_app_dir = self.query_abs_app_dir()
+        abs_app_components_dir = os.path.join(abs_app_dir, 'components')
+        abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
         if suites:  # there are xpcshell suites to run
-            self.mkdir_p(dirs['abs_app_plugins_dir'])
+            self.mkdir_p(abs_app_plugins_dir)
             self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
-                      c['xpcshell_name']), os.path.join(dirs['abs_app_dir'],
+                      c['xpcshell_name']), os.path.join(abs_app_dir,
                                                         c['xpcshell_name'])))
             shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
-                         os.path.join(dirs['abs_app_dir'], c['xpcshell_name']))
+                         os.path.join(abs_app_dir, c['xpcshell_name']))
             self.copytree(dirs['abs_test_bin_components_dir'],
-                          dirs['abs_app_components_dir'],
+                          abs_app_components_dir,
                           overwrite='overwrite_if_exists')
             self.copytree(dirs['abs_test_bin_plugins_dir'],
-                          dirs['abs_app_plugins_dir'],
+                          abs_app_plugins_dir,
                           overwrite='overwrite_if_exists')
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
+        c = self.config
         dirs = self.query_abs_dirs()
         abs_base_cmd = self._query_abs_base_cmd(suite_category)
         suites = self._query_specified_suites(suite_category)
+        abs_app_dir = self.query_abs_app_dir()
 
         if preflight_run_method:
             preflight_run_method(suites)
         if suites:
             self.info('#### Running %s suites' % suite_category)
             for suite in suites:
-                cmd = abs_base_cmd + suites[suite]
+                cmd = abs_base_cmd[:]
+                replace_dict = {
+                    'abs_app_dir': abs_app_dir,
+                }
+                options_list = []
+                env = {}
+                if isinstance(suites[suite], dict):
+                    options_list = suites[suite]['options']
+                    env = suites[suite]['env']
+                else:
+                    options_list = suites[suite]
+
+                for arg in options_list:
+                    cmd.append(arg % replace_dict)
+
                 suite_name = suite_category + '-' + suite
                 tbpl_status, log_level = None, None
+                error_list = BaseErrorList + [{
+                    'regex': re.compile(r'''PROCESS-CRASH.*application crashed'''),
+                    'level': ERROR,
+                }]
                 parser = DesktopUnittestOutputParser(suite_category,
                                                      config=self.config,
-                                                     error_list=BaseErrorList,
+                                                     error_list=error_list,
                                                      log_obj=self.log_obj)
-
+                if c.get('minidump_stackwalk_path'):
+                    env['MINIDUMP_STACKWALK'] = c['minidump_stackwalk_path']
+                if c.get('minidump_save_path'):
+                    env['MINIDUMP_SAVE_PATH'] = c['minidump_save_path']
+                env = self.query_env(partial_env=env, log_level=INFO)
                 return_code = self.run_command(cmd, cwd=dirs['abs_work_dir'],
-                                               output_parser=parser)
+                                               output_timeout=1000,
+                                               output_parser=parser,
+                                               env=env)
 
-                # mochitests, reftests, and xpcshell suites do not return
+                # mochitest, reftest, and xpcshell suites do not return
                 # appropriate return codes. Therefore, we must parse the output
                 # to determine what the tbpl_status and worst_log_level must
                 # be. We do this by:
@@ -477,9 +366,8 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 parser.append_tinderboxprint_line(suite_name)
 
                 self.buildbot_status(tbpl_status, level=log_level)
-                self.add_summary("The %s suite: %s ran with return status: %s" %
-                                 (suite_category, suite, tbpl_status),
-                                 level=log_level)
+                self.log("The %s suite: %s ran with return status: %s" %
+                         (suite_category, suite, tbpl_status), level=log_level)
         else:
             self.debug('There were no suites to run for %s' % suite_category)
 
@@ -487,4 +375,4 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 # main {{{1
 if __name__ == '__main__':
     desktop_unittest = DesktopUnittest()
-    desktop_unittest.run()
+    desktop_unittest.run_and_exit()

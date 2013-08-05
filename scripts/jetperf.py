@@ -11,11 +11,10 @@ import os
 import shutil
 import sys
 sys.path.insert(1, os.path.dirname(sys.path[0]))
-from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WARNING
 from mozharness.mozilla.testing.talos import Talos
 
-class JetPerf(Talos, MercurialScript):
+class JetPerf(Talos):
     """
     - Download the latest Add-on SDK
     - Download the test add-on sources
@@ -79,18 +78,11 @@ class JetPerf(Talos, MercurialScript):
         self.addonsdir = os.path.join(self.workdir, 'addons')
         self.test_addons_clone = self.config.get('test_addons_clone_path', os.path.join(self.workdir, 'addons_clone'))
 
-        # ensure we have tests
-        self.preflight_generate_config()
-
     def results_filename(self):
         """return the results file path from self.results_url"""
         if not self.results_url.startswith('file://'):
             return None
         return self.results_url[len('file://'):]
-
-    def pull(self):
-        """clone the needed repositories"""
-        self.vcs_checkout_repos(self.config['repos'])
 
     def cfx(self):
         """returns path to cfx"""
@@ -179,13 +171,9 @@ class JetPerf(Talos, MercurialScript):
         # get PerfConfigurator options
         args = list(args)
         args += self.config.get('talos_options', [])
-        options = self.PerfConfigurator_options(args=args, output=yml, **kw)
 
-        # run PerfConfigurator
-        self.generate_config(conf=yml, options=options)
-
-        # run talos
-        self.run_tests(conf=yml)
+        # run Talos
+        self.run_tests(args=args, output=yml, **kw)
 
     def test(self):
         """run talos tests"""
@@ -248,7 +236,7 @@ class JetPerf(Talos, MercurialScript):
 def main(args=sys.argv[1:]):
     """CLI entry point"""
     jetperf = JetPerf()
-    jetperf.run()
+    jetperf.run_and_exit()
 
 if __name__ == '__main__':
     main()

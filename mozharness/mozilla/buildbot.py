@@ -9,8 +9,14 @@ Ideally this will go away if and when we retire buildbot.
 """
 
 import os
-import pprint
+import re
 import sys
+
+try:
+    import simplejson as json
+    assert json
+except ImportError:
+    import json
 
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
@@ -31,10 +37,21 @@ TBPL_STATUS_DICT = {
     TBPL_EXCEPTION: ERROR,
     TBPL_RETRY: WARNING,
 }
+EXIT_STATUS_DICT = {
+    TBPL_SUCCESS: 0,
+    TBPL_WARNING: 1,
+    TBPL_FAILURE: 2,
+    TBPL_EXCEPTION: 3,
+    TBPL_RETRY: 4,
+}
+TBPL_WORST_LEVEL_TUPLE = (TBPL_RETRY, TBPL_EXCEPTION, TBPL_FAILURE,
+                          TBPL_WARNING, TBPL_SUCCESS)
+
 
 class BuildbotMixin(object):
     buildbot_config = None
     buildbot_properties = {}
+    worst_buildbot_status = TBPL_SUCCESS
 
     def read_buildbot_config(self):
         c = self.config
@@ -44,18 +61,36 @@ class BuildbotMixin(object):
         else:
             # TODO try/except?
             self.buildbot_config = parse_config_file(c['buildbot_json_path'])
-            self.info(pprint.pformat(self.buildbot_config))
+            self.info(json.dumps(self.buildbot_config, indent=4))
 
     def tryserver_email(self):
         pass
 
-    def buildbot_status(self, tbpl_status, level=None):
+    def buildbot_status(self, tbpl_status, level=None, set_return_code=True):
         if tbpl_status not in TBPL_STATUS_DICT:
             self.error("buildbot_status() doesn't grok the status %s!" % tbpl_status)
         else:
+            # Set failure if our log > buildbot_max_log_size (bug 876159)
+            if self.config.get("buildbot_max_log_size") and self.log_obj:
+                # Find the path to the default log
+                dirs = self.query_abs_dirs()
+                log_file = os.path.join(
+                    dirs['abs_log_dir'],
+                    self.log_obj.log_files[self.log_obj.log_level]
+                )
+                if os.path.exists(log_file):
+                    file_size = os.path.getsize(log_file)
+                    if file_size > self.config['buildbot_max_log_size']:
+                        self.error("Log file size %d is greater than max allowed %d! Setting TBPL_FAILURE (was %s)..." % (file_size, self.config['buildbot_max_log_size'], tbpl_status))
+                        tbpl_status = TBPL_FAILURE
             if not level:
                 level = TBPL_STATUS_DICT[tbpl_status]
-            self.add_summary("# TBPL %s #" % tbpl_status, level=level)
+            self.worst_buildbot_status = self.worst_level(tbpl_status, self.worst_buildbot_status, TBPL_STATUS_DICT.keys())
+            if self.worst_buildbot_status != tbpl_status:
+                self.info("Current worst status %s is worse; keeping it." % self.worst_buildbot_status)
+            self.add_summary("# TBPL %s #" % self.worst_buildbot_status, level=level)
+            if set_return_code:
+                self.return_code = EXIT_STATUS_DICT[self.worst_buildbot_status]
 
     def set_buildbot_property(self, prop_name, prop_value, write_to_file=False):
         self.info("Setting buildbot property %s to %s" % (prop_name, prop_value))
@@ -66,6 +101,11 @@ class BuildbotMixin(object):
 
     def query_buildbot_property(self, prop_name):
         return self.buildbot_properties.get(prop_name)
+
+    def query_is_nightly(self):
+        if self.buildbot_config and 'properties' in self.buildbot_config:
+            return self.buildbot_config['properties'].get('nightly_build')
+        return False
 
     def dump_buildbot_properties(self, prop_list=None, file_name="properties", error_level=ERROR):
         c = self.config
@@ -86,3 +126,40 @@ class BuildbotMixin(object):
         for prop in prop_list:
             contents += "%s:%s\n" % (prop, self.buildbot_properties.get(prop, "None"))
         return self.write_to_file(file_name, contents)
+
+    def sendchange(self, downloadables=None, branch=None):
+        """ Generic sendchange, currently b2g- and unittest-specific.
+            """
+        buildbot = self.query_exe("buildbot", return_type="list")
+        if branch is None:
+            if self.config.get("debug_build"):
+                platform = re.sub('[_-]debug', '', self.buildbot_config["properties"]["platform"])
+                branch = '%s-%s-debug-unittest' % (self.buildbot_config["properties"]["branch"], platform)
+            else:
+                branch = '%s-%s-opt-unittest' % (self.buildbot_config["properties"]["branch"], self.buildbot_config["properties"]["platform"])
+        sendchange = [
+            'sendchange',
+            '--master', self.config.get("sendchange_masters")[0],
+            '--username', 'sendchange-unittest',
+            '--branch', branch,
+        ]
+        if self.buildbot_config['sourcestamp'].get("revision"):
+            sendchange += ['-r', self.buildbot_config['sourcestamp']["revision"]]
+        if len(self.buildbot_config['sourcestamp']['changes']) > 0:
+            if self.buildbot_config['sourcestamp']['changes'][0].get('who'):
+                sendchange += ['--username', self.buildbot_config['sourcestamp']['changes'][0]['who']]
+            if self.buildbot_config['sourcestamp']['changes'][0].get('comments'):
+                sendchange += ['--comments', self.buildbot_config['sourcestamp']['changes'][0]['comments']]
+        if self.buildbot_config["properties"].get("builduid"):
+            sendchange += ['--property', "builduid:%s" % self.buildbot_config["properties"]["builduid"]]
+        sendchange += [
+            '--property', "buildid:%s" % self.query_buildid(),
+            '--property', 'pgo_build:False',
+        ]
+
+        for d in downloadables:
+            sendchange += [d]
+
+        retcode = self.run_command(buildbot + sendchange)
+        if retcode != 0:
+            self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)

@@ -19,7 +19,7 @@ import time
 
 from mozharness.base.errors import ADBErrorList
 from mozharness.base.log import LogMixin, DEBUG
-from mozharness.base.script import ShellMixin, OSMixin
+from mozharness.base.script import ScriptMixin
 
 
 
@@ -42,7 +42,7 @@ class DeviceException(Exception):
 
 
 # BaseDeviceHandler {{{1
-class BaseDeviceHandler(ShellMixin, OSMixin, LogMixin):
+class BaseDeviceHandler(ScriptMixin, LogMixin):
     device_id = None
     device_root = None
     default_port = None
@@ -496,8 +496,9 @@ class SUTDeviceHandler(BaseDeviceHandler):
         dm = self.query_devicemanager()
         if dm.dirExists(dev_root):
             self.info("Removing dev_root %s..." % dev_root)
-            status = dm.removeDir(dev_root)
-            if not status:
+            try:
+                dm.removeDir(dev_root)
+            except self.DMError:
                 self.add_device_flag(DEVICE_CANT_REMOVE_DEVROOT)
                 self.fatal("Can't remove dev_root!")
         if c.get("enable_automation"):
@@ -569,8 +570,8 @@ class SUTDeviceHandler(BaseDeviceHandler):
         dm.pushFile(file_path, target)
         # TODO screen resolution
         # TODO do something with status?
-        status = dm.installApp(target)
-        if status is None:
+        try:
+            dm.installApp(target)
             self.info('-'*42)
             self.info("Sleeping for 90 seconds...")
             time.sleep(90)
@@ -583,16 +584,17 @@ class SUTDeviceHandler(BaseDeviceHandler):
             except Exception, e:
                 self.info("Exception hit while trying to run logcat: %s" % str(e))
                 self.fatal("Remote Device Error: can't run logcat")
-        else:
-            self.fatal("Remote Device Error: updateApp() call failed - exiting")
+        except self.DMError:
+            self.fatal("Remote Device Error: installApp() call failed - exiting")
 
 
     def reboot_device(self):
         dm = self.query_devicemanager()
         # logcat?
         self.info("Rebooting device...")
-        status = dm.reboot()
-        if status is None:
+        try:
+            dm.reboot()
+        except self.DMError:
             self.add_device_flag(DEVICE_NOT_REBOOTED)
             self.fatal("Can't reboot device!")
         self.wait_for_device()
@@ -620,6 +622,47 @@ class SUTDeviceHandler(BaseDeviceHandler):
         else:
             self.debug("%s file doesn't exist; skipping." % hosts_file)
 
+
+# SUTDeviceMozdeviceMixin {{{1
+class SUTDeviceMozdeviceMixin(SUTDeviceHandler):
+    '''
+    This SUT device manager class makes calls through mozdevice (from mozbase) [1]
+    directly rather than calling SUT tools.
+
+    [1] https://github.com/mozilla/mozbase/blob/master/mozdevice/mozdevice/devicemanagerSUT.py
+    '''
+    dm = None
+
+    def query_devicemanager(self):
+        if self.dm:
+            return self.dm
+        sys.path.append(self.query_python_site_packages_path())
+        from mozdevice.devicemanagerSUT import DeviceManagerSUT
+        self.info("Connecting to: %s" % self.mozpool_device)
+        self.dm = DeviceManagerSUT(self.mozpool_device)
+        # No need for 300 second SUT socket timeouts here
+        self.dm.default_timeout = 30
+        return self.dm
+
+    def query_file(self, filename):
+        dm = self.query_devicemanager()
+        if not dm.fileExists(filename):
+            raise Exception("Expected file (%s) not found" % filename)
+
+        file_contents = dm.pullFile(filename)
+        if file_contents is None:
+            raise Exception("Unable to read file (%s)" % filename)
+
+        return file_contents
+
+    def set_device_epoch_time(self, timestamp=int(time.time())):
+        dm = self.query_devicemanager()
+        dm._runCmds([{ 'cmd': 'setutime %s' % timestamp}])
+        return dm._runCmds([{ 'cmd': 'clok'}])
+
+    def get_logcat(self):
+        dm = self.query_devicemanager()
+        return dm.getLogcat()
 
 
 # DeviceMixin {{{1

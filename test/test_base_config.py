@@ -1,6 +1,4 @@
 import os
-import subprocess
-import sys
 import unittest
 
 JSON_TYPE = None
@@ -14,9 +12,11 @@ else:
 
 import mozharness.base.config as config
 
+MH_DIR = os.path.dirname(os.path.dirname(__file__))
+
 
 class TestParseConfigFile(unittest.TestCase):
-    def _get_json_config(self, filename="configs/test/test.json",
+    def _get_json_config(self, filename=os.path.join(MH_DIR, "configs", "test", "test.json"),
                          output='dict'):
         fh = open(filename)
         contents = json.load(fh)
@@ -26,7 +26,7 @@ class TestParseConfigFile(unittest.TestCase):
         else:
             return contents
 
-    def _get_python_config(self, filename="configs/test/test.py",
+    def _get_python_config(self, filename=os.path.join(MH_DIR, "configs", "test", "test.py"),
                            output='dict'):
         global_dict = {}
         local_dict = {}
@@ -57,16 +57,52 @@ class TestParseConfigFile(unittest.TestCase):
         else:
             self.assertRaises(ValueError, config.parse_config_file, "test/test_malformed.json")
 
-    def test_malformed_json(self):
+    def test_malformed_python(self):
         self.assertRaises(SyntaxError, config.parse_config_file, "test/test_malformed.py")
 
+    def test_multiple_config_files_override_string(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py'])
+        self.assertEqual(c._config['override_string'], 'yay')
 
+    def test_multiple_config_files_override_list(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py'])
+        self.assertEqual(c._config['override_list'], ['yay', 'worked'])
+
+    def test_multiple_config_files_override_dict(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py'])
+        self.assertEqual(c._config['override_dict'], {'yay': 'worked'})
+
+    def test_multiple_config_files_keep_string(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py'])
+        self.assertEqual(c._config['keep_string'], "don't change me")
+
+    def test_optional_config_files_override_value(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py',
+                      '--opt-cfg', 'test/test_optional.py'])
+        self.assertEqual(c._config['opt_override'], "new stuff")
+
+    def test_optional_config_files_missing_config(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py',
+                      '--opt-cfg', 'test/test_optional.py,does_not_exist.py'])
+        self.assertEqual(c._config['opt_override'], "new stuff")
+
+    def test_optional_config_files_keep_string(self):
+        c = config.BaseConfig(initial_config_file='test/test.py')
+        c.parse_args(['--cfg', 'test/test_override.py,test/test_override2.py',
+                      '--opt-cfg', 'test/test_optional.py'])
+        self.assertEqual(c._config['keep_string'], "don't change me")
 
 class TestReadOnlyDict(unittest.TestCase):
     control_dict = {
-     'b':'2',
-     'c':{'d': '4'},
-     'e':['f', 'g'],
+        'b': '2',
+        'c': {'d': '4'},
+        'e': ['f', 'g'],
     }
 
     def get_unlocked_ROD(self):
@@ -161,9 +197,8 @@ class TestReadOnlyDict(unittest.TestCase):
         self.assertRaises(AssertionError, r.clear)
 
 
-
 class TestActions(unittest.TestCase):
-    all_actions=['a', 'b', 'c', 'd', 'e']
+    all_actions = ['a', 'b', 'c', 'd', 'e']
     default_actions = ['b', 'c', 'd']
 
     def test_verify_actions(self):
@@ -214,9 +249,9 @@ class TestActions(unittest.TestCase):
         c = config.BaseConfig(default_actions=self.default_actions,
                               all_actions=self.all_actions,
                               initial_config_file='test/test.json')
-        c.parse_args(args=['foo', '--only-a', '--only-e'])
+        c.parse_args(args=['foo', '--a', '--e'])
         self.assertEqual(['a', 'e'], c.get_actions(),
-                         msg="--only-ACTION broken")
+                         msg="--ACTION broken")
 
 if __name__ == '__main__':
     unittest.main()

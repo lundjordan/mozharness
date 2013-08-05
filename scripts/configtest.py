@@ -40,9 +40,12 @@ class ConfigTest(BaseScript):
                             all_actions=['list-config-files',
                                          'test-json-configs',
                                          'test-python-configs',
+                                         'summary',
                                          ],
                             default_actions=['test-json-configs',
-                                             'test-python-configs'],
+                                             'test-python-configs',
+                                             'summary',
+                                            ],
                             require_config_file=require_config_file)
 
     def query_config_files(self):
@@ -136,4 +139,4 @@ class ConfigTest(BaseScript):
 # __main__ {{{1
 if __name__ == '__main__':
     config_test = ConfigTest()
-    config_test.run()
+    config_test.run_and_exit()

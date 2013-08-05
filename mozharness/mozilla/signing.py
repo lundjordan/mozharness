@@ -43,18 +43,26 @@ appv=%(version)s
 extv=%(version)s
 """
 
+UPDATE_XML_TEMPLATE = """<?xml version="1.0"?>
+<updates>
+  <update type="minor" displayVersion="%(version)s" appVersion="%(version)s" platformVersion="%(version)s" buildID="%(buildid)s">
+      <patch type="complete" URL="%(url)s?build_id=%(buildid)s&amp;version=%(version)s" hashFunction="SHA512" hashValue="%(sha512_hash)s" size="%(size)d"/>
+  </update>
+</updates>
+"""
+
 
 # SigningMixin {{{1
 
 class SigningMixin(BaseSigningMixin):
     """Generic signing helper methods.
     """
-    # Should this write to file too?
     def create_complete_snippet(self, binary_path, version, buildid,
                                 url, snippet_dir, snippet_file="complete.txt",
                                 size=None, sha512_hash=None,
+                                snippet_template=SNIPPET_TEMPLATE,
                                 error_level=ERROR):
-        """Create a complete snippet, and writes to file.
+        """Creates a complete snippet, and writes to file.
         Returns True for success, False for failure.
         """
         self.info("Creating complete snippet for %s." % binary_path)
@@ -77,17 +85,53 @@ class SigningMixin(BaseSigningMixin):
             replace_dict['sha512_hash'] = sha512_hash
         else:
             replace_dict['sha512_hash'] = self.query_sha512sum(binary_path)
-        contents = SNIPPET_TEMPLATE % replace_dict
+        contents = snippet_template % replace_dict
         self.mkdir_p(snippet_dir)
         snippet_path = os.path.join(snippet_dir, snippet_file)
-        if self.write_to_file(snippet_path, contents, verbose=False) is None:
+        if self.write_to_file(snippet_path, contents) is None:
             self.log("Unable to write complete snippet to %s!" % snippet_path,
                      level=error_level)
             return False
         else:
             return True
 
+    def create_update_xml(self, binary_path, version, buildid,
+                          url, snippet_dir, snippet_file="update.xml",
+                          size=None, sha512_hash=None,
+                          snippet_template=UPDATE_XML_TEMPLATE,
+                          error_level=ERROR):
+        """Creates a complete update.xml, and writes to file.
+        Returns True for success, False for failure.
+        """
+        return self.create_complete_snippet(
+            binary_path=binary_path, version=version, buildid=buildid,
+            url=url, snippet_dir=snippet_dir, snippet_file=snippet_file,
+            size=size, sha512_hash=sha512_hash,
+            snippet_template=snippet_template, error_level=error_level
+        )
 
+    def query_moz_sign_cmd(self, formats='gpg'):
+        if 'MOZ_SIGNING_SERVERS' not in os.environ:
+            self.fatal("MOZ_SIGNING_SERVERS not in env; no MOZ_SIGN_CMD for you!")
+        dirs = self.query_abs_dirs()
+        signing_dir = os.path.join(dirs['abs_work_dir'], 'tools', 'release', 'signing')
+        cache_dir = os.path.join(dirs['abs_work_dir'], 'signing_cache')
+        token = os.path.join(dirs['base_work_dir'], 'token')
+        nonce = os.path.join(dirs['base_work_dir'], 'nonce')
+        host_cert = os.path.join(signing_dir, 'host.cert')
+        python = self.query_exe('python')
+        cmd = [
+            python,
+            os.path.join(signing_dir, 'signtool.py'),
+            '--cachedir', cache_dir,
+            '-t', token,
+            '-n', nonce,
+            '-c', host_cert,
+            '-f', formats,
+        ]
+        for h in os.environ['MOZ_SIGNING_SERVERS'].split(","):
+            cmd += ['-H', h]
+        return cmd
 
 # MobileSigningMixin {{{1
 class MobileSigningMixin(AndroidSigningMixin, SigningMixin):

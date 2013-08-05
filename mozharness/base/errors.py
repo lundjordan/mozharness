@@ -21,7 +21,7 @@ warning; etc.) or platform or language or whatever.
 
 import re
 
-from mozharness.base.log import WARNING, ERROR, CRITICAL, FATAL
+from mozharness.base.log import DEBUG, WARNING, ERROR, CRITICAL, FATAL
 
 # Exceptions
 class VCSException(Exception):
@@ -54,10 +54,15 @@ SSHErrorList = BaseErrorList + [
 ]
 
 HgErrorList = BaseErrorList + [
- {'regex': re.compile(r'''^abort:'''), 'level': ERROR},
- {'substr': r'''unknown exception encountered''', 'level': ERROR},
- {'substr': r'''failed to import extension''', 'level': WARNING},
+ {'regex': re.compile(r'''^abort:'''), 'level': ERROR,
+  'explanation': 'Automation Error: hg not responding'},
+ {'substr': r'''unknown exception encountered''', 'level': ERROR,
+  'explanation': 'Automation Error: python exception in hg'},
+ {'substr': r'''failed to import extension''', 'level': WARNING,
+  'explanation': 'Automation Error: hg extension missing'},
 ]
+
+GitErrorList = BaseErrorList
 
 PythonErrorList = BaseErrorList + [
  {'substr': r'''Traceback (most recent call last)''', 'level': ERROR},
@@ -70,9 +75,10 @@ PythonErrorList = BaseErrorList + [
 ]
 
 VirtualenvErrorList = [
- {'substr': r'''not found or a compiler error:''', 'level': ERROR},
+ {'substr': r'''not found or a compiler error:''', 'level': WARNING},
  {'regex': re.compile('''\d+: error: '''), 'level': ERROR},
  {'regex': re.compile('''\d+: warning: '''), 'level': WARNING},
+ {'regex': re.compile(r'''Downloading .* \(.*\): *([0-9]+%)? *[0-9\.]+[kmKM]b'''), 'level': DEBUG},
 ] + PythonErrorList
 
 
@@ -85,7 +91,18 @@ MakefileErrorList = BaseErrorList + PythonErrorList + [
  {'regex': re.compile(r''':\d+: error:'''), 'level': ERROR},
  {'regex': re.compile(r'''make\[\d+\]: \*\*\* \[.*\] Error \d+'''), 'level': ERROR},
  {'regex': re.compile(r''':\d+: warning:'''), 'level': WARNING},
+ {'regex': re.compile(r'''make(?:\[\d+\])?: \*\*\*/'''), 'level': ERROR},
  {'substr': r'''Warning: ''', 'level': WARNING},
+]
+
+TarErrorList = BaseErrorList + [
+ {'substr': r'''(stdin) is not a bzip2 file.''', 'level': ERROR},
+ {'regex': re.compile(r'''Child returned status [1-9]'''), 'level': ERROR},
+ {'substr': r'''Error exit delayed from previous errors''', 'level': ERROR},
+ {'substr': r'''stdin: unexpected end of file''', 'level': ERROR},
+ {'substr': r'''stdin: not in gzip format''', 'level': ERROR},
+ {'substr': r'''Cannot exec: No such file or directory''', 'level': ERROR},
+ {'substr': r''': Error is not recoverable: exiting now''', 'level': ERROR},
 ]
 
 ADBErrorList = BaseErrorList + [

@@ -15,7 +15,7 @@ whether IGNORE, DEBUG, INFO, WARNING, ERROR, CRITICAL, or FATAL.
 """
 
 import re
-from mozharness.base.log import INFO
+from mozharness.base.log import INFO, WARNING, ERROR
 
 # ErrorLists {{{1
 TinderBoxPrintRe = {
@@ -31,18 +31,43 @@ TinderBoxPrintRe = {
         'fail_group': "Unexpected",
         'known_fail_group': "Known problems",
     },
+    "crashtest_summary": {
+        'regex': re.compile(r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \('''),
+        'pass_group': "Successful",
+        'fail_group': "Unexpected",
+        'known_fail_group': "Known problems",
+    },
     "xpcshell_summary": {
         'regex': re.compile(r'''INFO \| (Passed|Failed): (\d+)'''),
         'pass_group': "Passed",
         'fail_group': "Failed",
         'known_fail_group': None,
     },
+    "jsreftest_summary": {
+        'regex': re.compile(r'''REFTEST INFO \| (Successful|Unexpected|Known problems): (\d+) \('''),
+        'pass_group': "Successful",
+        'fail_group': "Unexpected",
+        'known_fail_group': "Known problems",
+    },
+    "robocop_summary": {
+        'regex': re.compile(r'''(\d+ INFO (Passed|Failed|Todo):\ +(\d+)|\t(Passed|Failed|Todo): (\d+))'''),
+        'pass_group': "Passed",
+        'fail_group': "Failed",
+        'known_fail_group': "Todo",
+    },
     "harness_error": {
-        'full_regex': re.compile(r"TEST-UNEXPECTED-FAIL \| .* \| (Browser crashed \(minidump found\)|missing output line for total leaks!|negative leaks caught!|leaked \d+ bytes during test execution)"),
-        'minimum_regex': re.compile(r'''TEST-UNEXPECTED''')
+        'full_regex': re.compile(r"(?:TEST-UNEXPECTED-FAIL|PROCESS-CRASH) \| .* \| (application crashed|missing output line for total leaks!|negative leaks caught!|\d+ bytes leaked)"),
+        'minimum_regex': re.compile(r'''(TEST-UNEXPECTED|PROCESS-CRASH)'''),
+        'retry_regex': re.compile(r'''FAIL-SHOULD-RETRY''')
     },
 }
 
 TestPassed = [
     {'regex': re.compile('''(TEST-INFO|TEST-KNOWN-FAIL|TEST-PASS|INFO \| )'''), 'level': INFO},
+]
+
+LogcatErrorList = [
+    {'substr': 'Fatal signal 11 (SIGSEGV)', 'level': ERROR, 'explanation': 'This usually indicates the B2G process has crashed'},
+    {'substr': 'Fatal signal 7 (SIGBUS)', 'level': ERROR, 'explanation': 'This usually indicates the B2G process has crashed'},
+    {'substr': '[JavaScript Error:', 'level': WARNING},
 ]

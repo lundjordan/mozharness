@@ -176,7 +176,6 @@ You need to either specify --repo or specify it after the options:
                 self.config['vcs_branch'] = js['sourcestamp']['branch']
 
     def source(self):
-        c = self.config
         vcs_obj = None
         if self.config['vcs'] == 'hg':
             vcs_obj = MercurialVCS(
@@ -197,27 +196,15 @@ You need to either specify --repo or specify it after the options:
               'vcs_share_base': self.config.get('vcs_shared_dir'),
               'allow_unshared_local_clones': self.config.get('vcs_allow_unshared_local_clones'),
               'halt_on_failure': self.config.get('halt_on_failure', True),
-              'noop': self.config.get('noop'),
              }
             )
         else:
             self.fatal("I don't know how to handle vcs '%s'!" % self.config['vcs'])
         got_revision = vcs_obj.ensure_repo_and_revision()
 
-        self.add_summary("Got revision %s\n" % got_revision)
-        if c.get('tbox_output'):
-            if c['vcs_repo'].startswith("http"):
-                url = "%s/rev/%s" % (c['vcs_repo'], got_revision)
-                msg = "<a href=\"%(url)s\">revision: %(got_revision)s</a>" % locals()
-                self.add_summary(msg)
-            else:
-                msg = "revision: %s" % got_revision
-
-            # Print as well as info() to make sure we get the TinderboxPrint
-            # sans any log prefixes.
-            print "TinderboxPrint: %s" % msg
+        self.info("Got revision %s\n" % got_revision)
 
 # __main__ {{{1
 if __name__ == '__main__':
     source_tool = SourceTool()
-    source_tool.run()
+    source_tool.run_and_exit()

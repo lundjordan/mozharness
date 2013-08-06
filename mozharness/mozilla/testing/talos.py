@@ -512,7 +512,7 @@ class Talos(TestingMixin, MercurialScript):
             # overwrite self.binary_path set from TestingMixin.install()
             self.binary_path = os.path.join(dirs['abs_metro_harness_dir'],
                                             c.get('metro_test_harness_exe'))
-            print 'self.binary_path: ', self._binary_path
+            print 'self.binary_path: ', self.binary_path
             if not os.path.exists(self.binary_path):
                 self.fatal("metrotestharness executable could not be found")
 

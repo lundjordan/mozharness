@@ -143,6 +143,7 @@ class Talos(TestingMixin, MercurialScript):
             # use a results_url by default based on the class name in the working directory
             self.results_url = 'file://%s' % os.path.join(self.workdir, self.__class__.__name__.lower() + '.txt')
         self.installer_url = self.config.get("installer_url")
+        self.test_url = self.config.get('test_url')
         self.talos_json_url = self.config.get("talos_json_url")
         self.talos_json = self.config.get("talos_json")
         self.talos_json_config = self.config.get("talos_json_config")
@@ -507,12 +508,12 @@ class Talos(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         print 'made it to talos install()'
         super(Talos, self).install()
-        print 'does c recognize metro_immersive: ' + c.get('metro_immersive')
+        print 'does c recognize metro_immersive: ', c.get('metro_immersive')
         if c.get('metro_immersive'):
             # overwrite self.binary_path set from TestingMixin.install()
             self.binary_path = os.path.join(dirs['abs_metro_harness_dir'],
                                             c.get('metro_test_harness_exe'))
-            print 'self.binary_path: ' + self._binary_path
+            print 'self.binary_path: ', self._binary_path
             if not os.path.exists(self.binary_path):
                 self.fatal("metrotestharness executable could not be found")
 

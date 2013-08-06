@@ -95,7 +95,6 @@ class Talos(TestingMixin, MercurialScript):
         [["--metro-immersive"],
           {"action": "store_true",
            "dest": "metro_immersive",
-           "default": False,
            "help": "Tells windows 8 machines to run tests with Metro Browser"
            }],
         [["--system-bits"],

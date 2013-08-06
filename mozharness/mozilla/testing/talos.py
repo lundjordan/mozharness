@@ -507,7 +507,7 @@ class Talos(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         self.info('made it to talos install()')
         super(Talos, self).install()
-        self.info('does c recognize metro_immersive: ', c.get('metro_immersive'))
+        self.info('does c recognize metro_immersive: ' + str(c.get('metro_immersive')))
         if c.get('metro_immersive'):
             # overwrite self.binary_path set from TestingMixin.install()
             abs_app_dir = os.path.split(self.binary_path)[0]

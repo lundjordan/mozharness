@@ -505,14 +505,17 @@ class Talos(TestingMixin, MercurialScript):
         """decorates TestingMixin.install() to handle win metro browser"""
         c = self.config
         dirs = self.query_abs_dirs()
-        print 'made it to talos install()'
+        self.info('made it to talos install()')
         super(Talos, self).install()
-        print 'does c recognize metro_immersive: ', c.get('metro_immersive')
+        self.info('does c recognize metro_immersive: ', c.get('metro_immersive'))
         if c.get('metro_immersive'):
             # overwrite self.binary_path set from TestingMixin.install()
-            self.binary_path = os.path.join(dirs['abs_metro_harness_dir'],
+            abs_app_dir = os.path.split(self.binary_path)[0]
+            orig_metro_path = os.path.join(dirs['abs_metro_harness_dir'],
+                                           c.get('metro_test_harness_exe'))
+            self.copyfile(orig_metro_path, abs_app_dir)
+            self.binary_path = os.path.join(abs_app_dir,
                                             c.get('metro_test_harness_exe'))
-            print 'self.binary_path: ', self.binary_path
             if not os.path.exists(self.binary_path):
                 self.fatal("metrotestharness executable could not be found")
 

@@ -147,7 +147,7 @@ class Talos(TestingMixin, MercurialScript):
             # let's just capture the fact we want 'metro_immersive' then use the
             # non metro equivalent from the talos.json file
             # (eg: self.talos_json_config['suites']['dromaeojs'])
-            self.config['suite'] = self.config['suite'].replace('-metro', '')
+            # self.config['suite'] = self.config['suite'].replace('-metro', '')
             self.config['metro_immersive'] = True
             self.info('running metro mode' + str(self.config('suite')))
         self.results_url = self.config.get('results_url')

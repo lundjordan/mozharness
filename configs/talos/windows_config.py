@@ -46,7 +46,7 @@ config = {
     "populate_webroot": True,
     # Srsly gly? Ys
     "webroot_extract_cmd": r'''c:/mozilla-build/msys/bin/bash -c "PATH=/c/mozilla-build/msys/bin:$PATH tar zx --strip-components=1 -f '%(tarball)s' --wildcards '**/talos/'"''',
-    "metro-immersive": False,
+    # "metro-immersive": False,
     "metro_harness_dir": "mozbase/mozrunner/mozrunner/resources",
     "metro_test_harness_exe": "metrotestharness.exe",
     # just needed until we update m-c talos.json

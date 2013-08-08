@@ -137,6 +137,7 @@ class Talos(TestingMixin, MercurialScript):
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
         # results output
+        self.metro_immersive = False
         if self.config.get('suite').endswith('-metro'):
             # TEMPORARY CODE: this script takes a `suite` option that is used as a
             # key from a talos_json_url
@@ -148,7 +149,7 @@ class Talos(TestingMixin, MercurialScript):
             # non metro equivalent from the talos.json file
             # (eg: self.talos_json_config['suites']['dromaeojs'])
             # self.config['suite'] = self.config['suite'].replace('-metro', '')
-            self.config['metro_immersive'] = True
+            self.metro_immersive = True
             self.info('running metro mode' + str(self.config('suite')))
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
@@ -524,7 +525,7 @@ class Talos(TestingMixin, MercurialScript):
         dirs = self.query_abs_dirs()
         self.info('made it to talos install()')
         super(Talos, self).install()
-        if c.get('metro_immersive'):
+        if self.metro_immersive:
             self.info("Triggering Metro Browser Immersive Mode")
             # overwrite self.binary_path set from TestingMixin.install()
             abs_app_dir = os.path.split(self.binary_path)[0]

@@ -150,7 +150,7 @@ class Talos(TestingMixin, MercurialScript):
             # (eg: self.talos_json_config['suites']['dromaeojs'])
             # self.config['suite'] = self.config['suite'].replace('-metro', '')
             self.metro_immersive = True
-            self.info('running metro mode' + str(self.config('suite')))
+            self.info('metro immersive mode:' + str(self.config.get('suite')))
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
             # use a results_url by default based on the class name in the working directory

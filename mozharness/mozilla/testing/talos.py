@@ -137,6 +137,19 @@ class Talos(TestingMixin, MercurialScript):
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
         # results output
+        if self.config.get('suite').endswith('-metro'):
+            # TEMPORARY CODE: this script takes a `suite` option that is used as a
+            # key from a talos_json_url
+            # (eg: http://hg.mozilla.org/mozilla-central/raw-file/s(revision)/testing/talos/talos.json)
+            # if we pass a suite with a '-metro' suffix through buildbot or a developer,
+            # the talos.json file in m-c won't know about it yet.
+            # Until we modify that json file in m-c to add win metro based keys/values,
+            # let's just capture the fact we want 'metro_immersive' then use the
+            # non metro equivalent from the talos.json file
+            # (eg: self.talos_json_config['suites']['dromaeojs'])
+            self.config['suite'] = self.config['suite'].replace('-metro', '')
+            self.config['metro_immersive'] = True
+            self.info('running metro mode' + str(self.config('suite')))
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
             # use a results_url by default based on the class name in the working directory
@@ -157,19 +170,6 @@ class Talos(TestingMixin, MercurialScript):
         self.pagesets_manifest_parent_path = None
         if 'run-tests' in self.actions:
             self.preflight_run_tests()
-        if self.config.get('suite').endswith('-metro'):
-            # TEMPORARY CODE: this script takes a `suite` option that is used as a
-            # key from a talos_json_url
-            # (eg: http://hg.mozilla.org/mozilla-central/raw-file/s(revision)/testing/talos/talos.json)
-            # if we pass a suite with a '-metro' suffix through buildbot or a developer,
-            # the talos.json file in m-c won't know about it yet.
-            # Until we modify that json file in m-c to add win metro based keys/values,
-            # let's just capture the fact we want 'metro_immersive' then use the
-            # non metro equivalent from the talos.json file
-            # (eg: self.talos_json_config['suites']['dromaeojs'])
-            # self.config['suite'] = self.config['suite'].replace('-metro', '')
-            self.config['metro_immersive'] = True
-            self.info('running metro mode' + str(self.config('suite')))
 
 
 

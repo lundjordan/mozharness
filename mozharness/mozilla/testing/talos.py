@@ -246,6 +246,8 @@ class Talos(TestingMixin, MercurialScript):
             if not talos_json_url:
                 self.fatal("Can't download talos_json without a talos_json_url!")
             self.download_talos_json()
+            self.info('made it here' + str(talos_json_url))
+        self.info('self.talos_json' + str(self.talos_json))
         self.talos_json_config = parse_config_file(self.talos_json)
         self.info(pprint.pformat(self.talos_json_config))
         return self.talos_json_config

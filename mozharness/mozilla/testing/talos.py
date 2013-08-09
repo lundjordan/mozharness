@@ -150,7 +150,7 @@ class Talos(TestingMixin, MercurialScript):
             # (eg: self.talos_json_config['suites']['dromaeojs'])
             # self.config['suite'] = self.config['suite'].replace('-metro', '')
             self.metro_immersive = True
-            self.info('metro immersive mode:' + str(self.config.get('suite')))
+            # self.info('metro immersive mode:' + str(self.config.get('suite')))
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
             # use a results_url by default based on the class name in the working directory
@@ -534,9 +534,9 @@ class Talos(TestingMixin, MercurialScript):
             new_metro_path = os.path.join(abs_app_dir,
                                           c.get('metro_test_harness_exe'))
             self.copyfile(orig_metro_path, new_metro_path)
+            self.binary_path = new_metro_path
             if not os.path.exists(self.binary_path):
                 self.fatal("metrotestharness executable could not be found")
-            self.binary_path = new_metro_path
 
     def preflight_run_tests(self):
         if not self.query_tests():

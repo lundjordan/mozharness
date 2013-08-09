@@ -50,7 +50,7 @@ config = {
     "metro_harness_dir": "mozbase/mozrunner/mozrunner/resources",
     "metro_test_harness_exe": "metrotestharness.exe",
     # just needed until we update m-c talos.json
-    "talos_json_url": "http://hg.mozilla.org/users/jlund_mozilla.com/talos-json/raw-file/f7a54e3e3650/talos.json"
+    "talos_json_url": "http://hg.mozilla.org/users/jlund_mozilla.com/talos-json/raw-file/b374e24e2e6f/talos.json"
     # "talos_json": {
     #                 "talos.zip": {
     #                     "url": "http://build.mozilla.org/talos/zips/talos.fcbb9d7d3c78.zip",

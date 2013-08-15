@@ -18,10 +18,27 @@ import os
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 # import mozharness ;)
-from mozharness.mozilla.building import BuildingMixin
-from mozharness.base.script import BaseScript
+from mozharness.mozilla.building.buildbase import BuildingMixin
+from mozharness.base.vcs.vcsbase import MercurialScript
 
 
-class FxNightlyBuild(BuildingMixin, BaseScript):
-    pass
+class FxNightlyBuild(BuildingMixin, MercurialScript):
+    config_options = []
 
+    def __init__(self, require_config_file=True):
+        basescript_kwargs = {
+            # 'config_options': self.config_options,
+            'all_actions': [
+                'clobber',
+                'pull',
+            ],
+            # 'default_actions': [],
+            'require_config_file': require_config_file,
+            # Default configuration
+            # 'config': {},
+        }
+        super(FxNightlyBuild, self).__init__(**basescript_kwargs)
+
+if __name__ == '__main__':
+    fx_nightly_build = FxNightlyBuild()
+    fx_nightly_build.run_and_exit()

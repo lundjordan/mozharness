@@ -13,5 +13,5 @@ author: Jordan Lund
 # import mozharness ;)
 
 
-class BuildingMixin():
-    pass
+class BuildingMixin(object):
+    doesNothing = True

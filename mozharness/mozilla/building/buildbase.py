@@ -11,7 +11,44 @@ author: Jordan Lund
 """
 
 # import mozharness ;)
+from mozharness.mozilla.buildbot import BuildbotMixin
+from mozharness.mozilla.purge import PurgeMixin
 
 
-class BuildingMixin(object):
-    doesNothing = True
+class BuildingMixin(BuildbotMixin, PurgeMixin, object):
+
+    def skip_buildbot_specific_action(self):
+        """ignores actions that only should happen within
+        buildbot's infrastructure"""
+        self.info("This action is specific to buildbot's infrastructure")
+        self.info("Skipping......")
+        return
+
+    def read_buildbot_config(self):
+        c = self.config
+        if c.get('developer_run'):
+            return self.skip_buildbot_specific_action()
+        super(BuildingMixin, self).read_buildbot_config()
+
+    # def check_previous_clobberer_times(self):
+    #     """prints history of clobber dates"""
+    #     c = self.config
+    #     if c.get('developer_run'):
+    #         return self.skip_buildbot_specific_action()
+    #     # clobberer defined in MercurialScript -> VCSScript -> BaseScript
+    #     # since most mozharnesss scripts have a 'clobber' action, let's
+    #     # give 'clobberer' a more more explicit name
+    #     self.info('made it here')
+    #     super(BuildingMixin, self).clobberer()
+
+    def get_clobber_times_and_purge_builds(self):
+        """prints history of clobber dates and purge builds"""
+        c = self.config
+        dirs = self.query_abs_base_dirs()
+        if c.get('developer_run'):
+            return self.skip_buildbot_specific_action()
+        skip = c.get('purge_skip_dirs')
+        basedirs = [dirs.get('abs_work_dir'), "/mock/users/cltbld/home/cltbld/build"]
+
+        # purge_builds calls clobberer if 'clobberer_url' in self.config
+        super(PurgeMixin, self).purge_builds(skip=skip)

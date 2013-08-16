@@ -48,6 +48,7 @@ class PurgeMixin(object):
         cmd = [self.purge_tool,
                '-s', str(min_size),
                ]
+        cmd.extend(['--dry-run'])
 
         if max_age:
             cmd.extend(['--max-age', str(max_age)])
@@ -84,6 +85,7 @@ class PurgeMixin(object):
         # Add --dry-run if you don't want to do this for realz
         cmd = [self.clobber_tool]
         # TODO configurable list
+        cmd.extend(['--dry-run'])
         cmd.extend(['-s', 'scripts'])
         cmd.extend(['-s', 'logs'])
         cmd.extend(['-s', 'buildprops.json'])

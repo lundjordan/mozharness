@@ -26,7 +26,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, object):
 
     def read_buildbot_config(self):
         c = self.config
-        if c.get('developer_run'):
+        if not c.get('is_automation'):
             return self.skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
 
@@ -41,14 +41,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, object):
     #     self.info('made it here')
     #     super(BuildingMixin, self).clobberer()
 
-    def get_clobber_times_and_purge_builds(self):
-        """prints history of clobber dates and purge builds"""
-        c = self.config
-        dirs = self.query_abs_base_dirs()
-        if c.get('developer_run'):
-            return self.skip_buildbot_specific_action()
-        skip = c.get('purge_skip_dirs')
-        basedirs = [dirs.get('abs_work_dir'), "/mock/users/cltbld/home/cltbld/build"]
+    # def clobber(self):
+    #     """prints history of clobber dates and purge builds"""
+    #     c = self.config
+    #     dirs = self.query_abs_base_dirs()
+    #     if c.get('is_automation'):
+    #         return self.skip_buildbot_specific_action()
 
-        # purge_builds calls clobberer if 'clobberer_url' in self.config
-        super(PurgeMixin, self).purge_builds(skip=skip)
+    #     # purge_builds calls clobberer if 'clobberer_url' in self.config
+    #     super(PurgeMixin, self).clobber()

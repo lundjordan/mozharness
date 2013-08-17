@@ -30,7 +30,7 @@ class PurgeMixin(object):
     default_maxage = 14
     default_periodic_clobber = 7 * 24
 
-    def purge_builds(self, basedir=None, min_size=None, skip=None, max_age=None):
+    def purge_builds(self, basedirs=None, min_size=None, skip=None, max_age=None):
         # Try clobbering first
         c = self.config
         if 'clobberer_url' in c:
@@ -40,14 +40,20 @@ class PurgeMixin(object):
         max_age = max_age or c.get('purge_maxage') or self.default_maxage
         skip = skip or c.get('purge_skip') or self.default_skips
 
-        if not basedir:
+        if not basedirs:
+            # some platforms using this method (like linux) supply more than
+            # one basedir
+            basedirs = []
             assert self.buildbot_config
-            basedir = os.path.dirname(self.buildbot_config['properties']['basedir'])
+            basedirs.append(os.path.dirname(self.buildbot_config['properties']['basedir']))
+            if self.config.get('purge_basedirs'):
+                basedirs.extend(self.config.get('purge_basedirs'))
 
         # Add --dry-run if you don't want to do this for realz
         cmd = [self.purge_tool,
                '-s', str(min_size),
                ]
+        # TODO remove this dry-run after testing
         cmd.extend(['--dry-run'])
 
         if max_age:
@@ -56,7 +62,7 @@ class PurgeMixin(object):
         for s in skip:
             cmd.extend(['--not', s])
 
-        cmd.append(basedir)
+        cmd.extend(basedirs)
 
         # purge_builds.py can also clean up old shared hg repos if we set
         # HG_SHARE_BASE_DIR accordingly
@@ -85,6 +91,7 @@ class PurgeMixin(object):
         # Add --dry-run if you don't want to do this for realz
         cmd = [self.clobber_tool]
         # TODO configurable list
+        # TODO remove this dry-run after testing
         cmd.extend(['--dry-run'])
         cmd.extend(['-s', 'scripts'])
         cmd.extend(['-s', 'logs'])

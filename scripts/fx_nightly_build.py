@@ -22,12 +22,12 @@ from mozharness.mozilla.building.buildbase import BuildingMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
 
 
-class FxNightlyBuild(BuildingMixin, MercurialScript):
+class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     config_options = [
         [['--developer-run', '--skip-buildbot-actions'], {
-            "action": "store_true",
-            "dest": "developer_run",
-            "default": False,
+            "action": "store_false",
+            "dest": "is_automation",
+            "default": True,
             "help": "if this is running outside of Mozilla's buildbot"
                     "infrastructure, use this option. It removes actions"
                     "that are not needed."}
@@ -38,11 +38,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript):
         basescript_kwargs = {
             'config_options': self.config_options,
             'all_actions': [
-                'clobber'
-                # 'clobber-build-dir',
                 'read-buildbot-config',
-                # 'check-previous-clobberer-times',
-                'get-clobber-times-and-purge-builds',
+                'clobber'
             ],
             # 'default_actions': [],
             'require_config_file': require_config_file,
@@ -54,33 +51,29 @@ class FxNightlyBuild(BuildingMixin, MercurialScript):
     # helpers
 
     def default_config_for_all_platforms(self):
-        """a config dict that is used platform wide, any keys used from a
-        passed in config file (--config-file), will override these keys"""
+        """a config dict that is used platform wide, any matching keys within a
+        passed in config file (--config-file) will override these keys"""
         clobberer_url = 'http://clobberer.pvt.build.mozilla.org/index.php',
+
         return {
-            # for clobberer
+            # if false, only clobber 'abs_work_dir'
+            # if true: possibly clobber, clobberer, and purge_builds
+            # see PurgeMixin for clobber() conditions
             'is_automation': True,
+
+            # we wish to clobberer
             'clobberer_url': clobberer_url,
             'periodic_clobber': 168,  # default anyway but can be overwritten
 
-            # purge build
+            # we wish to purge builds
             'purge_minsize': 12,
-            'purge_skip_dirs': ['info', 'rel-*:45d', 'tb-rel-*:45d']
+            'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d']
         }
 
 
     # Actions {{{2
-    # def clobber_build_dir(self):
-    #     """clobber the main work dir"""
-    #     # clobber defined in MercurialScript -> VCSScript -> BaseScript
-    #     # since we have 'clobber' and 'clobberer' in actions, let's wrap
-    #     # these actions in more explicit method names
-    #     super(BuildingMixin, self).clobber()
-
-
     # read_buildbot_config in BuildingMixin
-    # check-clobberer-times in BuildingMixin -> PurgeMixin
-    # purge_builds in BuildingMixin -> BuildbotMixin.
+    # clobber in BuildingMixin -> PurgeMixin
 
 
 if __name__ == '__main__':

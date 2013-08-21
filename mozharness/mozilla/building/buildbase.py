@@ -13,9 +13,10 @@ author: Jordan Lund
 # import mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
 from mozharness.mozilla.purge import PurgeMixin
+from mozharness.mozilla.mock import MockMixin
 
 
-class BuildingMixin(BuildbotMixin, PurgeMixin, object):
+class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def skip_buildbot_specific_action(self):
         """ignores actions that only should happen within

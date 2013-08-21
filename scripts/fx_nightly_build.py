@@ -41,7 +41,10 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'read-buildbot-config',
                 'clobber'
             ],
-            # 'default_actions': [],
+            'default_actions': [
+                'read-buildbot-config',
+                'clobber'
+            ],
             'require_config_file': require_config_file,
             # Default configuration
             'config': self.default_config_for_all_platforms(),

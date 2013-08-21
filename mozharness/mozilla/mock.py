@@ -8,6 +8,14 @@
 """
 
 import subprocess
+import os
+
+ERROR_MESSAGES = {
+    'undetermined_mock_target': 'mock_target could not be determined. \
+Add to config or pass it in reset_mock()',
+    'undetermined_buildroot_lock': 'buildroot_lock_path could not be determined.\
+Please specify a mock_mozilla_dir (eg: /builds/mock_mozilla) in your config.'
+}
 
 # MockMixin {{{1
 class MockMixin(object):
@@ -102,6 +110,24 @@ class MockMixin(object):
         return self._do_mock_command(
                 super(MockMixin, self).get_output_from_command,
                 mock_target, command, cwd, env, **kwargs)
+
+    def reset_mock(self, mock_target=None):
+        """rm mock lock and reset"""
+        c = self.config
+        if mock_target is None:
+            if not c.get('mock_target'):
+                self.fatal(ERROR_MESSAGES['undetermined_mock_target'])
+            mock_target = c.get('mock_target')
+        buildroot_lock_path = os.path.join(c.get('mock_mozilla_dir', ''),
+                                           mock_target,
+                                           'buildroot.lock')
+        if not os.path.exists(buildroot_lock_path):
+            self.fatal(ERROR_MESSAGES['undetermined_buildroot_lock'])
+
+        rm_lock_cmd = ['rm', '-f', buildroot_lock_path]
+        super(MockMixin, self).run_command(rm_lock_cmd, halt_on_failure=True)
+        cmd = ['mock_mozilla', '-r', mock_target, '--orphanskill']
+        return super(MockMixin, self).run_command(cmd, halt_on_failure=True)
 
     def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
         """Initializes and installs packages, copies files into mock

@@ -1,7 +1,7 @@
 import os
 import socket
 
-PYTHON = 'c:/mozilla-build/python27/python'
+PYTHON = 'c:/mozilla-build/python27/python.exe'
 PYTHON_DLL = 'c:/mozilla-build/python27/python27.dll'
 VENV_PATH = os.path.join(os.getcwd(), 'build/venv')
 

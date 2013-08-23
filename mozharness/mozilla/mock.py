@@ -10,7 +10,7 @@
 import subprocess
 import os
 
-ERROR_MESSAGES = {
+ERROR_MSGS = {
     'undetermined_mock_target': 'mock_target could not be determined. \
 Add to config or pass it in reset_mock()',
     'undetermined_buildroot_lock': 'buildroot_lock_path could not be determined.\
@@ -116,13 +116,13 @@ class MockMixin(object):
         c = self.config
         if mock_target is None:
             if not c.get('mock_target'):
-                self.fatal(ERROR_MESSAGES['undetermined_mock_target'])
+                self.fatal(ERROR_MSGS['undetermined_mock_target'])
             mock_target = c.get('mock_target')
         buildroot_lock_path = os.path.join(c.get('mock_mozilla_dir', ''),
                                            mock_target,
                                            'buildroot.lock')
         if not os.path.exists(buildroot_lock_path):
-            self.fatal(ERROR_MESSAGES['undetermined_buildroot_lock'])
+            self.fatal(ERROR_MSGS['undetermined_buildroot_lock'])
 
         rm_lock_cmd = ['rm', '-f', buildroot_lock_path]
         super(MockMixin, self).run_command(rm_lock_cmd, halt_on_failure=True)

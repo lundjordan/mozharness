@@ -14,6 +14,7 @@ author: Jordan Lund
 from mozharness.mozilla.buildbot import BuildbotMixin
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
+from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
@@ -30,6 +31,33 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         if not c.get('is_automation'):
             return self.skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
+
+    def setup_mock(self):
+        """Overrides mock_setup found in MockMixin.
+        Initializes and runs any mock initialization actions.
+        Finally, installs packages."""
+        if self.done_mock_setup:
+            return
+
+        c = self.config
+        mock_target = c.get('mock_target')
+        mock_pre_package_copy_files = c.get('mock_pre_package_copy_files')
+        mock_pre_package_cmds = c.get('mock_pre_package_cmds')
+        mock_packages = c.get('mock_packages')
+
+        if not mock_target:
+            self.fatal(MOCK_ERROR_MSGS['undetermined_mock_target'])
+
+        self.mock_reset(mock_target)
+        self.init_mock(mock_target)
+        if mock_pre_package_copy_files:
+            self.copy_mock_files(mock_target, mock_pre_package_copy_files)
+        if mock_pre_package_cmds:
+            self.run_mock_command(mock_target, mock_pre_package_cmds)
+        if mock_packages:
+            self.install_mock_packages(mock_target, mock_packages)
+
+        self.done_mock_setup = True
 
     # def check_previous_clobberer_times(self):
     #     """prints history of clobber dates"""

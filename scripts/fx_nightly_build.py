@@ -77,6 +77,9 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     # Actions {{{2
     # read_buildbot_config in BuildingMixin
     # clobber in BuildingMixin -> PurgeMixin
+    # if Linux config:
+        # reset_mock in BuildingMixing -> MockMixin
+        # setup_mock in BuildingMixing (overrides MockMixin.mock_setup)
 
 
 if __name__ == '__main__':

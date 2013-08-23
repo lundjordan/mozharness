@@ -16,6 +16,12 @@ from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 
+ERROR_MSGS = {
+        'undetermined_ccache_env': 'ccache_env could not be determined. \
+Please add this to your config.'
+}
+ERROR_MSGS.update(MOCK_ERROR_MSGS)
+
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
@@ -53,11 +59,37 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         if mock_pre_package_copy_files:
             self.copy_mock_files(mock_target, mock_pre_package_copy_files)
         if mock_pre_package_cmds:
-            self.run_mock_command(mock_target, mock_pre_package_cmds)
+            for cmd in mock_pre_package_cmds:
+                self.run_mock_command(mock_target, cmd, '/')
         if mock_packages:
             self.install_mock_packages(mock_target, mock_packages)
 
         self.done_mock_setup = True
+
+    def ccache_z(self):
+        c = self.config
+        dirs = self.query_base_dirs()
+        if not c.get('ccache_env'):
+            self.fatal(ERROR_MSGS['undetermined_ccache_env'])
+        partial_env = c['ccache_env'].format(base_dir=dirs['base_work_dir'])
+        ccache_env = self.query_env(partial_env)
+        self.run_command(command=['ccache' '-z'],
+                         cwd=dirs['work_dir'],
+                         env=ccache_env)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # def check_previous_clobberer_times(self):
     #     """prints history of clobber dates"""

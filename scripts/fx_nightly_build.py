@@ -39,7 +39,9 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             'config_options': self.config_options,
             'all_actions': [
                 'read-buildbot-config',
-                'clobber'
+                'clobber',
+                'mock-setup',
+                'ccache-z',
             ],
             'default_actions': [
                 'read-buildbot-config',
@@ -67,10 +69,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # we wish to clobberer
             'clobberer_url': clobberer_url,
             'periodic_clobber': 168,  # default anyway but can be overwritten
-
-            # we wish to purge builds
-            'purge_minsize': 12,
-            'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d']
         }
 
 

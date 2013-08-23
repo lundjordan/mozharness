@@ -7,11 +7,14 @@ config = {
     'default_actions': [
         'read-buildbot-config',
         'clobber',
-
-        # use mock for Linux
-        'mock-setup'
+        'mock-setup',
+        'ccache-z',
     ],
 
+
+    # we wish to purge builds
+    'purge_minsize': 12,
+    'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
 
     # mock stuff
@@ -44,4 +47,12 @@ config = {
         'gstreamer-plugins-base-devel', 'freetype-2.3.11-6.el6_1.8.x86_64',
         'freetype-devel-2.3.11-6.el6_1.8.x86_64',
     ],
+
+    'ccache_env': {
+        'CCACHE_BASEDIR': "{base_dir}",
+        'CCACHE_COMPRESS': '1',
+        'CCACHE_DIR': '/builds/ccache',
+        'CCACHE_HASHDIR': '',
+        'CCACHE_UMASK': '002',
+    },
 }

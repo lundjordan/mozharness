@@ -102,6 +102,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self._ccache_z()
         self._rm_old_package()
 
+    def build(self):
+        """build application"""
+        self.info('WAT, YOU MADE IT HERE?'
+                  'BUT I THOUGHT I MADE IT TOO HARD FOR YOU? MUAHAHAH')
+
 
 
 

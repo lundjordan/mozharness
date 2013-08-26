@@ -17,8 +17,10 @@ from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 
 ERROR_MSGS = {
-        'undetermined_ccache_env': 'ccache_env could not be determined. \
-Please add this to your config.'
+    'undetermined_ccache_env': 'ccache_env could not be determined. \
+Please add this to your config.',
+    'undetermined_old_package': 'The old package could not be determined. \
+Please add an "objdir" and "old_packages" to your config.'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -66,17 +68,39 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
         self.done_mock_setup = True
 
-    def ccache_z(self):
+    def _ccache_z(self):
+        """clear ccache stats"""
         c = self.config
         dirs = self.query_base_dirs()
         if not c.get('ccache_env'):
             self.fatal(ERROR_MSGS['undetermined_ccache_env'])
+
         partial_env = c['ccache_env'].format(base_dir=dirs['base_work_dir'])
         ccache_env = self.query_env(partial_env)
         self.run_command(command=['ccache' '-z'],
                          cwd=dirs['work_dir'],
                          env=ccache_env)
 
+    def _rm_old_package(self):
+        """rm the old package"""
+        c = self.config
+        cmd = ["rm", "-rf"]
+        objdir = c.get('objdir')
+        old_packages = c.get('old_packages')
+        if not objdir or not old_packages:
+            self.fatal(ERROR_MSGS['undetermined_old_package'])
+
+        for product in old_packages:
+            cmd.append(product.format(objdir=objdir))
+        self.info("removing old packages...")
+        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
+
+    def preflight_build(self):
+        """set up machine state for a complete build"""
+        c = self.config
+        if c.get('enable_ccache'):
+            self._ccache_z()
+        self._rm_old_package()
 
 
 

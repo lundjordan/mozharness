@@ -8,7 +8,7 @@ config = {
         'read-buildbot-config',
         'clobber',
         'mock-setup',
-        'ccache-z',
+        'build',
     ],
 
 
@@ -48,6 +48,7 @@ config = {
         'freetype-devel-2.3.11-6.el6_1.8.x86_64',
     ],
 
+    'enable_ccache': True,
     'ccache_env': {
         'CCACHE_BASEDIR': "{base_dir}",
         'CCACHE_COMPRESS': '1',
@@ -55,4 +56,13 @@ config = {
         'CCACHE_HASHDIR': '',
         'CCACHE_UMASK': '002',
     },
+
+    'objdir': 'obj-firefox',
+    'old_packages': [
+        "{objdir}/dist/firefox-*",
+        "{objdir}/dist/fennec*",
+        "{objdir}/dist/seamonkey*",
+        "{objdir}/dist/thunderbird*",
+        "{objdir}/dist/install/sea/*.exe"
+    ],
 }

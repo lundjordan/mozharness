@@ -9,7 +9,7 @@ config = {
         'read-buildbot-config',
         'clobber',
         'mock-setup',
-        'build',
+        'build'
     ],
 
 
@@ -25,7 +25,7 @@ config = {
     'mock_pre_package_copy_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
+        ('/builds/gapi.data', '/builds/gapi.data')
     ],
     'mock_pre_package_cmds': [
         'mkdir -p /builds/slave/m-cen-lx-000000000000000000000/build'
@@ -46,7 +46,7 @@ config = {
         ###
         'valgrind', 'pulseaudio-libs-devel', 'gstreamer-devel',
         'gstreamer-plugins-base-devel', 'freetype-2.3.11-6.el6_1.8.x86_64',
-        'freetype-devel-2.3.11-6.el6_1.8.x86_64',
+        'freetype-devel-2.3.11-6.el6_1.8.x86_64'
     ],
 
     'enable_ccache': True,
@@ -55,7 +55,7 @@ config = {
         'CCACHE_COMPRESS': '1',
         'CCACHE_DIR': '/builds/ccache',
         'CCACHE_HASHDIR': '',
-        'CCACHE_UMASK': '002',
+        'CCACHE_UMASK': '002'
     },
 
     'objdir': 'obj-firefox',
@@ -65,5 +65,5 @@ config = {
         "{objdir}/dist/seamonkey*",
         "{objdir}/dist/thunderbird*",
         "{objdir}/dist/install/sea/*.exe"
-    ],
+    ]
 }

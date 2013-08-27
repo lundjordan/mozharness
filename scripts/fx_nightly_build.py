@@ -42,7 +42,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'clobber',
                 'mock-setup',
                 'ccache-z',
-                'build',
+                'build'
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -65,7 +65,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
 
             # we wish to clobberer
             'clobberer_url': clobberer_url,
-            'periodic_clobber': 168,  # default anyway but can be overwritten
+            'periodic_clobber': 168  # default anyway but can be overwritten
         }
 
 

@@ -71,7 +71,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
     def _ccache_z(self):
         """clear ccache stats"""
         c = self.config
-        dirs = self.query_base_dirs()
+        dirs = self.query_abs_dirs()
         if not c.get('ccache_env'):
             self.fatal(ERROR_MSGS['undetermined_ccache_env'])
 

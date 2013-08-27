@@ -56,7 +56,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         if not mock_target:
             self.fatal(MOCK_ERROR_MSGS['undetermined_mock_target'])
 
-        self.mock_reset(mock_target)
+        self.reset_mock(mock_target)
         self.init_mock(mock_target)
         if mock_pre_package_copy_files:
             self.copy_mock_files(mock_target, mock_pre_package_copy_files)

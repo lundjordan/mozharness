@@ -55,7 +55,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     def default_config_for_all_platforms(self):
         """a config dict that is used platform wide, any matching keys within a
         passed in config file (--config-file) will override these keys"""
-        clobberer_url = 'http://clobberer.pvt.build.mozilla.org/index.php',
+        clobberer_url = 'http://clobberer.pvt.build.mozilla.org/index.php'
 
         return {
             # if false, only clobber 'abs_work_dir'

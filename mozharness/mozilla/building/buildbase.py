@@ -79,7 +79,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             'CCACHE_BASEDIR', "").format(base_dir=dirs['base_work_dir'])
         ccache_env = self.query_env(c['ccache_env'])
         self.run_command(command=['ccache' '-z'],
-                         cwd=dirs['work_dir'],
+                         cwd=dirs['abs_work_dir'],
                          env=ccache_env)
 
     def _rm_old_package(self):

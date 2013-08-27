@@ -40,8 +40,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             'all_actions': [
                 'read-buildbot-config',
                 'clobber',
-                'mock-setup',
-                'ccache-z',
+                'setup-mock',
                 'build'
             ],
             'require_config_file': require_config_file,

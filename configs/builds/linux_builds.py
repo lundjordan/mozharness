@@ -8,7 +8,7 @@ config = {
     'default_actions': [
         'read-buildbot-config',
         'clobber',
-        'mock-setup',
+        'setup-mock',
         'build'
     ],
 

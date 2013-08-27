@@ -75,8 +75,9 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         if not c.get('ccache_env'):
             self.fatal(ERROR_MSGS['undetermined_ccache_env'])
 
-        partial_env = c['ccache_env'].format(base_dir=dirs['base_work_dir'])
-        ccache_env = self.query_env(partial_env)
+        c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
+            'CCACHE_BASEDIR', "").format(base_dir=dirs['base_work_dir'])
+        ccache_env = self.query_env(c['ccache_env'])
         self.run_command(command=['ccache' '-z'],
                          cwd=dirs['work_dir'],
                          env=ccache_env)

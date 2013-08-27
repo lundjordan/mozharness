@@ -13,8 +13,8 @@ import os
 ERROR_MSGS = {
     'undetermined_mock_target': 'mock_target could not be determined. \
 Add to config or pass it in reset_mock()',
-    'undetermined_buildroot_lock': 'buildroot_lock_path could not be determined.\
-Please specify a mock_mozilla_dir (eg: /builds/mock_mozilla) in your config.'
+    'undetermined_buildroot_lock': 'buildroot_lock_path does not exist.\
+Nothing to remove.'
 }
 
 # MockMixin {{{1
@@ -121,11 +121,14 @@ class MockMixin(object):
         buildroot_lock_path = os.path.join(c.get('mock_mozilla_dir', ''),
                                            mock_target,
                                            'buildroot.lock')
+        self.info("Removing buildroot lock at path if exists:O")
+        self.info(buildroot_lock_path)
         if not os.path.exists(buildroot_lock_path):
-            self.fatal(ERROR_MSGS['undetermined_buildroot_lock'])
-
-        rm_lock_cmd = ['rm', '-f', buildroot_lock_path]
-        super(MockMixin, self).run_command(rm_lock_cmd, halt_on_failure=True)
+            self.info(ERROR_MSGS['undetermined_buildroot_lock'])
+        else:
+            rm_lock_cmd = ['rm', '-f', buildroot_lock_path]
+            super(MockMixin, self).run_command(rm_lock_cmd,
+                                               halt_on_failure=True)
         cmd = ['mock_mozilla', '-r', mock_target, '--orphanskill']
         return super(MockMixin, self).run_command(cmd, halt_on_failure=True)
 

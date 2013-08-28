@@ -38,9 +38,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
         repo_path = ''
         if self.buildbot_config and 'properties' in self.buildbot_config:
-            buildbot_repo = self.buildbot_config['properties'].get('repo_path')
-            self.info("RSTRSTRSTRTRTR" + buildbot_repo)
-            repo_path = 'http://hg.mozilla.org/{}'.format(buildbot_repo)
+            bbot_repo = self.buildbot_config['properties'].get('repo_path')
+            repo_path = 'http://hg.mozilla.org/%s' % (bbot_repo,)
         else:
             repo_path = self.config.get('repo')
         if not repo_path:
@@ -63,7 +62,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self.fatal(ERROR_MSGS['undetermined_ccache_env'])
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
-            'CCACHE_BASEDIR', "").format(base_dir=dirs['base_work_dir'])
+            'CCACHE_BASEDIR', "") % (base_dir=dirs['base_work_dir'],)
         ccache_env = self.query_env(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
                          cwd=dirs['abs_work_dir'],
@@ -79,7 +78,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self.fatal(ERROR_MSGS['undetermined_old_package'])
 
         for product in old_packages:
-            cmd.append(product.format(objdir=objdir))
+            cmd.append(product % (objdir=objdir,))
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
@@ -132,4 +131,3 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def build(self):
         """build application"""
-

@@ -52,7 +52,7 @@ config = {
 
     'enable_ccache': True,
     'ccache_env': {
-        'CCACHE_BASEDIR': "{base_dir}",
+        'CCACHE_BASEDIR': "%(base_dir)s",
         'CCACHE_COMPRESS': '1',
         'CCACHE_DIR': '/builds/ccache',
         'CCACHE_HASHDIR': '',
@@ -69,10 +69,10 @@ config = {
 
     'objdir': 'obj-firefox',
     'old_packages': [
-        "{objdir}/dist/firefox-*",
-        "{objdir}/dist/fennec*",
-        "{objdir}/dist/seamonkey*",
-        "{objdir}/dist/thunderbird*",
-        "{objdir}/dist/install/sea/*.exe"
+        "%(objdir)s/dist/firefox-*",
+        "%(objdir)s/dist/fennec*",
+        "%(objdir)s/dist/seamonkey*",
+        "%(objdir)s/dist/thunderbird*",
+        "%(objdir)s/dist/install/sea/*.exe"
     ]
 }

@@ -9,7 +9,7 @@ config = {
         'read-buildbot-config',
         'clobber',
         'setup-mock',
-        'checkout-sources',
+        'checkout-source',
         'build'
     ],
 

@@ -62,7 +62,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self.fatal(ERROR_MSGS['undetermined_ccache_env'])
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
-            'CCACHE_BASEDIR', "") % (base_dir=dirs['base_work_dir'],)
+            'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
         ccache_env = self.query_env(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
                          cwd=dirs['abs_work_dir'],
@@ -78,7 +78,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self.fatal(ERROR_MSGS['undetermined_old_package'])
 
         for product in old_packages:
-            cmd.append(product % (objdir=objdir,))
+            cmd.append(product % {"objdir": objdir})
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
@@ -118,9 +118,13 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def checkout_source(self):
         """use vcs_checkout to grab source needed for build"""
+        c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
         rev = self.vcs_checkout(repo=repo, dest=dirs['src'])
+        self.info("Revision from checked out repo is: %s" % (rev,))
+        if c.get('is_automation'):
+            self.set_buildbot_property('revision', rev, write_to_file=True)
 
     def preflight_build(self):
         """set up machine state for a complete build"""

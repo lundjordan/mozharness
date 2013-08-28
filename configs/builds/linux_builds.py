@@ -63,7 +63,7 @@ config = {
     "hgtool_base_mirror_urls": [
         "http://hg-internal.dmz.scl3.mozilla.com"
     ],
-    "hgtool_base_mirror_urls": [
+    "hgtool_base_bundle_urls": [
         "http://ftp.mozilla.org/pub/mozilla.org/firefox/bundles"
     ],
 

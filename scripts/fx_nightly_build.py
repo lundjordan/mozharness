@@ -49,6 +49,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             'config': self.default_config_for_all_platforms(),
         }
         super(FxNightlyBuild, self).__init__(**basescript_kwargs)
+        self.repo_path = None
 
     # helpers
 

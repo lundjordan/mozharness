@@ -41,6 +41,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'read-buildbot-config',
                 'clobber',
                 'setup-mock',
+                'checkout-sources',
                 'build'
             ],
             'require_config_file': require_config_file,

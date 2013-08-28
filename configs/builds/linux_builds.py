@@ -59,7 +59,7 @@ config = {
         'CCACHE_UMASK': '002',
     },
 
-    'vcs_share_base': '/builds/hg-shared'
+    'vcs_share_base': '/builds/hg-shared',
     "hgtool_base_mirror_urls": [
         "http://hg-internal.dmz.scl3.mozilla.com"
     ],

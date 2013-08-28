@@ -20,24 +20,72 @@ ERROR_MSGS = {
     'undetermined_ccache_env': 'ccache_env could not be determined. \
 Please add this to your config.',
     'undetermined_old_package': 'The old package could not be determined. \
-Please add an "objdir" and "old_packages" to your config.'
+Please add an "objdir" and "old_packages" to your config.',
+    'undetermined_repo_path': 'The repo_path could not be determined. \
+Please make sure there is a "repo_path" in either your config or a \
+buildbot_config.'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
-    def skip_buildbot_specific_action(self):
+    # TODO query_repo is basically a copy from B2GBuild, maybe get B2GBuild to
+    # inherit from BuildingMixin after buildbase's generality is more defined?
+    def _query_repo(self):
+        if self.repo_path:
+            return self.repo_path
+
+        repo_path = ''
+        if self.buildbot_config and 'properties' in self.buildbot_config:
+            buildbot_repo = self.buildbot_config['properties'].get('repo_path')
+            repo_path = 'http://hg.mozilla.org/{}'.format(buildbot_repo)
+        else:
+            repo_path = self.config.get('repo')
+        if not repo_path:
+            self.fatal(ERROR_MSGS['undetermined_repo_path'])
+        self.repo_path = repo_path
+        return self.repo_path
+
+    def _skip_buildbot_specific_action(self):
         """ignores actions that only should happen within
         buildbot's infrastructure"""
         self.info("This action is specific to buildbot's infrastructure")
         self.info("Skipping......")
         return
 
+    def _ccache_z(self):
+        """clear ccache stats"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('ccache_env'):
+            self.fatal(ERROR_MSGS['undetermined_ccache_env'])
+
+        c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
+            'CCACHE_BASEDIR', "").format(base_dir=dirs['base_work_dir'])
+        ccache_env = self.query_env(c['ccache_env'])
+        self.run_command(command=['ccache', '-z'],
+                         cwd=dirs['abs_work_dir'],
+                         env=ccache_env)
+
+    def _rm_old_package(self):
+        """rm the old package"""
+        c = self.config
+        cmd = ["rm", "-rf"]
+        objdir = c.get('objdir')
+        old_packages = c.get('old_packages')
+        if not objdir or not old_packages:
+            self.fatal(ERROR_MSGS['undetermined_old_package'])
+
+        for product in old_packages:
+            cmd.append(product.format(objdir=objdir))
+        self.info("removing old packages...")
+        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
+
     def read_buildbot_config(self):
         c = self.config
         if not c.get('is_automation'):
-            return self.skip_buildbot_specific_action()
+            return self._skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
 
     def setup_mock(self):
@@ -68,33 +116,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
         self.done_mock_setup = True
 
-    def _ccache_z(self):
-        """clear ccache stats"""
-        c = self.config
+    def checkout_source(self):
+        """use vcs_checkout to grab source needed for build"""
         dirs = self.query_abs_dirs()
-        if not c.get('ccache_env'):
-            self.fatal(ERROR_MSGS['undetermined_ccache_env'])
-
-        c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
-            'CCACHE_BASEDIR', "").format(base_dir=dirs['base_work_dir'])
-        ccache_env = self.query_env(c['ccache_env'])
-        self.run_command(command=['ccache', '-z'],
-                         cwd=dirs['abs_work_dir'],
-                         env=ccache_env)
-
-    def _rm_old_package(self):
-        """rm the old package"""
-        c = self.config
-        cmd = ["rm", "-rf"]
-        objdir = c.get('objdir')
-        old_packages = c.get('old_packages')
-        if not objdir or not old_packages:
-            self.fatal(ERROR_MSGS['undetermined_old_package'])
-
-        for product in old_packages:
-            cmd.append(product.format(objdir=objdir))
-        self.info("removing old packages...")
-        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
+        repo = self._query_repo()
+        rev = self.vcs_checkout(repo=repo, dest=dirs['src'])
 
     def preflight_build(self):
         """set up machine state for a complete build"""
@@ -105,39 +131,4 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def build(self):
         """build application"""
-        self.info('WAT, YOU MADE IT HERE?'
-                  'BUT I THOUGHT I MADE IT TOO HARD FOR YOU? MUAHAHAH')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # def check_previous_clobberer_times(self):
-    #     """prints history of clobber dates"""
-    #     c = self.config
-    #     if c.get('developer_run'):
-    #         return self.skip_buildbot_specific_action()
-    #     # clobberer defined in MercurialScript -> VCSScript -> BaseScript
-    #     # since most mozharnesss scripts have a 'clobber' action, let's
-    #     # give 'clobberer' a more more explicit name
-    #     self.info('made it here')
-    #     super(BuildingMixin, self).clobberer()
-
-    # def clobber(self):
-    #     """prints history of clobber dates and purge builds"""
-    #     c = self.config
-    #     dirs = self.query_abs_base_dirs()
-    #     if c.get('is_automation'):
-    #         return self.skip_buildbot_specific_action()
-
-    #     # purge_builds calls clobberer if 'clobberer_url' in self.config
-    #     super(PurgeMixin, self).clobber()

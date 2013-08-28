@@ -62,11 +62,26 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # see PurgeMixin for clobber() conditions
             'is_automation': True,
 
-            # we wish to clobberer
-            'clobberer_url': clobberer_url,
-            'periodic_clobber': 168  # default anyway but can be overwritten
+            'clobberer_url': clobberer_url,  # we wish to clobberer
+            'periodic_clobber': 168,  # default anyway but can be overwritten
+
+            # hg tool stuff
+            'default_vcs': 'hgtool',
         }
 
+    def query_abs_dirs(self):
+        if self.abs_dirs:
+            return self.abs_dirs
+        abs_dirs = super(FxNightlyBuild, self).query_abs_dirs()
+
+        c = self.config
+        dirs = {
+            'src': os.path.join(c['work_dir'], 'mozilla-central'),
+        }
+        abs_dirs.update(dirs)
+
+        self.abs_dirs = abs_dirs
+        return self.abs_dirs
 
     # Actions {{{2
     # read_buildbot_config in BuildingMixin

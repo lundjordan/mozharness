@@ -39,6 +39,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         repo_path = ''
         if self.buildbot_config and 'properties' in self.buildbot_config:
             buildbot_repo = self.buildbot_config['properties'].get('repo_path')
+            self.info("RSTRSTRSTRTRTR" + buildbot_repo)
             repo_path = 'http://hg.mozilla.org/{}'.format(buildbot_repo)
         else:
             repo_path = self.config.get('repo')

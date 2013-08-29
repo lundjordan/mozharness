@@ -152,7 +152,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         repo = self._query_repo()
         rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src'])
         if c.get('is_automation'):
-            changes = self.get.buildbot_config['sourcestamp']['changes']
+            changes = self.buildbot_config['sourcestamp']['changes']
             if changes:
                 comments = changes[0].get('comments', '')
             self.set_buildbot_property('got_revision', rev, write_to_file=True)
@@ -170,3 +170,9 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def build(self):
         """build application"""
+        c = self.config
+        env = self.query_env()
+        dirs = self.query_abs_dirs()
+
+
+

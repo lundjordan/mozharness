@@ -30,7 +30,9 @@ buildbot_config.',
 determined. Please add this to your config and make sure it is a valid path \
 off of "abs_src_dir"',
     'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
-Please add this to your config or else add a local "src_mozconfig" path.'
+Please add this to your config or else add a local "src_mozconfig" path.',
+    'comments_undetermined': '"comments" could not be determined. This may be \
+because it was a forced build.'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -155,10 +157,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             changes = self.buildbot_config['sourcestamp']['changes']
             if changes:
                 comments = changes[0].get('comments', '')
+                self.set_buildbot_property('comments',
+                                           comments,
+                                           write_to_file=True)
+            else:
+                self.warning(ERROR_MSGS['comments_undetermined'])
             self.set_buildbot_property('got_revision', rev, write_to_file=True)
-            self.set_buildbot_property('comments',
-                                       comments,
-                                       write_to_file=True)
 
     def preflight_build(self):
         """set up machine state for a complete build"""
@@ -170,9 +174,13 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def build(self):
         """build application"""
-        c = self.config
-        env = self.query_env()
-        dirs = self.query_abs_dirs()
+        # c = self.config
+        # env = self.query_env()
+        # dirs = self.query_abs_dirs()
+        # mock_target = c.get('mock_target')
+        # cmd = ['make', '-f', 'client.mk', 'build']
+
+        # self.run_mock_command(mock_target, cmd, '/')
 
 
 

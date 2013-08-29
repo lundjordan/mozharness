@@ -32,7 +32,7 @@ off of "abs_src_dir"',
     'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
 Please add this to your config or else add a local "src_mozconfig" path.',
     'comments_undetermined': '"comments" could not be determined. This may be \
-because it was a forced build.'
+because it was a forced build.',
     'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
 Skipping run_tooltool...'
 

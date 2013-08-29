@@ -74,5 +74,9 @@ config = {
         "%(objdir)s/dist/seamonkey*",
         "%(objdir)s/dist/thunderbird*",
         "%(objdir)s/dist/install/sea/*.exe"
-    ]
+    ],
+    # TODO support both 32 and 64 bit here
+    'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly'
+    'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
+production/mozilla2/linux64/mozilla-central/nightly/mozconfig'
 }

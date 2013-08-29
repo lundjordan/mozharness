@@ -10,6 +10,8 @@ provides a base class for fx desktop builds
 author: Jordan Lund
 """
 
+import os
+
 # import mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
 from mozharness.mozilla.purge import PurgeMixin
@@ -23,7 +25,12 @@ Please add this to your config.',
 Please add an "objdir" and "old_packages" to your config.',
     'undetermined_repo_path': 'The repo_path could not be determined. \
 Please make sure there is a "repo_path" in either your config or a \
-buildbot_config.'
+buildbot_config.',
+    'src_mozconfig_path_not_found': 'The "src_mozconfig" path could not be \
+determined. Please add this to your config and make sure it is a valid path \
+off of "abs_src_dir"',
+    'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
+Please add this to your config or else add a local "src_mozconfig" path.'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -82,6 +89,28 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
+    def _get_mozconfig(self):
+        """assigns mozconfig"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if c.get('src_mozconfig'):
+            self.info('Using in-tree mozconfig')
+            abs_src_mozconfig = os.path.join(dirs['abs_src'],
+                                             c.get('src_mozconfig'))
+            if not os.path.exists(abs_src_mozconfig):
+                self.fatal(ERROR_MSGS['src_mozconfig_path_not_found'])
+            self.copyfile(abs_src_mozconfig,
+                          os.path.join(dirs['abs_src'], '.mozconfig'))
+        else:
+            self.info('Downloading mozconfig')
+            hg_mozconfig_url = c.get('hg_mozconfig')
+            if not hg_mozconfig_url:
+                self.fatal(ERROR_MSGS['hg_mozconfig_undetermined'])
+            self.download_file(hg_mozconfig_url,
+                               '.mozconfig',
+                               dirs['abs_src'])
+        self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src'])
+
     def read_buildbot_config(self):
         c = self.config
         if not c.get('is_automation'):
@@ -121,10 +150,15 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
-        rev = self.vcs_checkout(repo=repo, dest=dirs['src'])
-        self.info("Revision from checked out repo is: %s" % (rev,))
+        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src'])
         if c.get('is_automation'):
-            self.set_buildbot_property('revision', rev, write_to_file=True)
+            changes = self.get.buildbot_config['sourcestamp']['changes']
+            if changes:
+                comments = changes[0].get('comments', '')
+            self.set_buildbot_property('got_revision', rev, write_to_file=True)
+            self.set_buildbot_property('comments',
+                                       comments,
+                                       write_to_file=True)
 
     def preflight_build(self):
         """set up machine state for a complete build"""
@@ -132,6 +166,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         if c.get('enable_ccache'):
             self._ccache_z()
         self._rm_old_package()
+        self._get_mozconfig()
 
     def build(self):
         """build application"""

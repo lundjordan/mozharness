@@ -2,12 +2,13 @@
 
 config = {
     # for def pull()
-    # "repos": [{"repo": "http://hg.mozilla.org/build/tools"}],
+    "repos": [{"repo": "http://hg.mozilla.org/build/tools"}],
     "buildbot_json_path": "buildprops.json",
 
     'default_actions': [
         'read-buildbot-config',
         'clobber',
+        'pull',
         'setup-mock',
         'checkout-source',
         'build'
@@ -66,10 +67,18 @@ config = {
         'SYMBOL_SERVER_HOST': "symbolpush.mozilla.org",
         'CCACHE_DIR': "builds/ccache",
         'POST_SYMBOL_UPLOAD_CMD': "usr/local/bin/post-symbol-upload.py",
-        'MOZ_SIGN_CMD': "python /builds/slave/m-cen-l64-00000000000000000000/tools/release/signing/signtool.py --cachedir /builds/slave/m-cen-l64-00000000000000000000/signing_cache -t /builds/slave/m-cen-l64-00000000000000000000/token -n /builds/slave/m-cen-l64-00000000000000000000/nonce -c /builds/slave/m-cen-l64-00000000000000000000/tools/release/signing/host.cert -H signing4.srv.releng.scl3.mozilla.com:9110 -H signing5.srv.releng.scl3.mozilla.com:9110 -H signing6.srv.releng.scl3.mozilla.com:9110",
+        'MOZ_SIGN_CMD': "python /builds/slave/m-cen-l64-00000000000000000000/\
+tools/release/signing/signtool.py --cachedir /builds/slave/m-cen-l64-\
+00000000000000000000/signing_cache -t /builds/slave/m-cen-l64-\
+00000000000000000000/token -n /builds/slave/m-cen-l64-00000000000000000000/\
+nonce -c /builds/slave/m-cen-l64-00000000000000000000/tools/release/signing/\
+host.cert -H signing4.srv.releng.scl3.mozilla.com:9110 -H signing5.srv.releng.\
+scl3.mozilla.com:9110 -H signing6.srv.releng.scl3.mozilla.com:9110",
         'SYMBOL_SERVER_SSH_KEY': "home/mock_mozilla/.ssh/ffxbld_dsa",
         'DISPLAY': "2",
-        'PATH': "tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/tools/python27-mercurial/bin:/home/cltbld/bin",
+        'PATH': "tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:/usr\
+/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/\
+tools/python27-mercurial/bin:/home/cltbld/bin",
         'CCACHE_BASEDIR': "builds/slave/m-cen-l64-00000000000000000000",
         'TINDERBOX_OUTPUT': "1",
         'SYMBOL_SERVER_PATH': "mnt/netapp/breakpad/symbols_ffx/",
@@ -96,8 +105,16 @@ config = {
         "%(objdir)s/dist/thunderbird*",
         "%(objdir)s/dist/install/sea/*.exe"
     ],
+
     # TODO support both 32 and 64 bit here
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux64/mozilla-central/nightly/mozconfig'
+production/mozilla2/linux64/mozilla-central/nightly/mozconfig',
+
+    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
+releng.manifest",
+    'tooltool_url_list': "http://runtime-binaries.pvt.build.mozilla.org/\
+tooltool",
+    'tooltool_script': "/tools/tooltool.py",
+    'tooltool_bootstrap': "setup.sh",
 }

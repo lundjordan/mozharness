@@ -40,6 +40,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             'all_actions': [
                 'read-buildbot-config',
                 'clobber',
+                'pull',
                 'setup-mock',
                 'checkout-source',
                 'build'
@@ -75,14 +76,13 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         if self.abs_dirs:
             return self.abs_dirs
         abs_dirs = super(FxNightlyBuild, self).query_abs_dirs()
-
         c = self.config
 
         dirs = {
-            'abs_src': os.path.join(c['work_dir'], 'mozilla-central'),
+            'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'], 'mozilla-central'),
+            'abs_tools_dir': os.path.join(abs_dirs['base_work_dir'], 'tools'),
         }
         abs_dirs.update(dirs)
-
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 

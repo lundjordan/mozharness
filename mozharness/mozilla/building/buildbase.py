@@ -12,7 +12,7 @@ author: Jordan Lund
 
 import os
 
-# import mozharness ;)
+# import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
@@ -33,6 +33,9 @@ off of "abs_src_dir"',
 Please add this to your config or else add a local "src_mozconfig" path.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.'
+    'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
+Skipping run_tooltool...'
+
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -97,12 +100,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         dirs = self.query_abs_dirs()
         if c.get('src_mozconfig'):
             self.info('Using in-tree mozconfig')
-            abs_src_mozconfig = os.path.join(dirs['abs_src'],
+            abs_src_mozconfig = os.path.join(dirs['abs_src_dir'],
                                              c.get('src_mozconfig'))
             if not os.path.exists(abs_src_mozconfig):
                 self.fatal(ERROR_MSGS['src_mozconfig_path_not_found'])
             self.copyfile(abs_src_mozconfig,
-                          os.path.join(dirs['abs_src'], '.mozconfig'))
+                          os.path.join(dirs['abs_src_dir'], '.mozconfig'))
         else:
             self.info('Downloading mozconfig')
             hg_mozconfig_url = c.get('hg_mozconfig')
@@ -110,8 +113,24 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
                 self.fatal(ERROR_MSGS['hg_mozconfig_undetermined'])
             self.download_file(hg_mozconfig_url,
                                '.mozconfig',
-                               dirs['abs_src'])
-        self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src'])
+                               dirs['abs_src_dir'])
+        self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src_dir'])
+
+    def _run_tooltool(self):
+        c = self.config
+        dirs = self.query_abs_dirs
+        if not c.get('tooltool_manifest_src'):
+            return self.warning(ERROR_MSGS['tooltool_manifest_undetermined'])
+        f_and_un_path = os.join.path(dirs['abs_tools_dir'],
+                                     'scripts/tooltool/fetch_and_unpack.sh')
+        cmd = [
+            f_and_un_path,
+            c['tooltool_manifest_src'],
+            c['tooltool_url_list'],
+            c['tooltool_script'],
+            c['tooltool_bootstrap'],
+        ]
+        self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
     def read_buildbot_config(self):
         c = self.config
@@ -152,7 +171,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
-        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src'])
+        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src_dir'])
         if c.get('is_automation'):
             changes = self.buildbot_config['sourcestamp']['changes']
             if changes:
@@ -171,6 +190,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
             self._ccache_z()
         self._rm_old_package()
         self._get_mozconfig()
+        self._run_tooltool()
 
     def build(self):
         """build application"""
@@ -181,6 +201,3 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
         # cmd = ['make', '-f', 'client.mk', 'build']
 
         # self.run_mock_command(mock_target, cmd, '/')
-
-
-

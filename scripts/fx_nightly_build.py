@@ -81,7 +81,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         dirs = {
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
                                         'mozilla-central'),
-            'abs_tools_dir': os.path.join(abs_dirs['base_work_dir'], 'tools'),
+            'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
         }
         abs_dirs.update(dirs)
         self.abs_dirs = abs_dirs

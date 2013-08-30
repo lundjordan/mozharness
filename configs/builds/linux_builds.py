@@ -93,6 +93,7 @@ config = {
         'setup-mock',
         'checkout-source',
         'build'
+        'count-ctors'
     ],
 
     # we wish to purge builds

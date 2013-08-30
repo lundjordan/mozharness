@@ -210,8 +210,35 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         env.update({"MOZ_SIGN_CMD": self.query_moz_sign_cmd()})
         cmd = ['make', '-f', 'client.mk', 'build']
         cmd.append('MOZ_BUILD_DATE=%s' % self._query_buildid())
-        self.info(str(cmd) + str(env))
         # self.run_mock_command(mock_target,
         #                       cmd,
         #                       cwd=dirs['abs_src_dir'],
         #                       env=env)
+
+    def count_ctors(self):
+        """count num of ctors and set testresults"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
+                                            '/buildfarm/utils/count_ctors.py')
+        abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
+                                       '/buildfarm/utils/count_ctors.py')
+
+        cmd = ['python', abs_count_ctors_path, abs_libxul_path]
+        self.info(str(cmd))
+        # try:
+        #     output = stdout.split("\t")
+        #     num_ctors = int(output[0])
+        #     testresults = [(
+        #         'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
+        #     self.setBu  dict(num_ctors=num_ctors, testresults=testresults)
+        #     self.set_buildbot_property('num_ctors',
+        #                                 num_ctors,
+        #                                 write_to_file=True)
+        #     self.set_buildbot_property('testresults',
+        #                                 testresults,
+        #                                 write_to_file=True)
+        # except:
+        #     self.set_buildbot_property('testresults',
+        #                                 testresults,
+        #                                 write_to_file=True)

@@ -210,6 +210,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         env.update({"MOZ_SIGN_CMD": self.query_moz_sign_cmd()})
         cmd = 'make -f client.mk build'
         cmd = cmd + ' MOZ_BUILD_DATE=%s' % self._query_buildid()
+        self.info(str(env))
+        self.info(str(cmd))
         self.run_mock_command(mock_target,
                               cmd,
                               cwd=dirs['abs_src_dir'],

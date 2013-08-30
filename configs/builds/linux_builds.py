@@ -40,7 +40,7 @@ tools/python27-mercurial/bin:/home/cltbld/bin'
         'pulseaudio-libs-devel', 'gstreamer-devel',
         'gstreamer-plugins-base-devel', 'freetype-2.3.11-6.el6_1.8.x86_64',
         'freetype-devel-2.3.11-6.el6_1.8.x86_64'
-    ],
+    ]
 else:
     arch_ext = ''
     ENV.update({

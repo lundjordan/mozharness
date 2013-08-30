@@ -125,9 +125,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             return self.warning(ERROR_MSGS['tooltool_manifest_undetermined'])
         f_and_un_path = os.path.join(dirs['abs_tools_dir'],
                                      'scripts/tooltool/fetch_and_unpack.sh')
+        tooltool_manifest_path = os.path.join(dirs['abs_src_dir'],
+                                              c['tooltool_manifest_src'])
         cmd = [
             f_and_un_path,
-            c['tooltool_manifest_src'],
+            tooltool_manifest_path,
             c['tooltool_url_list'],
             c['tooltool_script'],
             c['tooltool_bootstrap'],

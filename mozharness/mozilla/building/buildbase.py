@@ -11,6 +11,7 @@ author: Jordan Lund
 """
 
 import os
+import subprocess
 
 # import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
@@ -207,7 +208,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         dirs = self.query_abs_dirs()
         mock_target = c.get('mock_target')
 
-        env.update({"MOZ_SIGN_CMD": self.query_moz_sign_cmd()})
+        moz_sign_cmd = subprocess.list2cmdline(self.query_moz_sign_cmd())
+        env.update({"MOZ_SIGN_CMD": moz_sign_cmd})
         cmd = 'make -f client.mk build'
         cmd = cmd + ' MOZ_BUILD_DATE=%s' % self._query_buildid()
         self.info(str(env))

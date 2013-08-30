@@ -115,7 +115,7 @@ config = {
     'mock_pre_package_cmds': [
         'mkdir -p /builds/slave/m-cen-lx-000000000000000000000/build'
     ],
-    'mock_packages': [
+    'mock_packages': ARCH_MOCK_PACKAGES + [
         'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',
         'git', 'ccache', 'perl-Test-Simple', 'perl-Config-General',
         'yasm', 'wget',
@@ -127,7 +127,7 @@ config = {
         'yasm', 'ccache',
         ###
         'valgrind'
-    ] + ARCH_MOCK_PACKAGES,
+    ],
 
 
     'enable_ccache': True,

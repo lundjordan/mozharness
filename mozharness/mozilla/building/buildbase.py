@@ -130,10 +130,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         cmd = [
             f_and_un_path,
             tooltool_manifest_path,
-            c['tooltool_url_list'],
+            c['tooltool_url_list'][0],
             c['tooltool_script'],
             c['tooltool_bootstrap'],
         ]
+        self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
     def _query_buildid(self):

@@ -202,18 +202,18 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     def build(self):
         """build application"""
-        # c = self.config
+        c = self.config
         env = self.query_env()
-        # dirs = self.query_abs_dirs()
-        # mock_target = c.get('mock_target')
+        dirs = self.query_abs_dirs()
+        mock_target = c.get('mock_target')
 
         env.update({"MOZ_SIGN_CMD": self.query_moz_sign_cmd()})
         cmd = ['make', '-f', 'client.mk', 'build']
         cmd.append('MOZ_BUILD_DATE=%s' % self._query_buildid())
-        # self.run_mock_command(mock_target,
-        #                       cmd,
-        #                       cwd=dirs['abs_src_dir'],
-        #                       env=env)
+        self.run_mock_command(mock_target,
+                              cmd,
+                              cwd=dirs['abs_src_dir'],
+                              env=env)
 
     def count_ctors(self):
         """count num of ctors and set testresults"""
@@ -222,23 +222,23 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
                                             '/buildfarm/utils/count_ctors.py')
         abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
-                                       '/buildfarm/utils/count_ctors.py')
+                                       'dist/bin/libxul.so')
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
         self.info(str(cmd))
-        # output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
-        # try:
-        #     output = output.split("\t")
-        #     num_ctors = int(output[0])
-        #     testresults = [(
-        #         'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
-        #     self.set_buildbot_property('num_ctors',
-        #                                num_ctors,
-        #                                write_to_file=True)
-        #     self.set_buildbot_property('testresults',
-        #                                testresults,
-        #                                write_to_file=True)
-        # except:
-        #     self.set_buildbot_property('testresults',
-        #                                testresults,
-        #                                write_to_file=True)
+        output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
+        try:
+            output = output.split("\t")
+            num_ctors = int(output[0])
+            testresults = [(
+                'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
+            self.set_buildbot_property('num_ctors',
+                                       num_ctors,
+                                       write_to_file=True)
+            self.set_buildbot_property('testresults',
+                                       testresults,
+                                       write_to_file=True)
+        except:
+            self.set_buildbot_property('testresults',
+                                       testresults,
+                                       write_to_file=True)

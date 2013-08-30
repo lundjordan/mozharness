@@ -161,7 +161,7 @@ config = {
 production/mozilla2/linux/mozilla-central/nightly/mozconfig',
 
     # TODO XXX manifest differs on bits
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux/\
+    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",
     'tooltool_url_list': [
         "http://runtime-binaries.pvt.build.mozilla.org/tooltool"

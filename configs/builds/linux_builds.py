@@ -1,6 +1,5 @@
 #### architecture differences ####
 # TODO ADD THE BITS TO SCRIPT ARGS
-arch_ext = ''
 
 ENV = {
     'DISPLAY': ':2',
@@ -155,12 +154,14 @@ config = {
         "%(objdir)s/dist/install/sea/*.exe"
     ],
 
-    'src_mozconfig': 'browser/config/mozconfigs/linux%s/nightly' % (arch_ext,),
+    # TODO XXX MOZCONFIG PATHS DIFFER DEPENDING ON BITS
+    'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux%s/mozilla-central/nightly/mozconfig' % (arch_ext,),
+production/mozilla2/linux/mozilla-central/nightly/mozconfig',
 
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux%s/\
-releng.manifest" % (arch_ext,),
+    # TODO XXX manifest differs on bits
+    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux/\
+releng.manifest",
     'tooltool_url_list': [
         "http://runtime-binaries.pvt.build.mozilla.org/tooltool"
     ],

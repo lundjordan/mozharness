@@ -16,6 +16,7 @@ import os
 from mozharness.mozilla.buildbot import BuildbotMixin
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
+from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 
 ERROR_MSGS = {
@@ -40,7 +41,8 @@ Skipping run_tooltool...'
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
 
-class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
+class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
+                    object):
 
     # TODO query_repo is basically a copy from B2GBuild, maybe get B2GBuild to
     # inherit from BuildingMixin after buildbase's generality is more defined?
@@ -194,10 +196,14 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, object):
 
     def build(self):
         """build application"""
-        # c = self.config
-        # env = self.query_env()
-        # dirs = self.query_abs_dirs()
-        # mock_target = c.get('mock_target')
-        # cmd = ['make', '-f', 'client.mk', 'build']
+        c = self.config
+        env = self.query_env()
+        dirs = self.query_abs_dirs()
+        mock_target = c.get('mock_target')
 
-        # self.run_mock_command(mock_target, cmd, '/')
+        env.update("MOZ_SIGN_CMD": self.query_moz_sign_cmd())
+        cmd = ['make', '-f', 'client.mk', 'build']
+        self.run_mock_command(mock_target,
+                              cmd,
+                              cwd=dirs['abs_src_dir'],
+                              env=env)

@@ -51,6 +51,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         }
         super(FxNightlyBuild, self).__init__(**basescript_kwargs)
         self.repo_path = None
+        self.buildid = None
 
     # helpers
 
@@ -76,10 +77,10 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         if self.abs_dirs:
             return self.abs_dirs
         abs_dirs = super(FxNightlyBuild, self).query_abs_dirs()
-        c = self.config
 
         dirs = {
-            'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'], 'mozilla-central'),
+            'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
+                                        'mozilla-central'),
             'abs_tools_dir': os.path.join(abs_dirs['base_work_dir'], 'tools'),
         }
         abs_dirs.update(dirs)

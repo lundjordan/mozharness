@@ -134,6 +134,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         ]
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
+    def _query_buildid(self):
+        if self.buildid:
+            return self.buildid
+        self.buildid = self.buildbot_config['properties'].get('buildid', '')
+        return self.buildid
+
     def read_buildbot_config(self):
         c = self.config
         if not c.get('is_automation'):
@@ -149,22 +155,19 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
         c = self.config
         mock_target = c.get('mock_target')
-        mock_pre_package_copy_files = c.get('mock_pre_package_copy_files')
-        mock_pre_package_cmds = c.get('mock_pre_package_cmds')
-        mock_packages = c.get('mock_packages')
 
         if not mock_target:
             self.fatal(MOCK_ERROR_MSGS['undetermined_mock_target'])
 
         self.reset_mock(mock_target)
         self.init_mock(mock_target)
-        if mock_pre_package_copy_files:
-            self.copy_mock_files(mock_target, mock_pre_package_copy_files)
-        if mock_pre_package_cmds:
-            for cmd in mock_pre_package_cmds:
-                self.run_mock_command(mock_target, cmd, '/')
-        if mock_packages:
-            self.install_mock_packages(mock_target, mock_packages)
+        if c.get('mock_pre_package_copy_files'):
+            self.copy_mock_files(mock_target,
+                                 c.get('mock_pre_package_copy_files'))
+        for cmd in c.get('mock_pre_package_cmds', []):
+            self.run_mock_command(mock_target, cmd, '/')
+        if c.get('mock_packages'):
+            self.install_mock_packages(mock_target, c.get('mock_packages'))
 
         self.done_mock_setup = True
 
@@ -196,14 +199,16 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     def build(self):
         """build application"""
-        c = self.config
+        # c = self.config
         env = self.query_env()
-        dirs = self.query_abs_dirs()
-        mock_target = c.get('mock_target')
+        # dirs = self.query_abs_dirs()
+        # mock_target = c.get('mock_target')
 
-        env.update("MOZ_SIGN_CMD": self.query_moz_sign_cmd())
+        env.update({"MOZ_SIGN_CMD": self.query_moz_sign_cmd()})
         cmd = ['make', '-f', 'client.mk', 'build']
-        self.run_mock_command(mock_target,
-                              cmd,
-                              cwd=dirs['abs_src_dir'],
-                              env=env)
+        cmd.append('MOZ_BUILD_DATE=%s' % self._query_buildid())
+        self.info(str(cmd) + str(env))
+        # self.run_mock_command(mock_target,
+        #                       cmd,
+        #                       cwd=dirs['abs_src_dir'],
+        #                       env=env)

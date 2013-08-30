@@ -43,7 +43,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'pull',
                 'setup-mock',
                 'checkout-source',
-                'build'
+                'build',
+                'count-ctors'
             ],
             'require_config_file': require_config_file,
             # Default configuration

@@ -92,7 +92,7 @@ config = {
         'pull',
         'setup-mock',
         'checkout-source',
-        'build'
+        'build',
         'count-ctors'
     ],
 

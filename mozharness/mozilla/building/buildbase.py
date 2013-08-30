@@ -226,19 +226,19 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
         self.info(str(cmd))
+        # output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
         # try:
-        #     output = stdout.split("\t")
+        #     output = output.split("\t")
         #     num_ctors = int(output[0])
         #     testresults = [(
         #         'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
-        #     self.setBu  dict(num_ctors=num_ctors, testresults=testresults)
         #     self.set_buildbot_property('num_ctors',
-        #                                 num_ctors,
-        #                                 write_to_file=True)
+        #                                num_ctors,
+        #                                write_to_file=True)
         #     self.set_buildbot_property('testresults',
-        #                                 testresults,
-        #                                 write_to_file=True)
+        #                                testresults,
+        #                                write_to_file=True)
         # except:
         #     self.set_buildbot_property('testresults',
-        #                                 testresults,
-        #                                 write_to_file=True)
+        #                                testresults,
+        #                                write_to_file=True)

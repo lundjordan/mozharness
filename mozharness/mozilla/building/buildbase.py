@@ -224,7 +224,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         c = self.config
         dirs = self.query_abs_dirs()
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
-                                            '/buildfarm/utils/count_ctors.py')
+                                            'buildfarm/utils/count_ctors.py')
         abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
                                        'dist/bin/libxul.so')
 

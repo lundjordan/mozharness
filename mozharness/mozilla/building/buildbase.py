@@ -120,7 +120,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     def _run_tooltool(self):
         c = self.config
-        dirs = self.query_abs_dirs
+        dirs = self.query_abs_dirs()
         if not c.get('tooltool_manifest_src'):
             return self.warning(ERROR_MSGS['tooltool_manifest_undetermined'])
         f_and_un_path = os.path.join(dirs['abs_tools_dir'],

@@ -219,6 +219,31 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                               cwd=dirs['abs_src_dir'],
                               env=env)
 
+    def postflight_build(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
+                                               'config/printconfigsetting.py')
+        application_ini_path = os.path.join(dirs['abs_src_dir'],
+                                            c['objdir'],
+                                            'dist/bin/application.ini')
+        cmd = [
+            'python', print_conf_setting_path, application_ini_path,
+            'App', 'BuildID'
+        ]
+        buildid = self.get_output_from_command(cmd, cwd=dirs['abs_base_dir'])
+        self.set_buildbot_property('buildid',
+                                   buildid,
+                                   write_to_file=True)
+        cmd = [
+            'python', print_conf_setting_path, application_ini_path,
+            'App', 'SourceStamp'
+        ]
+        sourcestamp = self.get_output_from_command(cmd, cwd=dirs['abs_base_dir'])
+        self.set_buildbot_property('sourcestamp',
+                                   sourcestamp,
+                                   write_to_file=True)
+
     def count_ctors(self):
         """count num of ctors and set testresults"""
         c = self.config

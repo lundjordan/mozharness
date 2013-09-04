@@ -37,7 +37,6 @@ Please add this to your config or else add a local "src_mozconfig" path.',
 because it was a forced build.',
     'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
 Skipping run_tooltool...'
-
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -119,6 +118,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                                dirs['abs_src_dir'])
         self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src_dir'])
 
+    # TODO add this / or merge with ToolToolMixin
     def _run_tooltool(self):
         c = self.config
         dirs = self.query_abs_dirs()
@@ -137,6 +137,57 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         ]
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
+
+    def _count_ctors(self):
+        """count num of ctors and set testresults"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
+                                            'buildfarm/utils/count_ctors.py')
+        abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
+                                       'dist/bin/libxul.so')
+
+        cmd = ['python', abs_count_ctors_path, abs_libxul_path]
+        self.info(str(cmd))
+        output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
+        try:
+            output = output.split("\t")
+            num_ctors = int(output[0])
+            testresults = [(
+                'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
+            self.set_buildbot_property('num_ctors',
+                                       num_ctors,
+                                       write_to_file=True)
+            self.set_buildbot_property('testresults',
+                                       testresults,
+                                       write_to_file=True)
+        except:
+            self.set_buildbot_property('testresults',
+                                       testresults,
+                                       write_to_file=True)
+
+    def _set_buildid_and_sourcestamp(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
+                                               'config/printconfigsetting.py')
+        application_ini_path = os.path.join(dirs['abs_src_dir'],
+                                            c['objdir'],
+                                            'dist/bin/application.ini')
+        base_cmd = [
+            'python', print_conf_setting_path, application_ini_path, 'App'
+        ]
+        self.buildid = self.get_output_from_command(base_cmd + 'BuildID',
+                                                    cwd=dirs['abs_base_dir'])
+        self.sourcestamp = self.get_output_from_command(
+            base_cmd + 'SourceStamp', cwd=dirs['abs_base_dir']
+        )
+        self.set_buildbot_property('buildid',
+                                   self.buildid,
+                                   write_to_file=True)
+        self.set_buildbot_property('sourcestamp',
+                                   self.sourcestamp,
+                                   write_to_file=True)
 
     def _query_gragh_server_branch_name(self):
         # XXX TODO not sure if this is what I should do here. We need the
@@ -190,7 +241,19 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         cmd.extend(['--sourcestamp', self.sourestamp])
         cmd.extend(['--resultsname', resultsname])
         cmd.extend(['--properties-file', 'properties.json'])
-        cmd.extend(['--timestamp', "TODO START HERE"])
+        cmd.extend(['--timestamp', self.epoch_timestamp])
+
+        self.info("Obtaining graph server post results")
+        # TODO buildbot puts this cmd through retry:
+        # tools/buildfarm/utils/retry.py -s 5 -t 120 -r 8
+        # Find out if I should do the same here
+        result_code = self.run_command(cmd, cwd=dirs['abs_src_dir'])
+        # TODO find out if this translates to the same from this file:
+        # http://mxr.mozilla.org/build/source/buildbotcustom/steps/test.py#73
+        if result_code != 0:
+            self.error('Automation Error: failed graph server post')
+        else:
+            self.info("graph server post ok")
 
     def read_buildbot_config(self):
         c = self.config
@@ -269,59 +332,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                               cwd=dirs['abs_src_dir'],
                               env=env)
 
-    def postflight_build(self):
-        c = self.config
-        dirs = self.query_abs_dirs()
-        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
-                                               'config/printconfigsetting.py')
-        application_ini_path = os.path.join(dirs['abs_src_dir'],
-                                            c['objdir'],
-                                            'dist/bin/application.ini')
-        buildid_cmd = [
-            'python', print_conf_setting_path, application_ini_path,
-            'App', 'BuildID'
-        ]
-        self.buildid = self.get_output_from_command(buildid_cmd,
-                                                    cwd=dirs['abs_base_dir'])
-        self.set_buildbot_property('buildid',
-                                   self.buildid,
-                                   write_to_file=True)
-        srcstamp_cmd = [
-            'python', print_conf_setting_path, application_ini_path,
-            'App', 'SourceStamp'
-        ]
-        self.sourcestamp = self.get_output_from_command(
-            srcstamp_cmd, cwd=dirs['abs_base_dir']
-        )
-        self.set_buildbot_property('sourcestamp',
-                                   self.sourcestamp,
-                                   write_to_file=True)
+    def generate_build_stats(self):
+        self._set_buildid_and_sourcestamp()
         self._graph_server_post()
 
-    def count_ctors(self):
-        """count num of ctors and set testresults"""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
-                                            'buildfarm/utils/count_ctors.py')
-        abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
-                                       'dist/bin/libxul.so')
-
-        cmd = ['python', abs_count_ctors_path, abs_libxul_path]
-        self.info(str(cmd))
-        output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
-        try:
-            output = output.split("\t")
-            num_ctors = int(output[0])
-            testresults = [(
-                'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
-            self.set_buildbot_property('num_ctors',
-                                       num_ctors,
-                                       write_to_file=True)
-            self.set_buildbot_property('testresults',
-                                       testresults,
-                                       write_to_file=True)
-        except:
-            self.set_buildbot_property('testresults',
-                                       testresults,
-                                       write_to_file=True)

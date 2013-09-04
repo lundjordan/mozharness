@@ -13,6 +13,8 @@ author: Jordan Lund
 
 import sys
 import os
+import time
+from datetime import datetime
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
@@ -44,7 +46,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'setup-mock',
                 'checkout-source',
                 'build',
-                'count-ctors'
+                'generate-build-stats',
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -54,6 +56,11 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         self.repo_path = None
         self.buildid = None
         self.sourcestamp = None
+        # TODO this is only here to represent the start of the buildbot build
+        # that this mozharn script came from. until I can grab bbot's
+        # status.build.gettime()[0] this will have to do
+        # (seems unnecessary as a script arg: --build-starttime)
+        self.epoch_timestamp = time.mktime(datetime.now().timetuple())
 
     # helpers
 
@@ -73,6 +80,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
 
             # hg tool stuff
             'default_vcs': 'hgtool',
+
+            'count_ctors': False,
         }
 
     def query_abs_dirs(self):

@@ -93,7 +93,7 @@ config = {
         'setup-mock',
         'checkout-source',
         'build',
-        'count-ctors'
+        'generate-build-stats',
     ],
 
     # we wish to purge builds
@@ -168,6 +168,9 @@ releng.manifest",
     ],
     'tooltool_script': "/tools/tooltool.py",
     'tooltool_bootstrap': "setup.sh",
+
+    # in linux we count ctors
+    'count_ctors': True,
 
     'graph_server': 'graphs.allizom.org',
     'graph_selector': '/server/collect.cgi',

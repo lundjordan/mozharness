@@ -53,6 +53,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         super(FxNightlyBuild, self).__init__(**basescript_kwargs)
         self.repo_path = None
         self.buildid = None
+        self.sourcestamp = None
 
     # helpers
 

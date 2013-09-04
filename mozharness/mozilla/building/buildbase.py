@@ -138,11 +138,59 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
-    def _query_buildid(self):
-        if self.buildid:
-            return self.buildid
-        self.buildid = self.buildbot_config['properties'].get('buildid', '')
-        return self.buildid
+    def _query_gragh_server_branch_name(self):
+        # XXX TODO not sure if this is what I should do here. We need the
+        # graphBranch name which, in misc.py, we define as:
+# http://hg.mozilla.org/build/buildbotcustom/file/9620bbcc6485/misc.py#l1167
+        # 'graphBranch': config.get('graph_branch',
+        #                           config.get('tinderbox_tree', None))
+        # from what I can tell, this always relies on tinderbox_tree (not
+        # graph_branch) where the logic goes:
+        # if we are staging/preproduction (eg: mozilla/staging_config.py)
+        #   tinderbox_tree = 'MozillaTest'
+        # if we are in production (eg: mozilla/production_config.py)
+        #   if branch is 'mozilla-central':
+        #       tinderbox_tree = 'Firefox'
+        #   else for example say branch is 'mozilla-release':
+        #           tinderbox_tree = 'Mozilla-Release'
+        # If my logic is right, we have three options. 1) add 'tinderbox_tree'
+        # to buildbot_config 2) add a dict to self.config that holds all branch
+        # keys and assotiated tinderbox_tree values 3) do what I am doing below
+
+        # XXX not sure if this is the best way to determine staging/preprod
+        if 'dev-master' in self.buildbot_config['properties']['master']:
+            return 'MozillaTest'
+
+        # XXX more hacky shtuff
+        branch = self.buildbot_config['sourcestamp']['branch']
+        if branch is 'mozilla-central':
+            return 'Firefox'
+        else:
+            # capitalize every word inbetween '-'
+            branch_list = branch.split('-')
+            branch_list = [elem.capitalize() for elem in branch_list]
+            return '-'.join(branch_list)
+
+    def _graph_server_post(self):
+        """graph server post results"""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        graph_server_post_path = os.path.join(dirs['abs_tools_dir'],
+                                              'buildfarm',
+                                              'utils',
+                                              'graph_server_post.py')
+        branch = self.buildbot_config['properties']['branch']
+        resultsname = c['base_name'] % (branch,)
+        resultsname = resultsname.replace(' ', '_')
+        cmd = ['python', graph_server_post_path]
+        cmd.extend(['--server', c['graph_server']])
+        cmd.extend(['--selector', c['gragh_selector']])
+        cmd.extend(['--branch', self._query_gragh_server_branch_name()])
+        cmd.extend(['--buildid', self.buildid])
+        cmd.extend(['--sourcestamp', self.sourestamp])
+        cmd.extend(['--resultsname', resultsname])
+        cmd.extend(['--properties-file', 'properties.json'])
+        cmd.extend(['--timestamp', "TODO START HERE"])
 
     def read_buildbot_config(self):
         c = self.config
@@ -211,7 +259,9 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         moz_sign_cmd = subprocess.list2cmdline(self.query_moz_sign_cmd())
         env.update({"MOZ_SIGN_CMD": moz_sign_cmd})
         cmd = 'make -f client.mk build'
-        cmd = cmd + ' MOZ_BUILD_DATE=%s' % self._query_buildid()
+        buildbot_buildid = self.buildbot_config['properties'].get('buildid',
+                                                                  '')
+        cmd = cmd + ' MOZ_BUILD_DATE=%s' % buildbot_buildid
         self.info(str(env))
         self.info(str(cmd))
         self.run_mock_command(mock_target,
@@ -227,22 +277,26 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         application_ini_path = os.path.join(dirs['abs_src_dir'],
                                             c['objdir'],
                                             'dist/bin/application.ini')
-        cmd = [
+        buildid_cmd = [
             'python', print_conf_setting_path, application_ini_path,
             'App', 'BuildID'
         ]
-        buildid = self.get_output_from_command(cmd, cwd=dirs['abs_base_dir'])
+        self.buildid = self.get_output_from_command(buildid_cmd,
+                                                    cwd=dirs['abs_base_dir'])
         self.set_buildbot_property('buildid',
-                                   buildid,
+                                   self.buildid,
                                    write_to_file=True)
-        cmd = [
+        srcstamp_cmd = [
             'python', print_conf_setting_path, application_ini_path,
             'App', 'SourceStamp'
         ]
-        sourcestamp = self.get_output_from_command(cmd, cwd=dirs['abs_base_dir'])
+        self.sourcestamp = self.get_output_from_command(
+            srcstamp_cmd, cwd=dirs['abs_base_dir']
+        )
         self.set_buildbot_property('sourcestamp',
-                                   sourcestamp,
+                                   self.sourcestamp,
                                    write_to_file=True)
+        self._graph_server_post()
 
     def count_ctors(self):
         """count num of ctors and set testresults"""

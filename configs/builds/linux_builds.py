@@ -168,4 +168,9 @@ releng.manifest",
     ],
     'tooltool_script': "/tools/tooltool.py",
     'tooltool_bootstrap': "setup.sh",
+
+    'graph_server': 'graphs.allizom.org',
+    'graph_selector': '/server/collect.cgi',
+    'graph_branch': 'MozillaTest',
+    'base_name': 'Linux %(branch)s',
 }

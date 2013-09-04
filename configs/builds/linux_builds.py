@@ -24,6 +24,7 @@ ENV = {
 #     'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:/\
 # usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/\
 # tools/python27-mercurial/bin:/home/cltbld/bin'
+    # 'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib64",
 # })
 # ARCH_MOCK_PACKAGES = [
 #     'glibc-static', 'libstdc++-static',
@@ -44,6 +45,7 @@ ENV.update({
     'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib/ccache:/bin:/usr/\
 bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/\
 tools/python27-mercurial/bin:/home/cltbld/bin',
+    'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib",
 })
 ARCH_MOCK_PACKAGES = [
     'glibc-static.i686', 'libstdc++-static.i686',
@@ -94,6 +96,8 @@ config = {
         'checkout-source',
         'build',
         'generate-build-stats',
+        'make-build-symbols',
+        'make-packages',
     ],
 
     # we wish to purge builds
@@ -170,10 +174,14 @@ releng.manifest",
     'tooltool_bootstrap': "setup.sh",
 
     # in linux we count ctors
-    'count_ctors': True,
+    'enable_count_ctors': True,
 
     'graph_server': 'graphs.allizom.org',
     'graph_selector': '/server/collect.cgi',
     'graph_branch': 'MozillaTest',
     'base_name': 'Linux %(branch)s',
+
+    'enable_symbols': True,
+    'enable_packaging': True,
+    'enable_package_tests': True,
 }

@@ -47,6 +47,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'checkout-source',
                 'build',
                 'generate-build-stats',
+                'make-build-symbols',
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -80,8 +81,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
 
             # hg tool stuff
             'default_vcs': 'hgtool',
-
-            'count_ctors': False,
         }
 
     def query_abs_dirs(self):

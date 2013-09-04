@@ -23,6 +23,8 @@ from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 ERROR_MSGS = {
     'undetermined_ccache_env': 'ccache_env could not be determined. \
 Please add this to your config.',
+    'undetermined_objdir': 'The "objdir" could not be determined. \
+Please add an "objdir" to your config.',
     'undetermined_old_package': 'The old package could not be determined. \
 Please add an "objdir" and "old_packages" to your config.',
     'undetermined_repo_path': 'The repo_path could not be determined. \
@@ -230,6 +232,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                                               'buildfarm',
                                               'utils',
                                               'graph_server_post.py')
+        gs_pythonpath = os.path.join(dirs['abs_tools_dir'],
+                                     'lib',
+                                     'python')
+
+        gs_env = self.query_env({'PYTHONPATH': gs_pythonpath})
         branch = self.buildbot_config['properties']['branch']
         resultsname = c['base_name'] % (branch,)
         resultsname = resultsname.replace(' ', '_')
@@ -247,7 +254,9 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         # TODO buildbot puts this cmd through retry:
         # tools/buildfarm/utils/retry.py -s 5 -t 120 -r 8
         # Find out if I should do the same here
-        result_code = self.run_command(cmd, cwd=dirs['abs_src_dir'])
+        result_code = self.run_command(cmd,
+                                       cwd=dirs['abs_src_dir'],
+                                       env=gs_env)
         # TODO find out if this translates to the same from this file:
         # http://mxr.mozilla.org/build/source/buildbotcustom/steps/test.py#73
         if result_code != 0:
@@ -312,27 +321,64 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         self._get_mozconfig()
         self._run_tooltool()
 
+    def _do_build_mock_make_cmd(self, cmd, cwd):
+        """a similar setup is conducted for many make targets
+        throughout a build. This takes a cmd and cwd and calls
+        a mock_mozilla with the right env"""
+        c = self.config
+        env = self.query_env({
+            "MOZ_SIGN_CMD": subprocess.list2cmdline(self.query_moz_sign_cmd())
+        })
+        mock_target = c.get('mock_target')
+        if not mock_target:
+            return self.fatal(ERROR_MSGS['undetermined_mock_target'])
+        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env)
+
     def build(self):
         """build application"""
-        c = self.config
-        env = self.query_env()
         dirs = self.query_abs_dirs()
-        mock_target = c.get('mock_target')
-
-        moz_sign_cmd = subprocess.list2cmdline(self.query_moz_sign_cmd())
-        env.update({"MOZ_SIGN_CMD": moz_sign_cmd})
-        cmd = 'make -f client.mk build'
+        base_cmd = 'make -f client.mk build'
         buildbot_buildid = self.buildbot_config['properties'].get('buildid',
                                                                   '')
-        cmd = cmd + ' MOZ_BUILD_DATE=%s' % buildbot_buildid
-        self.info(str(env))
-        self.info(str(cmd))
-        self.run_mock_command(mock_target,
-                              cmd,
-                              cwd=dirs['abs_src_dir'],
-                              env=env)
+        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % buildbot_buildid
+        self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_stats(self):
+        """this action handles all statitics from a build:
+            count_ctors, buildid, sourcestamp, and graph_server_post"""
+        if self.config.get('enable_count_ctors'):
+            self._count_ctors()
+        else:
+            self.info("count_ctors not enabled for this build. Skipping...")
         self._set_buildid_and_sourcestamp()
-        self._graph_server_post()
+        if self.config.get('graph_server'):
+            self._graph_server_post()
+        else:
+            num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
+            self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
 
+    def make_build_symbols(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('enable_symbols'):
+            return self.info('enable_symbols not set. Skipping...')
+
+        objdir = c.get('objdir')
+        if not objdir:
+            return self.fatal(ERROR_MSGS['undetermined_objdir'])
+        cmd = 'make buildsymbols'
+        cwd = os.path.join(dirs['abs_src_dir'], objdir)
+        self._do_build_mock_make_cmd(cmd, cwd)
+
+    def make_package_tests(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('enable_packaging'):
+            return self.info('enable_packaging not set. Skipping...')
+
+        objdir = c.get('objdir')
+        if not objdir:
+            return self.fatal(ERROR_MSGS['undetermined_objdir'])
+        cmd = 'make package'
+        cwd = os.path.join(dirs['abs_src_dir'], objdir)
+        self._do_build_mock_make_cmd(cmd, cwd)

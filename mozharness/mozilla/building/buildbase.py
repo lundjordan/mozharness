@@ -370,7 +370,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         cwd = os.path.join(dirs['abs_src_dir'], objdir)
         self._do_build_mock_make_cmd(cmd, cwd)
 
-    def make_package_tests(self):
+    def make_packages(self):
         c = self.config
         dirs = self.query_abs_dirs()
         if not c.get('enable_packaging'):
@@ -379,6 +379,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         objdir = c.get('objdir')
         if not objdir:
             return self.fatal(ERROR_MSGS['undetermined_objdir'])
+
+        if c.get('enable_package_tests'):
+            cmd = 'make package-tests'
+            cwd = os.path.join(dirs['abs_src_dir'], objdir)
+            self._do_build_mock_make_cmd(cmd, cwd)
+
         cmd = 'make package'
         cwd = os.path.join(dirs['abs_src_dir'], objdir)
         self._do_build_mock_make_cmd(cmd, cwd)

@@ -38,7 +38,9 @@ Please add this to your config or else add a local "src_mozconfig" path.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.',
     'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
-Skipping run_tooltool...'
+Skipping run_tooltool...',
+    'undetermined_package_filename': '"package_filename" not determined.\
+Please make sure it is in your config'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
@@ -388,3 +390,24 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         cmd = 'make package'
         cwd = os.path.join(dirs['abs_src_dir'], objdir)
         self._do_build_mock_make_cmd(cmd, cwd)
+        # TODO check for if 'rpm' not in self.platform_variation and
+        # self.productName not in ('xulrunner', 'b2g'):
+        self._set_package_file_properties()
+
+    def _set_package_file_properties(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        if not c.get('package_filename'):
+            self.info(ERROR_MSGS['undetermined_package_filename'])
+        if not c.get('objdir'):
+            return self.fatal(ERROR_MSGS['undetermined_objdir'])
+        find_dir = os.path.join(dirs['abs_work_dir'],
+                                c['objdir'],
+                                'dist')
+        cmd = ["find", find_dir, "-maxdepth", "1", "-type",
+               "f", "-name", c['package_filename']]
+        find_result = self.get_output_from_command(cmd, dirs['abs_base_dir'])
+        if not find_result:
+            self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
+
+        self.set_buildbot_property('packageFilename', os.path.split(find_result)[1])

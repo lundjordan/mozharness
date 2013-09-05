@@ -184,5 +184,7 @@ releng.manifest",
     'enable_symbols': True,
     'enable_packaging': True,
     'enable_package_tests': True,
+    'package_filename': '*.linux-i686*.tar.bz2',
+    # 'packageFilename': '*.linux-x86_64*.tar.bz2',
 
 }

@@ -545,20 +545,22 @@ class Talos(TestingMixin, MercurialScript):
     def run_tests(self, args=None, **kw):
         """run Talos tests"""
 
-        # get talos options
-        options = self.talos_options(args=args, **kw)
+        import time
+        time.sleep(300)
+        # # get talos options
+        # options = self.talos_options(args=args, **kw)
 
-        # XXX temporary python version check
-        python = self.query_python_path()
-        self.run_command([python, "--version"])
-        # run talos tests
-        talos = self.query_python_path('talos')
-        command = [talos, '--noisy', '--debug'] + options
-        parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
-                                   error_list=TalosErrorList)
-        self.return_code = self.run_command(command, cwd=self.workdir,
-                                            output_parser=parser)
-        if parser.minidump_output:
-            self.info("Looking at the minidump files for debugging purposes...")
-            for item in parser.minidump_output:
-                self.run_command(["ls", "-l", item])
+        # # XXX temporary python version check
+        # python = self.query_python_path()
+        # self.run_command([python, "--version"])
+        # # run talos tests
+        # talos = self.query_python_path('talos')
+        # command = [talos, '--noisy', '--debug'] + options
+        # parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
+        #                            error_list=TalosErrorList)
+        # self.return_code = self.run_command(command, cwd=self.workdir,
+        #                                     output_parser=parser)
+        # if parser.minidump_output:
+        #     self.info("Looking at the minidump files for debugging purposes...")
+        #     for item in parser.minidump_output:
+        #         self.run_command(["ls", "-l", item])

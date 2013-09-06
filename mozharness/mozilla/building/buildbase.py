@@ -23,10 +23,8 @@ from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 ERROR_MSGS = {
     'undetermined_ccache_env': 'ccache_env could not be determined. \
 Please add this to your config.',
-    'undetermined_objdir': 'The "objdir" could not be determined. \
-Please add an "objdir" to your config.',
     'undetermined_old_package': 'The old package could not be determined. \
-Please add an "objdir" and "old_packages" to your config.',
+Please add an "old_packages" to your config.',
     'undetermined_repo_path': 'The repo_path could not be determined. \
 Please make sure there is a "repo_path" in either your config or a \
 buildbot_config.',
@@ -90,13 +88,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         """rm the old package"""
         c = self.config
         cmd = ["rm", "-rf"]
-        objdir = c.get('objdir')
         old_packages = c.get('old_packages')
-        if not objdir or not old_packages:
+        if not old_packages:
             self.fatal(ERROR_MSGS['undetermined_old_package'])
 
         for product in old_packages:
-            cmd.append(product % {"objdir": objdir})
+            cmd.append(product % {"objdir": self.objdir})
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
@@ -144,11 +141,10 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     def _count_ctors(self):
         """count num of ctors and set testresults"""
-        c = self.config
         dirs = self.query_abs_dirs()
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
                                             'buildfarm/utils/count_ctors.py')
-        abs_libxul_path = os.path.join(dirs['abs_src_dir'], c.get('objdir'),
+        abs_libxul_path = os.path.join(dirs['abs_src_dir'], self.objdir,
                                        'dist/bin/libxul.so')
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
@@ -170,28 +166,30 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                                        testresults,
                                        write_to_file=True)
 
-    def _set_buildid_and_sourcestamp(self):
-        c = self.config
+    def _set_build_properties(self):
+        """sets buildid, sourcestamp, appVersion, and appName"""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config/printconfigsetting.py')
         application_ini_path = os.path.join(dirs['abs_src_dir'],
-                                            c['objdir'],
+                                            self.objdir,
                                             'dist/bin/application.ini')
         base_cmd = [
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
-        self.buildid = self.get_output_from_command(base_cmd + 'BuildID',
-                                                    cwd=dirs['abs_base_dir'])
-        self.sourcestamp = self.get_output_from_command(
-            base_cmd + 'SourceStamp', cwd=dirs['abs_base_dir']
-        )
-        self.set_buildbot_property('buildid',
-                                   self.buildid,
-                                   write_to_file=True)
-        self.set_buildbot_property('sourcestamp',
-                                   self.sourcestamp,
-                                   write_to_file=True)
+        properties_needed = [
+            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
+            {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
+            {'ini_name': 'Version', 'prop_name': 'appVersion'},
+            {'ini_name': 'Name', 'prop_name': 'appName'}
+        ]
+        for prop in properties_needed:
+            prop_val = self.get_output_from_command(
+                base_cmd + prop['ini_name'], cwd=dirs['abs_base_dir']
+            )
+            self.set_buildbot_property(prop['prop_name'],
+                                       prop_val,
+                                       write_to_file=True)
 
     def _query_gragh_server_branch_name(self):
         # XXX TODO not sure if this is what I should do here. We need the
@@ -246,8 +244,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         cmd.extend(['--server', c['graph_server']])
         cmd.extend(['--selector', c['gragh_selector']])
         cmd.extend(['--branch', self._query_gragh_server_branch_name()])
-        cmd.extend(['--buildid', self.buildid])
-        cmd.extend(['--sourcestamp', self.sourestamp])
+        cmd.extend(['--buildid', self.buildbot_properties['buildid']])
+        cmd.extend(['--sourcestamp', self.buildbot_properties['sourcestamp']])
         cmd.extend(['--resultsname', resultsname])
         cmd.extend(['--properties-file', 'properties.json'])
         cmd.extend(['--timestamp', self.epoch_timestamp])
@@ -352,7 +350,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             self._count_ctors()
         else:
             self.info("count_ctors not enabled for this build. Skipping...")
-        self._set_buildid_and_sourcestamp()
+        self._set_build_properties()
         if self.config.get('graph_server'):
             self._graph_server_post()
         else:
@@ -365,11 +363,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         if not c.get('enable_symbols'):
             return self.info('enable_symbols not set. Skipping...')
 
-        objdir = c.get('objdir')
-        if not objdir:
-            return self.fatal(ERROR_MSGS['undetermined_objdir'])
         cmd = 'make buildsymbols'
-        cwd = os.path.join(dirs['abs_src_dir'], objdir)
+        cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
         self._do_build_mock_make_cmd(cmd, cwd)
 
     def make_packages(self):
@@ -378,17 +373,13 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         if not c.get('enable_packaging'):
             return self.info('enable_packaging not set. Skipping...')
 
-        objdir = c.get('objdir')
-        if not objdir:
-            return self.fatal(ERROR_MSGS['undetermined_objdir'])
-
         if c.get('enable_package_tests'):
             cmd = 'make package-tests'
-            cwd = os.path.join(dirs['abs_src_dir'], objdir)
+            cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
             self._do_build_mock_make_cmd(cmd, cwd)
 
         cmd = 'make package'
-        cwd = os.path.join(dirs['abs_src_dir'], objdir)
+        cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
         self._do_build_mock_make_cmd(cmd, cwd)
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not in ('xulrunner', 'b2g'):
@@ -399,15 +390,27 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         dirs = self.query_abs_dirs()
         if not c.get('package_filename'):
             self.info(ERROR_MSGS['undetermined_package_filename'])
-        if not c.get('objdir'):
-            return self.fatal(ERROR_MSGS['undetermined_objdir'])
         find_dir = os.path.join(dirs['abs_work_dir'],
-                                c['objdir'],
+                                self.objdir,
                                 'dist')
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",
                "f", "-name", c['package_filename']]
-        find_result = self.get_output_from_command(cmd, dirs['abs_base_dir'])
-        if not find_result:
+        package_file_path = self.get_output_from_command(cmd,
+                                                         dirs['abs_base_dir'])
+        if not package_file_path:
             self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
 
-        self.set_buildbot_property('packageFilename', os.path.split(find_result)[1])
+        cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
+               package_file_path]
+        package_hash = self.get_output_from_command(cmd, dirs['abs_base_dir'])
+        if not package_hash:
+            self.fatal("undetermined package_hash with cmd: %s" % (str(cmd),))
+        self.set_buildbot_property('packageFilename',
+                                   os.path.split(package_file_path)[1],
+                                   write_to_file=True)
+        self.set_buildbot_property('packageSize',
+                                   os.path.getsize(package_file_path),
+                                   write_to_file=True)
+        self.set_buildbot_property('packageHash',
+                                   package_hash,
+                                   write_to_file=True)

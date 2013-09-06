@@ -55,13 +55,19 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         }
         super(FxNightlyBuild, self).__init__(**basescript_kwargs)
         self.repo_path = None
-        self.buildid = None
-        self.sourcestamp = None
         # TODO this is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
-        # status.build.gettime()[0] this will have to do
+        # status.build.gettime()[0] this will have to do as a rough estimate
+        # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = time.mktime(datetime.now().timetuple())
+
+        # big convenience and required in enough actions that I think it's
+        # fair to say it's required.
+        if not self.config.get('objdir'):
+            return self.fatal('The "objdir" could not be determined. '
+                              'Please add an "objdir" to your config.')
+        self.objdir = self.config['objdir']
 
     # helpers
 

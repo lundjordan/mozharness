@@ -48,6 +48,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'build',
                 'generate-build-stats',
                 'make-build-symbols',
+                'make-packages',
+                'make-upload',
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -62,12 +64,20 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = time.mktime(datetime.now().timetuple())
 
-        # big convenience and required in enough actions that I think it's
-        # fair to say it's required.
-        if not self.config.get('objdir'):
-            return self.fatal('The "objdir" could not be determined. '
-                              'Please add an "objdir" to your config.')
-        self.objdir = self.config['objdir']
+        self.objdir = None
+
+    def _pre_config_lock(self, rw_config):
+        c = self.config
+        config_dependencies = {
+            # key = action, value = list of action's config dependencies
+            'build': ['ccache_env', 'old_packages']
+            'make-upload': ['upload_env', 'stage_platform']
+            'make-packages': ['enable_packaging', 'package_filename']
+        }
+        for action in self.actions:
+            if config_dependencies.get(action):
+                self._assert_cfg_valid_for_action(config_dependencies[action],
+                                                  action)
 
     # helpers
 

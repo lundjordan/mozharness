@@ -187,4 +187,22 @@ releng.manifest",
     'package_filename': '*.linux-i686*.tar.bz2',
     # 'packageFilename': '*.linux-x86_64*.tar.bz2',
 
+    # TODO port self.platform_variation self.complete_platform for RPM check
+
+
+    'upload_env': {
+        # TODO ADD SEPARATE CONFIGS ?
+        # /buildbot-configs/mozilla/preproduction_config.py
+        # 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
+        # /buildbot-configs/mozilla/production_config.py
+        # 'stage_server': 'stage.mozilla.org',
+        # /buildbot-configs/mozilla/staging_config.py
+        'UPLOAD_HOST': 'dev-stage01.srv.releng.scl3.mozilla.com',
+        # TODO I think upload_user differs on TRY branch
+        'UPLOAD_USER': 'ffxbld',
+        'UPLOAD_TO_TEMP': '1',
+        'UPLOAD_SSH_KEY': '~/.ssh/ffxbld_dsa',
+    },
+
+    'stage_platform': 'linux',
 }

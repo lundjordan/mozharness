@@ -21,30 +21,54 @@ from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 
 ERROR_MSGS = {
-    'undetermined_ccache_env': 'ccache_env could not be determined. \
-Please add this to your config.',
-    'undetermined_old_package': 'The old package could not be determined. \
-Please add an "old_packages" to your config.',
     'undetermined_repo_path': 'The repo_path could not be determined. \
 Please make sure there is a "repo_path" in either your config or a \
 buildbot_config.',
-    'src_mozconfig_path_not_found': 'The "src_mozconfig" path could not be \
-determined. Please add this to your config and make sure it is a valid path \
+    'comments_undetermined': '"comments" could not be determined. This may be \
+because it was a forced build.',
+    'src_mozconfig_path_not_found': 'The "abs_src_mozconfig" path could not be \
+determined. Please make sure it is a valid path \
 off of "abs_src_dir"',
     'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
 Please add this to your config or else add a local "src_mozconfig" path.',
-    'comments_undetermined': '"comments" could not be determined. This may be \
-because it was a forced build.',
     'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
 Skipping run_tooltool...',
-    'undetermined_package_filename': '"package_filename" not determined.\
-Please make sure it is in your config'
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
+
+    # in Basescript
+def _assert_cfg_valid_for_action(self, dependencies, action):
+    """Takes a list of dependencies and ensures that each have an
+    assoctiated key in the config. Displays error messages as
+    appropriate."""
+    # TODO add type and value checking, not just keys 
+    # TODO solution should adhere to: bug 699343
+    # TODO add this to basescript when the above is done
+    c = self.config
+    undetermined_keys = []
+    err_template = "The key '%s' could not be determined \
+and is needed for the action %s. Please add this to your config.\n"
+    for dep in dependencies:
+        if not c.get(dep):
+            undetermined_keys += dep
+    if undetermined_keys:
+        fatal_msgs = [err_template % (key, action) for key in undetermined_keys]
+        self.fatal("".join(fatal_msgs))
+    # otherwise:
+    return # all good
+
+    def _query_objdir(self):
+        if self.objdir:
+            return self.objdir
+
+        if not self.config.get('objdir'):
+            return self.fatal('The "objdir" could not be determined. '
+                              'Please add an "objdir" to your config.')
+        self.objdir = self.config['objdir']
 
     # TODO query_repo is basically a copy from B2GBuild, maybe get B2GBuild to
     # inherit from BuildingMixin after buildbase's generality is more defined?
@@ -74,8 +98,6 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         """clear ccache stats"""
         c = self.config
         dirs = self.query_abs_dirs()
-        if not c.get('ccache_env'):
-            self.fatal(ERROR_MSGS['undetermined_ccache_env'])
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
@@ -89,11 +111,9 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         c = self.config
         cmd = ["rm", "-rf"]
         old_packages = c.get('old_packages')
-        if not old_packages:
-            self.fatal(ERROR_MSGS['undetermined_old_package'])
 
         for product in old_packages:
-            cmd.append(product % {"objdir": self.objdir})
+            cmd.append(product % {"objdir": self._query_objdir()})
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
@@ -106,6 +126,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             abs_src_mozconfig = os.path.join(dirs['abs_src_dir'],
                                              c.get('src_mozconfig'))
             if not os.path.exists(abs_src_mozconfig):
+                self.info('abs_src_mozconfig: %s' % (abs_src_mozconfig,))
                 self.fatal(ERROR_MSGS['src_mozconfig_path_not_found'])
             self.copyfile(abs_src_mozconfig,
                           os.path.join(dirs['abs_src_dir'], '.mozconfig'))
@@ -144,7 +165,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         dirs = self.query_abs_dirs()
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
                                             'buildfarm/utils/count_ctors.py')
-        abs_libxul_path = os.path.join(dirs['abs_src_dir'], self.objdir,
+        abs_libxul_path = os.path.join(dirs['abs_src_dir'],
+                                       self._query_objdir(),
                                        'dist/bin/libxul.so')
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
@@ -172,7 +194,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config/printconfigsetting.py')
         application_ini_path = os.path.join(dirs['abs_src_dir'],
-                                            self.objdir,
+                                            self._query_objdir(),
                                             'dist/bin/application.ini')
         base_cmd = [
             'python', print_conf_setting_path, application_ini_path, 'App'
@@ -209,6 +231,8 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         # If my logic is right, we have three options. 1) add 'tinderbox_tree'
         # to buildbot_config 2) add a dict to self.config that holds all branch
         # keys and assotiated tinderbox_tree values 3) do what I am doing below
+        # 4) what I should probably do, have a separate config for staging /
+        # production / preprod ...
 
         # XXX not sure if this is the best way to determine staging/preprod
         if 'dev-master' in self.buildbot_config['properties']['master']:
@@ -263,6 +287,35 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             self.error('Automation Error: failed graph server post')
         else:
             self.info("graph server post ok")
+
+    def _set_package_file_properties(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        # calls 
+        find_dir = os.path.join(dirs['abs_work_dir'],
+                                self._query_objdir(),
+                                'dist')
+        cmd = ["find", find_dir, "-maxdepth", "1", "-type",
+               "f", "-name", c['package_filename']]
+        package_file_path = self.get_output_from_command(cmd,
+                                                         dirs['abs_base_dir'])
+        if not package_file_path:
+            self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
+
+        cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
+               package_file_path]
+        package_hash = self.get_output_from_command(cmd, dirs['abs_base_dir'])
+        if not package_hash:
+            self.fatal("undetermined package_hash with cmd: %s" % (str(cmd),))
+        self.set_buildbot_property('packageFilename',
+                                   os.path.split(package_file_path)[1],
+                                   write_to_file=True)
+        self.set_buildbot_property('packageSize',
+                                   os.path.getsize(package_file_path),
+                                   write_to_file=True)
+        self.set_buildbot_property('packageHash',
+                                   package_hash,
+                                   write_to_file=True)
 
     def read_buildbot_config(self):
         c = self.config
@@ -336,8 +389,12 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     def build(self):
         """build application"""
+        # dependencies in config = ['ccache_env', 'old_packages']
+        # see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
+        # TODO, the buildbot_config props buildid
+        # after a compile so find out how to get the buildid for here
         buildbot_buildid = self.buildbot_config['properties'].get('buildid',
                                                                   '')
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % buildbot_buildid
@@ -364,53 +421,104 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             return self.info('enable_symbols not set. Skipping...')
 
         cmd = 'make buildsymbols'
-        cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
+        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         self._do_build_mock_make_cmd(cmd, cwd)
 
     def make_packages(self):
         c = self.config
         dirs = self.query_abs_dirs()
+        # dependencies in config = ['enable_packaging', 'package_filename']
+        # see _pre_config_lock
         if not c.get('enable_packaging'):
             return self.info('enable_packaging not set. Skipping...')
 
         if c.get('enable_package_tests'):
             cmd = 'make package-tests'
-            cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
+            cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
             self._do_build_mock_make_cmd(cmd, cwd)
 
         cmd = 'make package'
-        cwd = os.path.join(dirs['abs_src_dir'], self.objdir)
+        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         self._do_build_mock_make_cmd(cmd, cwd)
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not in ('xulrunner', 'b2g'):
         self._set_package_file_properties()
 
-    def _set_package_file_properties(self):
+    def make_upload(self):
         c = self.config
-        dirs = self.query_abs_dirs()
-        if not c.get('package_filename'):
-            self.info(ERROR_MSGS['undetermined_package_filename'])
-        find_dir = os.path.join(dirs['abs_work_dir'],
-                                self.objdir,
-                                'dist')
-        cmd = ["find", find_dir, "-maxdepth", "1", "-type",
-               "f", "-name", c['package_filename']]
-        package_file_path = self.get_output_from_command(cmd,
-                                                         dirs['abs_base_dir'])
-        if not package_file_path:
-            self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
+        # dependencies in config = ['upload_env', 'stage_platform']
+        # see _pre_config_lock
+        upload_env = self.query_env(c['upload_env'])
+        branch = self.buildbot_config['properties']['branch']
+        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
 
-        cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
-               package_file_path]
-        package_hash = self.get_output_from_command(cmd, dirs['abs_base_dir'])
-        if not package_hash:
-            self.fatal("undetermined package_hash with cmd: %s" % (str(cmd),))
-        self.set_buildbot_property('packageFilename',
-                                   os.path.split(package_file_path)[1],
-                                   write_to_file=True)
-        self.set_buildbot_property('packageSize',
-                                   os.path.getsize(package_file_path),
-                                   write_to_file=True)
-        self.set_buildbot_property('packageHash',
-                                   package_hash,
-                                   write_to_file=True)
+        # start here
+        uploadArgs = dict(
+            upload_dir=tinderboxBuildsDir,
+            product=self.stageProduct,
+            buildid=WithProperties("%(buildid)s"),
+            revision=WithProperties("%(got_revision)s"),
+            as_list=False,
+        )
+# if self.hgHost.startswith('ssh'):
+#     uploadArgs['to_shadow'] = True
+#     uploadArgs['to_tinderbox_dated'] = False
+# else:
+#     uploadArgs['to_shadow'] = False
+#     uploadArgs['to_tinderbox_dated'] = True
+# 
+# if self.nightly:
+#     uploadArgs['to_dated'] = True
+#     if 'st-an' in self.complete_platform or 'dbg' in self.complete_platform or 'asan' in self.complete_platform:
+#         uploadArgs['to_latest'] = False
+#     else:
+#         uploadArgs['to_latest'] = True
+#     if self.post_upload_include_platform:
+#         # This was added for bug 557260 because of a requirement for
+#         # mobile builds to upload in a slightly different location
+#         uploadArgs['branch'] = '%s-%s' % (
+#             self.branchName, self.stagePlatform)
+#     else:
+#         uploadArgs['branch'] = self.branchName
+# if uploadMulti:
+#     upload_vars.append("AB_CD=multi")
+# if postUploadBuildDir:
+#     uploadArgs['builddir'] = postUploadBuildDir
+# uploadEnv['POST_UPLOAD_CMD'] = postUploadCmdPrefix(**uploadArgs)
+# 
+# if self.productName == 'xulrunner': # XXX TODO this does not get hit
+#     self.addStep(RetryingMockProperty(
+#                  command=self.makeCmd + ['-f', 'client.mk', 'upload'],
+#                  env=uploadEnv,
+#                  workdir='build',
+#                  extract_fn=parse_make_upload,
+#                  haltOnFailure=True,
+#                  description=["upload"],
+#                  timeout=60 * 60,  # 60 minutes
+#                  log_eval_func=lambda c, s: regex_log_evaluator(
+#                  c, s, upload_errors),
+#                  locks=[upload_lock.access('counting')],
+#                  mock=self.use_mock,
+#                  target=self.mock_target,
+#                  ))
+# else: # This is our make upload
+#     objdir = WithProperties(
+#         '%(basedir)s/' + self.baseWorkDir + '/' + self.objdir)
+#     if self.platform.startswith('win'):
+#         objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
+#     self.addStep(RetryingMockProperty(
+#         name='make_upload',
+#         command=self.makeCmd + ['upload'] + upload_vars,
+#         env=uploadEnv,
+#         workdir=objdir,
+#         extract_fn=parse_make_upload,
+#         haltOnFailure=True,
+#         description=self.makeCmd + ['upload'],
+#         mock=self.use_mock,
+#         target=self.mock_target,
+#         mock_workdir_prefix=None,
+#         timeout=40 * 60,  # 40 minutes
+#         log_eval_func=lambda c, s: regex_log_evaluator(
+#             c, s, upload_errors),
+#         locks=[upload_lock.access('counting')],
+#     ))

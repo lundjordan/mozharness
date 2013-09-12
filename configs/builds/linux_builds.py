@@ -205,4 +205,5 @@ releng.manifest",
     },
 
     'stage_platform': 'linux',
+    'stage_product': 'firefox',
 }

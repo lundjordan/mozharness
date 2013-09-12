@@ -26,7 +26,7 @@ Please make sure there is a "repo_path" in either your config or a \
 buildbot_config.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.',
-    'src_mozconfig_path_not_found': 'The "abs_src_mozconfig" path could not be \
+    'src_mozconfig_path_not_found': '"abs_src_mozconfig" path could not be \
 determined. Please make sure it is a valid path \
 off of "abs_src_dir"',
     'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
@@ -41,25 +41,26 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
 
     # in Basescript
-def _assert_cfg_valid_for_action(self, dependencies, action):
-    """Takes a list of dependencies and ensures that each have an
-    assoctiated key in the config. Displays error messages as
-    appropriate."""
-    # TODO add type and value checking, not just keys 
-    # TODO solution should adhere to: bug 699343
-    # TODO add this to basescript when the above is done
-    c = self.config
-    undetermined_keys = []
-    err_template = "The key '%s' could not be determined \
-and is needed for the action %s. Please add this to your config.\n"
-    for dep in dependencies:
-        if not c.get(dep):
-            undetermined_keys += dep
-    if undetermined_keys:
-        fatal_msgs = [err_template % (key, action) for key in undetermined_keys]
-        self.fatal("".join(fatal_msgs))
-    # otherwise:
-    return # all good
+    def _assert_cfg_valid_for_action(self, dependencies, action):
+        """Takes a list of dependencies and ensures that each have an
+        assoctiated key in the config. Displays error messages as
+        appropriate."""
+        # TODO add type and value checking, not just keys
+        # TODO solution should adhere to: bug 699343
+        # TODO add this to basescript when the above is done
+        c = self.config
+        undetermined_keys = []
+        err_template = "The key '%s' could not be determined \
+    and is needed for the action %s. Please add this to your config.\n"
+        for dep in dependencies:
+            if not c.get(dep):
+                undetermined_keys += dep
+        if undetermined_keys:
+            fatal_msgs = [err_template % (key, action)
+                          for key in undetermined_keys]
+            self.fatal("".join(fatal_msgs))
+        # otherwise:
+        return  # all good
 
     def _query_objdir(self):
         if self.objdir:
@@ -268,8 +269,9 @@ and is needed for the action %s. Please add this to your config.\n"
         cmd.extend(['--server', c['graph_server']])
         cmd.extend(['--selector', c['gragh_selector']])
         cmd.extend(['--branch', self._query_gragh_server_branch_name()])
-        cmd.extend(['--buildid', self.buildbot_properties['buildid']])
-        cmd.extend(['--sourcestamp', self.buildbot_properties['sourcestamp']])
+        cmd.extend(['--buildid', self.query_buildbot_property('buildid')])
+        cmd.extend(['--sourcestamp',
+                    self.query_buildbot_property('sourcestamp')])
         cmd.extend(['--resultsname', resultsname])
         cmd.extend(['--properties-file', 'properties.json'])
         cmd.extend(['--timestamp', self.epoch_timestamp])
@@ -291,7 +293,6 @@ and is needed for the action %s. Please add this to your config.\n"
     def _set_package_file_properties(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        # calls 
         find_dir = os.path.join(dirs['abs_work_dir'],
                                 self._query_objdir(),
                                 'dist')
@@ -444,81 +445,73 @@ and is needed for the action %s. Please add this to your config.\n"
         # self.productName not in ('xulrunner', 'b2g'):
         self._set_package_file_properties()
 
+    def _query_post_upload_cmd(self):
+        post_upload_cmd = ["post_upload.py"]
+
+        branch = self.buildbot_config['properties']['branch']
+        buildid = self.query_buildbot_property('buildid')
+        revision = self.query_buildbot_property('got_revision')
+        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
+
+        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
+        # if self.nightly
+        # post_upload_cmd.extend(["-b", branch])
+        post_upload_cmd.extend(["-p", c['stage_product'])
+        post_upload_cmd.extend(['-i', buildid])
+        # if release build
+        # post_upload_cmd.extend(['-n', buildNumber])
+        # post_upload_cmd.extend(['-v', version])
+        post_upload_cmd.extend(['--revision', revision])
+        # if try build
+        # post_upload_cmd.extend(['--who', who])
+        # if postUploadBuildDir:
+        # post_upload_cmd.extend(['--builddir', builddir])
+        post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+        # if repack build: if to_tinderbox_builds:
+        # post_upload_cmd.append('--release-to-tinderbox-builds')
+        # if to_try:
+        #     post_upload_cmd.append('--release-to-try-builds')
+        # if to_latest:
+        #     post_upload_cmd.append("--release-to-latest")
+        # if to_dated:
+        #     post_upload_cmd.append("--release-to-dated")
+        # if to_shadow:
+        #     post_upload_cmd.append("--release-to-shadow-central-builds")
+        # if to_candidates:
+        #     post_upload_cmd.append("--release-to-candidates-dir")
+        # if to_mobile_candidates:
+        #     post_upload_cmd.append("--release-to-mobile-candidates-dir")
+        # if nightly_dir:
+        #     post_upload_cmd.append("--nightly-dir=%s" % nightly_dir)
+        # if signed:
+        #     post_upload_cmd.append("--signed")
+        return post_upload_cmd
+
     def make_upload(self):
         c = self.config
         # dependencies in config = ['upload_env', 'stage_platform']
         # see _pre_config_lock
-        upload_env = self.query_env(c['upload_env'])
-        branch = self.buildbot_config['properties']['branch']
-        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
 
-        # start here
-        uploadArgs = dict(
-            upload_dir=tinderboxBuildsDir,
-            product=self.stageProduct,
-            buildid=WithProperties("%(buildid)s"),
-            revision=WithProperties("%(got_revision)s"),
-            as_list=False,
-        )
-# if self.hgHost.startswith('ssh'):
-#     uploadArgs['to_shadow'] = True
-#     uploadArgs['to_tinderbox_dated'] = False
-# else:
-#     uploadArgs['to_shadow'] = False
-#     uploadArgs['to_tinderbox_dated'] = True
-# 
-# if self.nightly:
-#     uploadArgs['to_dated'] = True
-#     if 'st-an' in self.complete_platform or 'dbg' in self.complete_platform or 'asan' in self.complete_platform:
-#         uploadArgs['to_latest'] = False
-#     else:
-#         uploadArgs['to_latest'] = True
-#     if self.post_upload_include_platform:
-#         # This was added for bug 557260 because of a requirement for
-#         # mobile builds to upload in a slightly different location
-#         uploadArgs['branch'] = '%s-%s' % (
-#             self.branchName, self.stagePlatform)
-#     else:
-#         uploadArgs['branch'] = self.branchName
-# if uploadMulti:
-#     upload_vars.append("AB_CD=multi")
-# if postUploadBuildDir:
-#     uploadArgs['builddir'] = postUploadBuildDir
-# uploadEnv['POST_UPLOAD_CMD'] = postUploadCmdPrefix(**uploadArgs)
-# 
-# if self.productName == 'xulrunner': # XXX TODO this does not get hit
-#     self.addStep(RetryingMockProperty(
-#                  command=self.makeCmd + ['-f', 'client.mk', 'upload'],
-#                  env=uploadEnv,
-#                  workdir='build',
-#                  extract_fn=parse_make_upload,
-#                  haltOnFailure=True,
-#                  description=["upload"],
-#                  timeout=60 * 60,  # 60 minutes
-#                  log_eval_func=lambda c, s: regex_log_evaluator(
-#                  c, s, upload_errors),
-#                  locks=[upload_lock.access('counting')],
-#                  mock=self.use_mock,
-#                  target=self.mock_target,
-#                  ))
-# else: # This is our make upload
-#     objdir = WithProperties(
-#         '%(basedir)s/' + self.baseWorkDir + '/' + self.objdir)
-#     if self.platform.startswith('win'):
-#         objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
-#     self.addStep(RetryingMockProperty(
-#         name='make_upload',
-#         command=self.makeCmd + ['upload'] + upload_vars,
-#         env=uploadEnv,
-#         workdir=objdir,
-#         extract_fn=parse_make_upload,
-#         haltOnFailure=True,
-#         description=self.makeCmd + ['upload'],
-#         mock=self.use_mock,
-#         target=self.mock_target,
-#         mock_workdir_prefix=None,
-#         timeout=40 * 60,  # 40 minutes
-#         log_eval_func=lambda c, s: regex_log_evaluator(
-#             c, s, upload_errors),
-#         locks=[upload_lock.access('counting')],
-#     ))
+        upload_cmd = []
+        upload_env = self.query_env(c['upload_env'])
+        upload_env['POST_UPLOAD_CMD'] = self._query_post_upload_cmd()
+        abs_objdir = os.path.join(dirs['abs_src_dir'],
+                                  self._query_objdir())
+
+        self.addStep(RetryingMockProperty(
+            name='make_upload',
+            command=self.makeCmd + ['upload'] + upload_vars,
+            env=uploadEnv,
+            workdir=objdir,
+            extract_fn=parse_make_upload,
+            haltOnFailure=True,
+            description=self.makeCmd + ['upload'],
+            mock=self.use_mock,
+            target=self.mock_target,
+            mock_workdir_prefix=None,
+            timeout=40 * 60,  # 40 minutes
+            log_eval_func=lambda c, s: regex_log_evaluator(
+                c, s, upload_errors),
+            locks=[upload_lock.access('counting')],
+        ))
+

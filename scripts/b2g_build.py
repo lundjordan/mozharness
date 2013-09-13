@@ -497,7 +497,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin, Toolto
 
             rewrite_remotes(manifest, mapping_func)
             # Remove gecko, since we'll be checking that out ourselves
-            gecko_node = remove_project(manifest, 'gecko.git')
+            gecko_node = remove_project(manifest, path='gecko')
             if not gecko_node:
                 self.fatal("couldn't remove gecko from manifest")
 
@@ -557,7 +557,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin, Toolto
             self.run_command(["cat", "sources.xml"], cwd=dirs['work_dir'], halt_on_failure=True)
             self.run_command(["cp", "-p", "sources.xml", "sources.xml.original"], cwd=dirs['work_dir'], halt_on_failure=True)
             manifest = load_manifest(os.path.join(dirs['work_dir'], 'sources.xml'))
-            gaia_node = get_project(manifest, "gaia.git")
+            gaia_node = get_project(manifest, path="gaia")
             gaia_rev = gaia_node.getAttribute("revision")
             gaia_remote = get_remote(manifest, gaia_node.getAttribute('remote'))
             gaia_repo = "%s/%s" % (gaia_remote.getAttribute('fetch'), gaia_node.getAttribute('name'))
@@ -1249,14 +1249,16 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin, Toolto
                 self.sendchange(downloadables=[download_url, "%s/%s" % (download_url, "gaia-tests.zip")])
             if self.config["target"] == "generic" and self.config.get('sendchange_masters'):
                 # yay hardcodes
+                downloadables = [
+                    '%s/%s' % (download_url, 'emulator.tar.gz'),
+                ]
+                matches = glob.glob(os.path.join(dirs['abs_upload_dir'], 'b2g*crashreporter-symbols.zip'))
+                if matches:
+                    downloadables.append("%s/%s" % (download_url, os.path.basename(matches[0])))
                 matches = glob.glob(os.path.join(dirs['abs_upload_dir'], 'b2g*tests.zip'))
                 if matches:
-                    self.sendchange(
-                        downloadables=[
-                            '%s/%s' % (download_url, 'emulator.tar.gz'),
-                            "%s/%s" % (download_url, os.path.basename(matches[0])),
-                        ]
-                    )
+                    downloadables.append("%s/%s" % (download_url, os.path.basename(matches[0])))
+                    self.sendchange(downloadables=downloadables)
 
     def make_socorro_json(self):
         self.info("Creating socorro.json...")
@@ -1286,7 +1288,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin, Toolto
         upload_dir = dirs['abs_upload_dir'] + '-manifest'
         # Delete the upload dir so we don't upload previous stuff by accident
         self.rmtree(upload_dir)
-        target = self.config['target']
+        target = self.load_gecko_config().get('upload_platform', self.config['target'])
         if self.config['manifest'].get('target_suffix'):
             target += self.config['manifest']['target_suffix']
         buildid = self.query_buildid()

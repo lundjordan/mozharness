@@ -13,7 +13,17 @@ config = {
         'tooltool.py': "/tools/tooltool.py",
     },
 
-    "find_links": ["http://repos/python/packages"],
+    "find_links": [
+        "http://repos/python/packages",
+        "http://releng-puppet2.srv.releng.use1.mozilla.com/python/packages/",
+        "http://releng-puppet1.srv.releng.use1.mozilla.com/python/packages/",
+        "http://releng-puppet2.build.mtv1.mozilla.com/python/packages/",
+        "http://releng-puppet2.srv.releng.usw2.mozilla.com/python/packages/",
+        "http://releng-puppet1.srv.releng.usw2.mozilla.com/python/packages/",
+        "http://releng-puppet2.srv.releng.scl3.mozilla.com/python/packages/",
+        "http://releng-puppet2.build.scl1.mozilla.com/python/packages/",
+        "http://puppetagain.pub.build.mozilla.org/data/python/packages/",
+    ],
     "pip_index": False,
 
     "buildbot_json_path": "buildprops.json",
@@ -76,7 +86,7 @@ config = {
 
     "xpcshell_options": [
         "--adbpath=%(adbpath)s", "--b2gpath=%(b2gpath)s", "--emulator=%(emulator)s",
-        "--logcat-dir=%(logcat_dir)s", "--manifest=%(test_manifest)s",
+        "--logcat-dir=%(logcat_dir)s", "--manifest=%(test_manifest)s", "--use-device-libs",
         "--testing-modules-dir=%(modules_dir)s", "--symbols-path=%(symbols_path)s",
         "--busybox=%(busybox)s", "--total-chunks=%(total_chunks)s", "--this-chunk=%(this_chunk)s",
     ],

@@ -11,11 +11,10 @@ import subprocess
 import os
 
 ERROR_MSGS = {
-    'undetermined_mock_target': 'mock_target could not be determined. \
-Add to config or pass it in reset_mock()',
     'undetermined_buildroot_lock': 'buildroot_lock_path does not exist.\
 Nothing to remove.'
 }
+
 
 # MockMixin {{{1
 class MockMixin(object):
@@ -116,7 +115,7 @@ class MockMixin(object):
         c = self.config
         if mock_target is None:
             if not c.get('mock_target'):
-                self.fatal(ERROR_MSGS['undetermined_mock_target'])
+                self.fatal("Cound not determine: 'mock_target'")
             mock_target = c.get('mock_target')
         buildroot_lock_path = os.path.join(c.get('mock_mozilla_dir', ''),
                                            mock_target,

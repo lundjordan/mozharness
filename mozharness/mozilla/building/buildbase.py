@@ -12,6 +12,7 @@ author: Jordan Lund
 
 import os
 import subprocess
+import re
 
 # import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
@@ -19,6 +20,24 @@ from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
+from mozharness.base.log import OutputParser
+from mozharness.mozilla.buildbot import TBPL_RETRY
+
+TBPL_UPLOAD_ERRORS = [
+    {
+        'regex': re.compile("Connection timed out"),
+        'level': TBPL_RETRY,
+    },
+    {
+        'regex': re.compile("Connection reset by peer"),
+        'level': TBPL_RETRY,
+    },
+    {
+        'regex': re.compile("Connection refused"),
+        'level': TBPL_RETRY,
+    }
+]
+
 
 ERROR_MSGS = {
     'undetermined_repo_path': 'The repo_path could not be determined. \
@@ -51,7 +70,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         c = self.config
         undetermined_keys = []
         err_template = "The key '%s' could not be determined \
-    and is needed for the action %s. Please add this to your config.\n"
+and is needed for the action %s. Please add this to your config.\n"
         for dep in dependencies:
             if not c.get(dep):
                 undetermined_keys += dep
@@ -332,20 +351,16 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
             return
 
         c = self.config
-        mock_target = c.get('mock_target')
-
-        if not mock_target:
-            self.fatal(MOCK_ERROR_MSGS['undetermined_mock_target'])
-
-        self.reset_mock(mock_target)
-        self.init_mock(mock_target)
+        self.reset_mock(c['mock_target'])
+        self.init_mock(c['mock_target'])
         if c.get('mock_pre_package_copy_files'):
-            self.copy_mock_files(mock_target,
+            self.copy_mock_files(c['mock_target'],
                                  c.get('mock_pre_package_copy_files'))
         for cmd in c.get('mock_pre_package_cmds', []):
-            self.run_mock_command(mock_target, cmd, '/')
+            self.run_mock_command(c['mock_target'], cmd, '/')
         if c.get('mock_packages'):
-            self.install_mock_packages(mock_target, c.get('mock_packages'))
+            self.install_mock_packages(c['mock_target'],
+                                       c.get('mock_packages'))
 
         self.done_mock_setup = True
 
@@ -375,18 +390,18 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         self._get_mozconfig()
         self._run_tooltool()
 
-    def _do_build_mock_make_cmd(self, cmd, cwd):
+    def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
         """a similar setup is conducted for many make targets
         throughout a build. This takes a cmd and cwd and calls
         a mock_mozilla with the right env"""
         c = self.config
-        env = self.query_env({
-            "MOZ_SIGN_CMD": subprocess.list2cmdline(self.query_moz_sign_cmd())
-        })
+        if not env:
+            moz_sign_cmd = self.query_moz_sign_cmd()
+            env = self.query_env({
+                "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
+            })
         mock_target = c.get('mock_target')
-        if not mock_target:
-            return self.fatal(ERROR_MSGS['undetermined_mock_target'])
-        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env)
+        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
 
     def build(self):
         """build application"""
@@ -428,8 +443,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
     def make_packages(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        # dependencies in config = ['enable_packaging', 'package_filename']
-        # see _pre_config_lock
+        # dependencies in config, see _pre_config_lock
         if not c.get('enable_packaging'):
             return self.info('enable_packaging not set. Skipping...')
 
@@ -446,6 +460,10 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         self._set_package_file_properties()
 
     def _query_post_upload_cmd(self):
+        # TODO support more from postUploadCmdPrefix()
+        # as needed
+        # h.m.o/build/buildbotcustom/process/factory.py#l119
+        c = self.config
         post_upload_cmd = ["post_upload.py"]
 
         branch = self.buildbot_config['properties']['branch']
@@ -454,64 +472,75 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
 
         post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
-        # if self.nightly
-        # post_upload_cmd.extend(["-b", branch])
-        post_upload_cmd.extend(["-p", c['stage_product'])
+        post_upload_cmd.extend(["-p", c['stage_product']])
         post_upload_cmd.extend(['-i', buildid])
-        # if release build
-        # post_upload_cmd.extend(['-n', buildNumber])
-        # post_upload_cmd.extend(['-v', version])
         post_upload_cmd.extend(['--revision', revision])
-        # if try build
-        # post_upload_cmd.extend(['--who', who])
-        # if postUploadBuildDir:
-        # post_upload_cmd.extend(['--builddir', builddir])
         post_upload_cmd.append('--release-to-tinderbox-dated-builds')
-        # if repack build: if to_tinderbox_builds:
-        # post_upload_cmd.append('--release-to-tinderbox-builds')
-        # if to_try:
-        #     post_upload_cmd.append('--release-to-try-builds')
-        # if to_latest:
-        #     post_upload_cmd.append("--release-to-latest")
-        # if to_dated:
-        #     post_upload_cmd.append("--release-to-dated")
-        # if to_shadow:
-        #     post_upload_cmd.append("--release-to-shadow-central-builds")
-        # if to_candidates:
-        #     post_upload_cmd.append("--release-to-candidates-dir")
-        # if to_mobile_candidates:
-        #     post_upload_cmd.append("--release-to-mobile-candidates-dir")
-        # if nightly_dir:
-        #     post_upload_cmd.append("--nightly-dir=%s" % nightly_dir)
-        # if signed:
-        #     post_upload_cmd.append("--signed")
         return post_upload_cmd
 
     def make_upload(self):
         c = self.config
-        # dependencies in config = ['upload_env', 'stage_platform']
+        dirs = self.query_abs_dirs
+        # dependencies in config = ['upload_env', 'stage_platform',
+        # 'make_target']
         # see _pre_config_lock
 
-        upload_cmd = []
+        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         upload_env = self.query_env(c['upload_env'])
         upload_env['POST_UPLOAD_CMD'] = self._query_post_upload_cmd()
-        abs_objdir = os.path.join(dirs['abs_src_dir'],
-                                  self._query_objdir())
+        parser = MakeUploadOutputParser(config=c,
+                                        log_obj=self.log_obj)
+        self._do_build_mock_make_cmd('make upload',
+                                     cwd=cwd,
+                                     env=upload_env
+                                     output_parser=parser)
+        upload_properties = parser.evaluate_parser()
+        for prop, value in upload_properties:
+            self.set_buildbot_property(prop,
+                                       value,
+                                       write_to_file=True)
 
-        self.addStep(RetryingMockProperty(
-            name='make_upload',
-            command=self.makeCmd + ['upload'] + upload_vars,
-            env=uploadEnv,
-            workdir=objdir,
-            extract_fn=parse_make_upload,
-            haltOnFailure=True,
-            description=self.makeCmd + ['upload'],
-            mock=self.use_mock,
-            target=self.mock_target,
-            mock_workdir_prefix=None,
-            timeout=40 * 60,  # 40 minutes
-            log_eval_func=lambda c, s: regex_log_evaluator(
-                c, s, upload_errors),
-            locks=[upload_lock.access('counting')],
-        ))
 
+class MakeUploadOutputParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+
+    def __init__(self, **kwargs):
+        self.matches = {}
+        super(MakeUploadOutputParser, self).__init__(**kwargs)
+
+    def parse_single_line(self, line):
+        pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+        m = re.compile(pat).match(line)
+        property_conditions = {
+            # key: property name, value: condition
+            'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
+            'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
+            'packageRpmUrl': "m.endswith('.rpm')",
+            'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
+            'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
+            'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
+            'unsignedApkUrl': "m.endswith('apk') and "
+                              "'unsigned-unaligned' in m",
+            'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
+            'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
+            'completeMarUrl': "m.endswith('.complete.mar')",
+            'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
+            'packageUrl': "True",  # else block
+        }
+        if m:
+            for prop, condition in property_conditions:
+                if eval(condition):
+                    self.matches[prop] = m.group(1)
+        # now let's check for retry errors which will give log levels:
+        # tbpl status as RETRY and mozharness status as WARNING
+        for error_check in self.tbpl_error_list:
+            if error_check['regex'].search(line):
+                self.num_warnings += 1
+                self.warning(line)
+                self.buildbot_status(error_check['level'])
+                break
+        else:
+            self.info(line)
+
+    def evaluate_parser(self, return_code):
+        return self.matches

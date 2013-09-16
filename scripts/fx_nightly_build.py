@@ -70,9 +70,14 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         c = self.config
         config_dependencies = {
             # key = action, value = list of action's config dependencies
-            'build': ['ccache_env', 'old_packages']
-            'make-upload': ['upload_env', 'stage_platform']
-            'make-packages': ['enable_packaging', 'package_filename']
+            'setup-mock': ['mock_target']
+            'build': ['ccache_env', 'old_packages', 'mock_target']
+            'make-build-symbols': ['mock_target']
+            'setup-mock': ['mock_target']
+            'make-packages': [
+                'enable_packaging', 'package_filename', 'mock_target'
+            ]
+            'make-upload': ['upload_env', 'stage_platform', 'make_target']
         }
         for action in self.actions:
             if config_dependencies.get(action):

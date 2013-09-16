@@ -13,6 +13,8 @@ author: Jordan Lund
 import os
 import subprocess
 import re
+import time
+import uuid
 
 # import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
@@ -59,7 +61,6 @@ ERROR_MSGS.update(MOCK_ERROR_MSGS)
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
 
-    # in Basescript
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """Takes a list of dependencies and ensures that each have an
         assoctiated key in the config. Displays error messages as
@@ -80,6 +81,16 @@ and is needed for the action %s. Please add this to your config.\n"
             self.fatal("".join(fatal_msgs))
         # otherwise:
         return  # all good
+
+    def _query_builduid(self):
+        if self.builduid:
+            return self.builduid
+        builduid = uuid.uuid4().hex
+
+    def _query_buildid(self):
+        if self.buildid:
+            return self.buildid
+        buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
 
     def _query_objdir(self):
         if self.objdir:
@@ -220,6 +231,8 @@ and is needed for the action %s. Please add this to your config.\n"
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
         properties_needed = [
+            # TODO, do we need to set buildid twice like we already do in
+            # self._query_buildid() ?
             {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
             {'ini_name': 'Version', 'prop_name': 'appVersion'},
@@ -337,11 +350,39 @@ and is needed for the action %s. Please add this to your config.\n"
                                    package_hash,
                                    write_to_file=True)
 
+    def _query_post_upload_cmd(self):
+        # TODO support more from postUploadCmdPrefix()
+        # as needed
+        # h.m.o/build/buildbotcustom/process/factory.py#l119
+        c = self.config
+        post_upload_cmd = ["post_upload.py"]
+
+        branch = self.buildbot_config['properties']['branch']
+        buildid = self.query_buildbot_property('buildid')
+        revision = self.query_buildbot_property('got_revision')
+        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
+
+        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
+        post_upload_cmd.extend(["-p", c['stage_product']])
+        post_upload_cmd.extend(['-i', buildid])
+        post_upload_cmd.extend(['--revision', revision])
+        post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+
+        return post_upload_cmd
+
     def read_buildbot_config(self):
         c = self.config
         if not c.get('is_automation'):
             return self._skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
+
+    def postflight_read_buildbot_config(self):
+        self.set_buildbot_property('buildid',
+                                   self._query_buildid(),
+                                   write_to_file=True)
+        self.set_buildbot_property('builduid',
+                                   self._query_builduid(),
+                                   write_to_file=True)
 
     def setup_mock(self):
         """Overrides mock_setup found in MockMixin.
@@ -409,11 +450,7 @@ and is needed for the action %s. Please add this to your config.\n"
         # see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
-        # TODO, the buildbot_config props buildid
-        # after a compile so find out how to get the buildid for here
-        buildbot_buildid = self.buildbot_config['properties'].get('buildid',
-                                                                  '')
-        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % buildbot_buildid
+        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self._query_buildid(),)
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_stats(self):
@@ -459,25 +496,6 @@ and is needed for the action %s. Please add this to your config.\n"
         # self.productName not in ('xulrunner', 'b2g'):
         self._set_package_file_properties()
 
-    def _query_post_upload_cmd(self):
-        # TODO support more from postUploadCmdPrefix()
-        # as needed
-        # h.m.o/build/buildbotcustom/process/factory.py#l119
-        c = self.config
-        post_upload_cmd = ["post_upload.py"]
-
-        branch = self.buildbot_config['properties']['branch']
-        buildid = self.query_buildbot_property('buildid')
-        revision = self.query_buildbot_property('got_revision')
-        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
-
-        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
-        post_upload_cmd.extend(["-p", c['stage_product']])
-        post_upload_cmd.extend(['-i', buildid])
-        post_upload_cmd.extend(['--revision', revision])
-        post_upload_cmd.append('--release-to-tinderbox-dated-builds')
-        return post_upload_cmd
-
     def make_upload(self):
         c = self.config
         dirs = self.query_abs_dirs
@@ -500,6 +518,16 @@ and is needed for the action %s. Please add this to your config.\n"
                                        value,
                                        write_to_file=True)
 
+    def sendchange(self):
+        c = self.config
+        # dependencies in config = ['complete_platform']
+        # see _pre_config_lock
+        complete_platform = c['complete_platform']
+        branch = self.buildbot_config['properties']['branch']
+        talos_branch = "%s-%s-talos" % (branch, complete_platform)
+
+
+### Output Parsers
 
 class MakeUploadOutputParser(OutputParser):
     tbpl_error_list = TBPL_UPLOAD_ERRORS

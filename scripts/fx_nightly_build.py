@@ -50,6 +50,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'make-build-symbols',
                 'make-packages',
                 'make-upload',
+                'sendchange',
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -63,21 +64,23 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = time.mktime(datetime.now().timetuple())
-
+        self.buildid = None
+        self.builduid = None
         self.objdir = None
 
     def _pre_config_lock(self, rw_config):
         c = self.config
         config_dependencies = {
             # key = action, value = list of action's config dependencies
-            'setup-mock': ['mock_target']
-            'build': ['ccache_env', 'old_packages', 'mock_target']
-            'make-build-symbols': ['mock_target']
-            'setup-mock': ['mock_target']
+            'setup-mock': ['mock_target'],
+            'build': ['ccache_env', 'old_packages', 'mock_target'],
+            'make-build-symbols': ['mock_target'],
+            'setup-mock': ['mock_target']k
             'make-packages': [
                 'enable_packaging', 'package_filename', 'mock_target'
-            ]
-            'make-upload': ['upload_env', 'stage_platform', 'make_target']
+            ],
+            'make-upload': ['upload_env', 'stage_platform', 'make_target'],
+            'sendchange': ['complete_platform'],
         }
         for action in self.actions:
             if config_dependencies.get(action):

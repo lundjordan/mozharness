@@ -98,6 +98,8 @@ config = {
         'generate-build-stats',
         'make-build-symbols',
         'make-packages',
+        'make-upload',
+        'sendchange',
     ],
 
     # we wish to purge builds
@@ -204,6 +206,9 @@ releng.manifest",
         'UPLOAD_SSH_KEY': '~/.ssh/ffxbld_dsa',
     },
 
-    'stage_platform': 'linux',
     'stage_product': 'firefox',
+    'stage_platform': 'linux',
+    'platform': 'linux',
+    # this will change for sub configs like asan, pgo etc
+    'complete_platform': 'linux',
 }

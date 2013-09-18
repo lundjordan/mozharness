@@ -99,8 +99,14 @@ config = {
         'make-build-symbols',
         'make-packages',
         'make-upload',
-        'sendchange',
+        'test-pretty-names',
+        'check-test-complete',
+        'enable-ccache',
     ],
+
+    'exes': {
+        "buildbot": "/tools/buildbot/bin/buildbot",
+    },
 
     # we wish to purge builds
     'purge_minsize': 12,
@@ -184,13 +190,11 @@ releng.manifest",
     'base_name': 'Linux %(branch)s',
 
     'enable_symbols': True,
-    'enable_packaging': True,
     'enable_package_tests': True,
     'package_filename': '*.linux-i686*.tar.bz2',
     # 'packageFilename': '*.linux-x86_64*.tar.bz2',
 
     # TODO port self.platform_variation self.complete_platform for RPM check
-
 
     'upload_env': {
         # TODO ADD SEPARATE CONFIGS ?
@@ -208,7 +212,27 @@ releng.manifest",
 
     'stage_product': 'firefox',
     'stage_platform': 'linux',
-    'platform': 'linux',
-    # this will change for sub configs like asan, pgo etc
-    'complete_platform': 'linux',
+
+    # TODO find out if we need platform keys in config or if buildbot_config
+    # will do
+    # 'platform': 'linux',
+    # # this will change for sub configs like asan, pgo etc
+    # 'complete_platform': 'linux',
+
+    # production.py
+    "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
+    # staging
+    # 'dev-master01.build.scl1.mozilla.com:9901'
+    # pre production
+    # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
+
+    "pretty_name_pkg_targets": ["package"],
+    "l10n_check_test": True,
+
+    "check_test_env": {
+        'MINIDUMP_STACKWALK': '%(tools_dir)s/breakpad/linux/minidump_stackwalk'),
+        'MINIDUMP_SAVE_PATH': '%(base)s/breakpad/linux/minidump_stackwalk'),
+    },
+
+
 }

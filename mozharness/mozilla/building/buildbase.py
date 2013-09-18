@@ -57,6 +57,55 @@ Skipping run_tooltool...',
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
+### Output Parsers
+
+
+class MakeUploadOutputParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+
+    def __init__(self, **kwargs):
+        self.matches = {}
+        super(MakeUploadOutputParser, self).__init__(**kwargs)
+
+    def parse_single_line(self, line):
+        pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+        m = re.compile(pat).match(line)
+        property_conditions = {
+            # key: property name, value: condition
+            'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
+            'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
+            'packageRpmUrl': "m.endswith('.rpm')",
+            'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
+            'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
+            'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
+            'unsignedApkUrl': "m.endswith('apk') and "
+                              "'unsigned-unaligned' in m",
+            'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
+            'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
+            'completeMarUrl': "m.endswith('.complete.mar')",
+            'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
+            'packageUrl': "True",  # else block
+        }
+        if m:
+            for prop, condition in property_conditions:
+                if eval(condition):
+                    self.matches[prop] = m.group(1)
+        # now let's check for retry errors which will give log levels:
+        # tbpl status as RETRY and mozharness status as WARNING
+        for error_check in self.tbpl_error_list:
+            if error_check['regex'].search(line):
+                self.num_warnings += 1
+                self.warning(line)
+                self.buildbot_status(error_check['level'])
+                break
+        else:
+            self.info(line)
+
+    def evaluate_parser(self, return_code):
+        return self.matches
+
+
+#### Mixins
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
@@ -82,15 +131,23 @@ and is needed for the action %s. Please add this to your config.\n"
         # otherwise:
         return  # all good
 
-    def _query_builduid(self):
+    def query_builduid(self):
         if self.builduid:
             return self.builduid
-        builduid = uuid.uuid4().hex
+        if self.buildbot_config['properties'].get('buildid'):
+            self.builduid = self.buildbot_config['properties']['buildid']
+        else:
+            self.builduid = uuid.uuid4().hex
+        return self.builduid
 
-    def _query_buildid(self):
+    def query_buildid(self):
         if self.buildid:
             return self.buildid
-        buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
+        if self.buildbot_config['properties'].get('buildid'):
+            self.buildid = self.buildbot_config['properties']['builduid']
+        else:
+            self.buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
+        return self.buildid
 
     def _query_objdir(self):
         if self.objdir:
@@ -232,7 +289,7 @@ and is needed for the action %s. Please add this to your config.\n"
         ]
         properties_needed = [
             # TODO, do we need to set buildid twice like we already do in
-            # self._query_buildid() ?
+            # self.query_buildid() ?
             {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
             {'ini_name': 'Version', 'prop_name': 'appVersion'},
@@ -350,6 +407,34 @@ and is needed for the action %s. Please add this to your config.\n"
                                    package_hash,
                                    write_to_file=True)
 
+    def _do_sendchanges(self):
+        c = self.config
+        # dependencies in config = ['complete_platform']
+        # see _pre_config_lock
+        # complete_platform = c['complete_platform']
+        platform = self.buildbot_config['properties']['platform']
+        branch = self.buildbot_config['properties']['branch']
+        talos_branch = "%s-%s-talos" % (branch, platform)
+        installer_url = [self.query_buildbot_property('packageUrl')]
+        tests_url = [self.query_buildbot_property('testsUrl')]
+        sendchange_props = {
+            'buildid': self.query_buildid('buildid'),
+            'builduid': self.query_builduid('builduid'),
+            'nightly_build': self.query_is_nightly(),
+            'pgo_build': c['pgo_build'],
+        }
+
+        # TODO insert check for uploadMulti factory 2526
+        # if not self.uploadMulti
+        self.sendchange(downloadables=[installer_url],
+                        branch=talos_branch,
+                        username='sendchange',
+                        pgo_build=c['pgo_build'])
+
+        if c.get('enable_package_tests'):
+            self.sendchange(downloadables=[installer_url, tests_url],
+                            pgo_build=c['pgo_build'])
+
     def _query_post_upload_cmd(self):
         # TODO support more from postUploadCmdPrefix()
         # as needed
@@ -377,11 +462,13 @@ and is needed for the action %s. Please add this to your config.\n"
         super(BuildingMixin, self).read_buildbot_config()
 
     def postflight_read_buildbot_config(self):
+        buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
+        builduid = uuid.uuid4().hex
         self.set_buildbot_property('buildid',
-                                   self._query_buildid(),
+                                   buildid,
                                    write_to_file=True)
         self.set_buildbot_property('builduid',
-                                   self._query_builduid(),
+                                   builduid,
                                    write_to_file=True)
 
     def setup_mock(self):
@@ -420,7 +507,11 @@ and is needed for the action %s. Please add this to your config.\n"
                                            write_to_file=True)
             else:
                 self.warning(ERROR_MSGS['comments_undetermined'])
-            self.set_buildbot_property('got_revision', rev, write_to_file=True)
+            # TODO is rev not in buildbot_config (possibly multiple
+            # times) as 'revision'?
+            self.set_buildbot_property('got_revision',
+                                       rev[:12],
+                                       write_to_file=True)
 
     def preflight_build(self):
         """set up machine state for a complete build"""
@@ -450,7 +541,7 @@ and is needed for the action %s. Please add this to your config.\n"
         # see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
-        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self._query_buildid(),)
+        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_stats(self):
@@ -481,8 +572,6 @@ and is needed for the action %s. Please add this to your config.\n"
         c = self.config
         dirs = self.query_abs_dirs()
         # dependencies in config, see _pre_config_lock
-        if not c.get('enable_packaging'):
-            return self.info('enable_packaging not set. Skipping...')
 
         if c.get('enable_package_tests'):
             cmd = 'make package-tests'
@@ -504,7 +593,8 @@ and is needed for the action %s. Please add this to your config.\n"
         # see _pre_config_lock
 
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-        upload_env = self.query_env(c['upload_env'])
+        # we want the env without MOZ_SIGN_CMD
+        env = self.query_env()
         upload_env['POST_UPLOAD_CMD'] = self._query_post_upload_cmd()
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
@@ -517,58 +607,47 @@ and is needed for the action %s. Please add this to your config.\n"
             self.set_buildbot_property(prop,
                                        value,
                                        write_to_file=True)
+        self._do_sendchanges()
 
-    def sendchange(self):
-        c = self.config
-        # dependencies in config = ['complete_platform']
+    def test_pretty_names(self):
+        # dependencies in config
         # see _pre_config_lock
-        complete_platform = c['complete_platform']
-        branch = self.buildbot_config['properties']['branch']
-        talos_branch = "%s-%s-talos" % (branch, complete_platform)
+        c = self.config
+        dirs = self.query_abs_dirs()
+        env = self.query_env()
+        objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
+        base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
 
+        for target in c['pretty_name_pkg_targets']:
+            self._do_build_mock_make_cmd(base_cmd % (target,),
+                                         cwd=objdir_path,
+                                         env=env)
+        update_package_cmd = '-C %s' % (os.path.join(objir_path, 'tools',
+                                                     'update-packaging'),)
+        self._do_build_mock_make_cmd(base_cmd % (update_package_cmd,),
+                                     cwd=dirs['abs_src_dir'],
+                                     env=env)
+        if c['l10n_check_test']:
+            self._do_build_mock_make_cmd(base_cmd % ("l10n-check",),
+                                         cwd=objdir_path,
+                                         env=env)
+            # make l10n-hcek again without pretty names?
+            self._do_build_mock_make_cmd('make l10n-check',
+                                         cwd=objdir_path,
+                                         env=env)
 
-### Output Parsers
+    def check_test_complete(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
+        abs_check_test_env = {}
+        for env_var, env_value in c['check_test_env']:
+            abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
+                                                       env_value)
+        env = self.query_env(abs_check_test_env)
+        self._do_build_mock_make_cmd('make -k check',
+                                     cwd=objdir_path,
+                                     env=env)
 
-class MakeUploadOutputParser(OutputParser):
-    tbpl_error_list = TBPL_UPLOAD_ERRORS
-
-    def __init__(self, **kwargs):
-        self.matches = {}
-        super(MakeUploadOutputParser, self).__init__(**kwargs)
-
-    def parse_single_line(self, line):
-        pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
-        m = re.compile(pat).match(line)
-        property_conditions = {
-            # key: property name, value: condition
-            'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
-            'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
-            'packageRpmUrl': "m.endswith('.rpm')",
-            'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
-            'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
-            'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
-            'unsignedApkUrl': "m.endswith('apk') and "
-                              "'unsigned-unaligned' in m",
-            'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
-            'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
-            'completeMarUrl': "m.endswith('.complete.mar')",
-            'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
-            'packageUrl': "True",  # else block
-        }
-        if m:
-            for prop, condition in property_conditions:
-                if eval(condition):
-                    self.matches[prop] = m.group(1)
-        # now let's check for retry errors which will give log levels:
-        # tbpl status as RETRY and mozharness status as WARNING
-        for error_check in self.tbpl_error_list:
-            if error_check['regex'].search(line):
-                self.num_warnings += 1
-                self.warning(line)
-                self.buildbot_status(error_check['level'])
-                break
-        else:
-            self.info(line)
-
-    def evaluate_parser(self, return_code):
-        return self.matches
+    def enable_ccache(self):
+        pass

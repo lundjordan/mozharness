@@ -50,7 +50,9 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'make-build-symbols',
                 'make-packages',
                 'make-upload',
-                'sendchange',
+                'test-pretty-names',
+                'check-test-complete',
+                'enable-ccache',
             ],
             'require_config_file': require_config_file,
             # Default configuration
@@ -64,11 +66,11 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = time.mktime(datetime.now().timetuple())
-        self.buildid = None
-        self.builduid = None
         self.objdir = None
 
     def _pre_config_lock(self, rw_config):
+        """validate that the appropriate config are in self.config for actions
+        being run"""
         c = self.config
         config_dependencies = {
             # key = action, value = list of action's config dependencies
@@ -80,7 +82,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'enable_packaging', 'package_filename', 'mock_target'
             ],
             'make-upload': ['upload_env', 'stage_platform', 'make_target'],
-            'sendchange': ['complete_platform'],
+            'test-pretty-names': ['pretty_name_pkg_targets', 'l10n_check_test'],
+
         }
         for action in self.actions:
             if config_dependencies.get(action):
@@ -99,6 +102,9 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # if true: possibly clobber, clobberer, and purge_builds
             # see PurgeMixin for clobber() conditions
             'is_automation': True,
+
+            'pgo_build': False,
+            'debug_build': False,
 
             'clobberer_url': clobberer_url,  # we wish to clobberer
             'periodic_clobber': 168,  # default anyway but can be overwritten

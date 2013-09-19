@@ -71,13 +71,12 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     def _pre_config_lock(self, rw_config):
         """validate that the appropriate config are in self.config for actions
         being run"""
-        c = self.config
         config_dependencies = {
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
             'build': ['ccache_env', 'old_packages', 'mock_target'],
             'make-build-symbols': ['mock_target'],
-            'setup-mock': ['mock_target']k
+            'setup-mock': ['mock_target'],
             'make-packages': [
                 'enable_packaging', 'package_filename', 'mock_target'
             ],

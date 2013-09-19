@@ -149,6 +149,9 @@ class CheckTestCompleteParser(OutputParser):
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
 
+    objdir = None
+    repo_path = None
+
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """Takes a list of dependencies and ensures that each have an
         assoctiated key in the config. Displays error messages as
@@ -455,9 +458,6 @@ and is needed for the action %s. Please add this to your config.\n"
 
     def _do_sendchanges(self):
         c = self.config
-        # dependencies in config = ['complete_platform']
-        # see _pre_config_lock
-        # complete_platform = c['complete_platform']
         platform = self.buildbot_config['properties']['platform']
         branch = self.buildbot_config['properties']['branch']
         talos_branch = "%s-%s-talos" % (branch, platform)
@@ -475,12 +475,11 @@ and is needed for the action %s. Please add this to your config.\n"
         self.sendchange(downloadables=[installer_url],
                         branch=talos_branch,
                         username='sendchange',
-                        pgo_build=c['pgo_build'],
                         sendchange_props=sendchange_props)
 
         if c.get('enable_package_tests'):
             self.sendchange(downloadables=[installer_url, tests_url],
-                            pgo_build=c['pgo_build'])
+                            sendchange_props=sendchange_props)
 
     def _query_post_upload_cmd(self):
         # TODO support more from postUploadCmdPrefix()

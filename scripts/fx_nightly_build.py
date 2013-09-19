@@ -58,15 +58,17 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # Default configuration
             'config': self.default_config_for_all_platforms(),
         }
-        super(FxNightlyBuild, self).__init__(**basescript_kwargs)
-        self.repo_path = None
         # TODO this is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
         # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = time.mktime(datetime.now().timetuple())
+        self.repo_path = None
         self.objdir = None
+        self.buildid = None
+        self.builduid = None
+        super(FxNightlyBuild, self).__init__(**basescript_kwargs)
 
     def _pre_config_lock(self, rw_config):
         """validate that the appropriate config are in self.config for actions

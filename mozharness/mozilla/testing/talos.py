@@ -576,8 +576,11 @@ class Talos(TestingMixin, MercurialScript):
         python = self.query_python_path()
         self.run_command([python, "--version"])
         # run talos tests
-        talos = self.query_python_path('talos')
-        command = [talos, '--noisy', '--debug'] + options
+        # talos = self.query_python_path('talos')
+        talos_path = os.path.join(self.talos_path, 'talos', 'run_tests.py')
+        if not os.path.exists(talos_path):
+            self.fatal('talos run_tests.py could not be determined')
+        command = [python, '-u', talos_path, '--noisy', '--debug'] + options
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
         self.return_code = self.run_command(command, cwd=self.workdir,

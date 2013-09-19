@@ -162,10 +162,11 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         c = self.config
         undetermined_keys = []
         err_template = "The key '%s' could not be determined \
-and is needed for the action %s. Please add this to your config.\n"
+and is needed for the action '%s'. Please add this to your config \
+or run without that action (ie: --no-{action})"
         for dep in dependencies:
             if not c.get(dep):
-                undetermined_keys += dep
+                undetermined_keys.append(dep)
         if undetermined_keys:
             fatal_msgs = [err_template % (key, action)
                           for key in undetermined_keys]
@@ -253,6 +254,19 @@ and is needed for the action %s. Please add this to your config.\n"
             cmd.append(product % {"objdir": self._query_objdir()})
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
+
+    def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
+        """a similar setup is conducted for many make targets
+        throughout a build. This takes a cmd and cwd and calls
+        a mock_mozilla with the right env"""
+        c = self.config
+        if not env:
+            moz_sign_cmd = self.query_moz_sign_cmd()
+            env = self.query_env({
+                "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
+            })
+        mock_target = c.get('mock_target')
+        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
 
     def _get_mozconfig(self):
         """assigns mozconfig"""
@@ -558,19 +572,6 @@ and is needed for the action %s. Please add this to your config.\n"
         self._get_mozconfig()
         self._run_tooltool()
 
-    def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
-        """a similar setup is conducted for many make targets
-        throughout a build. This takes a cmd and cwd and calls
-        a mock_mozilla with the right env"""
-        c = self.config
-        if not env:
-            moz_sign_cmd = self.query_moz_sign_cmd()
-            env = self.query_env({
-                "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
-            })
-        mock_target = c.get('mock_target')
-        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
-
     def build(self):
         """build application"""
         # dependencies in config = ['ccache_env', 'old_packages']
@@ -625,7 +626,7 @@ and is needed for the action %s. Please add this to your config.\n"
         c = self.config
         dirs = self.query_abs_dirs
         # dependencies in config = ['upload_env', 'stage_platform',
-        # 'make_target']
+        # 'mock_target']
         # see _pre_config_lock
 
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())

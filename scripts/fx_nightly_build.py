@@ -79,10 +79,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             'build': ['ccache_env', 'old_packages', 'mock_target'],
             'make-build-symbols': ['mock_target'],
             'setup-mock': ['mock_target'],
-            'make-packages': [
-                'enable_packaging', 'package_filename', 'mock_target'
-            ],
-            'make-upload': ['upload_env', 'stage_platform', 'make_target'],
+            'make-packages': ['package_filename', 'mock_target'],
+            'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
             'test-pretty-names': ['pretty_name_pkg_targets',
                                   'l10n_check_test'],
 

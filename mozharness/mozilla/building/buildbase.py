@@ -24,6 +24,8 @@ from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 from mozharness.base.log import OutputParser
 from mozharness.mozilla.buildbot import TBPL_RETRY
+from mozharness.mozilla.testing.unittest import tbox_print_summary
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 
 TBPL_UPLOAD_ERRORS = [
     {
@@ -101,11 +103,48 @@ class MakeUploadOutputParser(OutputParser):
         else:
             self.info(line)
 
-    def evaluate_parser(self, return_code):
-        return self.matches
 
+class CheckTestCompleteParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+
+    def __init__(self, **kwargs):
+        self.matches = {}
+        super(CheckTestCompleteParser, self).__init__(**kwargs)
+        self.pass_count = 0
+        self.fail_count = 0
+        self.leaked = False
+        self.harnessErrRe = TinderBoxPrintRe['harness_error']['full_regex']
+
+    def parse_single_line(self, line):
+        # Counts and flags.
+        # Regular expression for crash and leak detections.
+        if "TEST-PASS" in line:
+            self.pass_count += 1
+            return self.info(line)
+        if "TEST-UNEXPECTED-" in line:
+            # Set the error flags.
+            # Or set the failure count.
+            m = self.harnessErrRe.match(line)
+            if m:
+                r = m.group(1)
+                if r == "missing output line for total leaks!":
+                    self.leaked = None
+                else:
+                    self.leaked = True
+            else:
+                self.fail_count += 1
+            return self.warning(line)
+        self.info(line)  # else
+
+    def evaluate_parser(self):
+        # Return the summary.
+        summary = tbox_print_summary(self.pass_count,
+                                     self.fail_count,
+                                     self.leaked)
+        self.info("TinderboxPrint: check<br/>%s\n" % (summary))
 
 #### Mixins
+
 
 class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
                     object):
@@ -138,6 +177,9 @@ and is needed for the action %s. Please add this to your config.\n"
             self.builduid = self.buildbot_config['properties']['buildid']
         else:
             self.builduid = uuid.uuid4().hex
+            self.set_buildbot_property('builduid',
+                                       self.builduid,
+                                       write_to_file=True)
         return self.builduid
 
     def query_buildid(self):
@@ -146,7 +188,11 @@ and is needed for the action %s. Please add this to your config.\n"
         if self.buildbot_config['properties'].get('buildid'):
             self.buildid = self.buildbot_config['properties']['builduid']
         else:
-            self.buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
+            self.buildid = time.strftime("%Y%m%d%H%M%S",
+                                         time.localtime(time.time()))
+            self.set_buildbot_property('buildid',
+                                       self.buildid,
+                                       write_to_file=True)
         return self.buildid
 
     def _query_objdir(self):
@@ -429,7 +475,8 @@ and is needed for the action %s. Please add this to your config.\n"
         self.sendchange(downloadables=[installer_url],
                         branch=talos_branch,
                         username='sendchange',
-                        pgo_build=c['pgo_build'])
+                        pgo_build=c['pgo_build'],
+                        sendchange_props=sendchange_props)
 
         if c.get('enable_package_tests'):
             self.sendchange(downloadables=[installer_url, tests_url],
@@ -460,16 +507,6 @@ and is needed for the action %s. Please add this to your config.\n"
         if not c.get('is_automation'):
             return self._skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
-
-    def postflight_read_buildbot_config(self):
-        buildid = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
-        builduid = uuid.uuid4().hex
-        self.set_buildbot_property('buildid',
-                                   buildid,
-                                   write_to_file=True)
-        self.set_buildbot_property('builduid',
-                                   builduid,
-                                   write_to_file=True)
 
     def setup_mock(self):
         """Overrides mock_setup found in MockMixin.
@@ -594,15 +631,15 @@ and is needed for the action %s. Please add this to your config.\n"
 
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         # we want the env without MOZ_SIGN_CMD
-        env = self.query_env()
+        upload_env = self.query_env()
         upload_env['POST_UPLOAD_CMD'] = self._query_post_upload_cmd()
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
         self._do_build_mock_make_cmd('make upload',
                                      cwd=cwd,
-                                     env=upload_env
+                                     env=upload_env,
                                      output_parser=parser)
-        upload_properties = parser.evaluate_parser()
+        upload_properties = parser.matches
         for prop, value in upload_properties:
             self.set_buildbot_property(prop,
                                        value,
@@ -622,7 +659,7 @@ and is needed for the action %s. Please add this to your config.\n"
             self._do_build_mock_make_cmd(base_cmd % (target,),
                                          cwd=objdir_path,
                                          env=env)
-        update_package_cmd = '-C %s' % (os.path.join(objir_path, 'tools',
+        update_package_cmd = '-C %s' % (os.path.join(objdir_path, 'tools',
                                                      'update-packaging'),)
         self._do_build_mock_make_cmd(base_cmd % (update_package_cmd,),
                                      cwd=dirs['abs_src_dir'],
@@ -645,9 +682,16 @@ and is needed for the action %s. Please add this to your config.\n"
             abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
                                                        env_value)
         env = self.query_env(abs_check_test_env)
+        parser = CheckTestCompleteParser(config=c,
+                                         log_obj=self.log_obj)
         self._do_build_mock_make_cmd('make -k check',
                                      cwd=objdir_path,
-                                     env=env)
+                                     env=env,
+                                     output_parser=parser)
+        parser.evaluate_parser()
 
     def enable_ccache(self):
-        pass
+        dirs = self.query_abs_dirs()
+        env = self.query_env()
+        cmd = ['ccache', '-s']
+        self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)

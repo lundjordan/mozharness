@@ -82,7 +82,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                 'enable_packaging', 'package_filename', 'mock_target'
             ],
             'make-upload': ['upload_env', 'stage_platform', 'make_target'],
-            'test-pretty-names': ['pretty_name_pkg_targets', 'l10n_check_test'],
+            'test-pretty-names': ['pretty_name_pkg_targets',
+                                  'l10n_check_test'],
 
         }
         for action in self.actions:

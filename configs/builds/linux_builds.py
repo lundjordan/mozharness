@@ -230,8 +230,8 @@ releng.manifest",
     "l10n_check_test": True,
 
     "check_test_env": {
-        'MINIDUMP_STACKWALK': '%(tools_dir)s/breakpad/linux/minidump_stackwalk'),
-        'MINIDUMP_SAVE_PATH': '%(base)s/breakpad/linux/minidump_stackwalk'),
+        'MINIDUMP_STACKWALK': 'breakpad/linux/minidump_stackwalk'),
+        'MINIDUMP_SAVE_PATH': 'minidumps'),
     },
 
 

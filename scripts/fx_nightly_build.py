@@ -12,6 +12,7 @@ author: Jordan Lund
 """
 
 import sys
+import platform
 import os
 import time
 from datetime import datetime
@@ -24,15 +25,103 @@ from mozharness.mozilla.building.buildbase import BuildingMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
 
 
+# TODO make get_platform more mozharness like:
+#     - put it inside a mozharness class instead of isolated function
+#     - allow it to use mozharness logs
+# however this will be hard as its purpose is to discover the platform prior
+# to the config options are fully parsed and added to self.config. The benefit
+# of doing this is so a user can just pass args like: --64-bit
+# and this script will know to grab the config file in
+# builds/sub_{get_platform()}_configs/64_bit.py
+# rather than a user having to:
+# --64-bit-cfg-file builds/sub_linux_configs/64_bit.py
+# this behavior will be beneficial when a user needs to pass --debug, --asan,
+# --xul_runner, etc that all have config files within:
+# builds/sub_{get_platform()}_configs/*
+class FxBuildOptionParser(object):
+    """provides a namespace for extending opt parsing for
+    fx desktop specsific builds"""
+    platform = None
+
+    @staticmethod
+    def _is_windows():
+        # sys_platform check
+        if sys.platform.lower() in ['win32', 'cygwin']:
+            return True
+        # platform_system check
+        for valid_value in ['windows', 'microsoft', 'cygwin']:
+            if valid_value in platform.system().lower():
+                return True
+        return False
+
+    @staticmethod
+    def _is_linux():
+        # sys_platform check
+        if sys.platform.lower().startswith('linux'):
+            # handles linux2, linux3, etc
+            return True
+        # platform_system check
+        if platform.system().lower() == 'linux':
+            return True
+        return False
+
+    @staticmethod
+    def _is_mac():
+        # sys_platform check
+        if (sys.platform.lower() == 'darwin') or \
+                (platform.system().lower() == 'darwin'):
+            return True
+        return False
+
+    @classmethod
+    def query_current_platform(cls):
+        if cls.platform:
+            return cls.platform
+        result = ''
+        if cls._is_windows():
+            result = 'windows'
+        elif cls._is_linux():
+            result = 'linux'
+        elif cls._is_mac():
+            result = 'mac'
+        else:
+            sys.exit("Could not determine platform. This script can currently"
+                     " only be used by: mac, win, or linux")
+        cls.platform = result
+        return cls.platform
+
+    @classmethod
+    def set_bits_options(cls, option, opt, value, parser):
+        pltfrm = cls.query_current_platform()
+        if opt == '--32-bit':
+            bits_cfg_path = 'builds/sub_%s_configs/32_build.py' % (pltfrm,)
+            parser.values.is_32 = True  # used in pre_config_lock()
+        else:  # opt == '--64-bit'
+            bits_cfg_path = 'builds/sub_%s_configs/64_build.py' % (pltfrm,)
+            parser.values.is_64 = True  # used in pre_config_lock()
+        parser.values.config_files.append(bits_cfg_path)
+
+
+
 class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     config_options = [
         [['--developer-run', '--skip-buildbot-actions'], {
             "action": "store_false",
             "dest": "is_automation",
             "default": True,
-            "help": "if this is running outside of Mozilla's buildbot"
+            "help": "If this is running outside of Mozilla's buildbot"
                     "infrastructure, use this option. It removes actions"
                     "that are not needed."}
+         ],
+        [['--32-bit'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_bits_options,
+            "help": "Adds 32bit config keys/values"}
+         ],
+        [['--64-bit'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_bits_options,
+            "help": "Adds 64bit config keys/values"}
          ],
     ]
 
@@ -71,8 +160,11 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         super(FxNightlyBuild, self).__init__(**basescript_kwargs)
 
     def _pre_config_lock(self, rw_config):
-        """validate that the appropriate config are in self.config for actions
-        being run"""
+        """First, validate that the appropriate config are in self.config
+        for actions being run. Then resolve optional config files
+        (if any)."""
+        c = self.config
+
         config_dependencies = {
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
@@ -89,6 +181,10 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             if config_dependencies.get(action):
                 self._assert_cfg_valid_for_action(config_dependencies[action],
                                                   action)
+
+        self.info('self.opt_config_files ' + str(self.config['opt_config_files']))
+        self.info('self.is_64_bit ' + str(self.config['is_64_bit']))
+        # TODO VERIFY CONFIG OPTIONS ARE VALID
 
     # helpers
 

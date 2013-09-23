@@ -25,19 +25,6 @@ from mozharness.mozilla.building.buildbase import BuildingMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
 
 
-# TODO make get_platform more mozharness like:
-#     - put it inside a mozharness class instead of isolated function
-#     - allow it to use mozharness logs
-# however this will be hard as its purpose is to discover the platform prior
-# to the config options are fully parsed and added to self.config. The benefit
-# of doing this is so a user can just pass args like: --64-bit
-# and this script will know to grab the config file in
-# builds/sub_{get_platform()}_configs/64_bit.py
-# rather than a user having to:
-# --64-bit-cfg-file builds/sub_linux_configs/64_bit.py
-# this behavior will be beneficial when a user needs to pass --debug, --asan,
-# --xul_runner, etc that all have config files within:
-# builds/sub_{get_platform()}_configs/*
 class FxBuildOptionParser(object):
     """provides a namespace for extending opt parsing for
     fx desktop specsific builds"""
@@ -92,14 +79,16 @@ class FxBuildOptionParser(object):
 
     @classmethod
     def set_bits_options(cls, option, opt, value, parser):
+        """Used as 'callback' for options '--32-bit' and '-64-bit'"""
         pltfrm = cls.query_current_platform()
         if opt == '--32-bit':
-            bits_cfg_path = 'builds/sub_%s_configs/32_build.py' % (pltfrm,)
+            bits_cfg_path = 'builds/sub_%s_configs/32_bit.py' % (pltfrm,)
             parser.values.is_32 = True  # used in pre_config_lock()
         else:  # opt == '--64-bit'
-            bits_cfg_path = 'builds/sub_%s_configs/64_build.py' % (pltfrm,)
+            bits_cfg_path = 'builds/sub_%s_configs/64_bit.py' % (pltfrm,)
             parser.values.is_64 = True  # used in pre_config_lock()
         parser.values.config_files.append(bits_cfg_path)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
 
 
@@ -116,11 +105,17 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         [['--32-bit'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_bits_options,
+            "dest": "is_32_bit",
+            "value": True,
+            "default": False,
             "help": "Adds 32bit config keys/values"}
          ],
         [['--64-bit'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_bits_options,
+            "dest": "is_64_bit",
+            "value": True,
+            "default": False,
             "help": "Adds 64bit config keys/values"}
          ],
     ]
@@ -163,8 +158,16 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         """First, validate that the appropriate config are in self.config
         for actions being run. Then resolve optional config files
         (if any)."""
-        c = self.config
 
+        # verify config options are valid
+        c = self.config
+        are_bits_valid = (c.get('is_32') or c.get('is_64')) and not \
+            (c.get('is_32') and c.get('is_64'))
+        if not are_bits_valid:
+            self.fatal('Specifying bits are mandatory. '
+                       'Please use "--32-bit" or "--64-bit" but not both.')
+
+        # now verify config keys are valid for actions being used this run
         config_dependencies = {
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
@@ -181,10 +184,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             if config_dependencies.get(action):
                 self._assert_cfg_valid_for_action(config_dependencies[action],
                                                   action)
-
-        self.info('self.opt_config_files ' + str(self.config['opt_config_files']))
-        self.info('self.is_64_bit ' + str(self.config['is_64_bit']))
-        # TODO VERIFY CONFIG OPTIONS ARE VALID
 
     # helpers
 

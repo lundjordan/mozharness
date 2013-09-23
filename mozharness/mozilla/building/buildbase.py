@@ -239,7 +239,8 @@ or run without that action (ie: --no-{action})"
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
-        ccache_env = self.query_env(c['ccache_env'])
+        ccache_env = self.query_env()
+        ccache_env.update(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
                          cwd=dirs['abs_work_dir'],
                          env=ccache_env)
@@ -262,7 +263,8 @@ or run without that action (ie: --no-{action})"
         c = self.config
         if not env:
             moz_sign_cmd = self.query_moz_sign_cmd()
-            env = self.query_env({
+            env = self.query_env()
+            env.update({
                 "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
             })
         mock_target = c.get('mock_target')
@@ -314,6 +316,7 @@ or run without that action (ie: --no-{action})"
     def _count_ctors(self):
         """count num of ctors and set testresults"""
         dirs = self.query_abs_dirs()
+        testresults = []
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
                                             'buildfarm/utils/count_ctors.py')
         abs_libxul_path = os.path.join(dirs['abs_src_dir'],
@@ -321,7 +324,6 @@ or run without that action (ie: --no-{action})"
                                        'dist/bin/libxul.so')
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
-        self.info(str(cmd))
         output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
         try:
             output = output.split("\t")
@@ -413,7 +415,8 @@ or run without that action (ie: --no-{action})"
                                      'lib',
                                      'python')
 
-        gs_env = self.query_env({'PYTHONPATH': gs_pythonpath})
+        gs_env = self.query_env()
+        gs_env.update({'PYTHONPATH': gs_pythonpath})
         branch = self.buildbot_config['properties']['branch']
         resultsname = c['base_name'] % (branch,)
         resultsname = resultsname.replace(' ', '_')
@@ -681,7 +684,8 @@ or run without that action (ie: --no-{action})"
         for env_var, env_value in c['check_test_env']:
             abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
                                                        env_value)
-        env = self.query_env(abs_check_test_env)
+        env = self.query_env()
+        env.update(abs_check_test_env)
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
         self._do_build_mock_make_cmd('make -k check',

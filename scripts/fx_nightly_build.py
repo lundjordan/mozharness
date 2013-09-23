@@ -83,13 +83,12 @@ class FxBuildOptionParser(object):
         pltfrm = cls.query_current_platform()
         if opt == '--32-bit':
             bits_cfg_path = 'builds/sub_%s_configs/32_bit.py' % (pltfrm,)
-            parser.values.is_32 = True  # used in pre_config_lock()
+            parser.values.is_32_bit = True  # used in pre_config_lock()
         else:  # opt == '--64-bit'
             bits_cfg_path = 'builds/sub_%s_configs/64_bit.py' % (pltfrm,)
-            parser.values.is_64 = True  # used in pre_config_lock()
+            parser.values.is_64_bit = True  # used in pre_config_lock()
         parser.values.config_files.append(bits_cfg_path)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-
+        return True
 
 
 class FxNightlyBuild(BuildingMixin, MercurialScript, object):
@@ -106,7 +105,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             "action": "callback",
             "callback": FxBuildOptionParser.set_bits_options,
             "dest": "is_32_bit",
-            "value": True,
             "default": False,
             "help": "Adds 32bit config keys/values"}
          ],
@@ -114,7 +112,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             "action": "callback",
             "callback": FxBuildOptionParser.set_bits_options,
             "dest": "is_64_bit",
-            "value": True,
             "default": False,
             "help": "Adds 64bit config keys/values"}
          ],
@@ -161,11 +158,12 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
 
         # verify config options are valid
         c = self.config
-        are_bits_valid = (c.get('is_32') or c.get('is_64')) and not \
-            (c.get('is_32') and c.get('is_64'))
+        are_bits_valid = (c.get('is_32_bit') or c.get('is_64_bit')) and not \
+            (c.get('is_32_bit') and c.get('is_64_bit'))
         if not are_bits_valid:
             self.fatal('Specifying bits are mandatory. '
                        'Please use "--32-bit" or "--64-bit" but not both.')
+        # import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
         # now verify config keys are valid for actions being used this run
         config_dependencies = {

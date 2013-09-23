@@ -29,3 +29,6 @@
     #     'MINIDUMP_STACKWALK': 'breakpad/linux64/minidump_stackwalk',
     #     'MINIDUMP_SAVE_PATH': 'minidumps',
     # },
+
+config = {
+}

@@ -1,6 +1,5 @@
-
 config = {
-    'env' = {
+    'env': {
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',

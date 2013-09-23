@@ -576,7 +576,6 @@ class Talos(TestingMixin, MercurialScript):
         python = self.query_python_path()
         self.run_command([python, "--version"])
         # run talos tests
-        # talos = self.query_python_path('talos')
         talos_path = os.path.join(self.talos_path, 'talos', 'run_tests.py')
         if not os.path.exists(talos_path):
             self.fatal('talos run_tests.py could not be determined')

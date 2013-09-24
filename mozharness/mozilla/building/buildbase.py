@@ -245,8 +245,8 @@ or run without that action (ie: --no-{action})"
         self.info('exists: %s' % (str(os.path.exists(dirs['abs_src_dir']))))
         # ccache_env = self.query_env()
         # ccache_env.update(c['ccache_env'])
-        # self.run_command(command=['ccache', '-z'],
-        #                  cwd=dirs['abs_src_dir'])
+        self.run_command(command=['ccache', '-z'],
+                         cwd=dirs['abs_src_dir'])
                          # env=ccache_env)
 
     def _rm_old_package(self):

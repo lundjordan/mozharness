@@ -21,9 +21,7 @@ config = {
         'LC_ALL': 'C',
         ## 64 bit specific
         'MOZ_SYMBOLS_EXTRA_BUILDID': 'linux64',
-        'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:/\
-usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/\
-tools/python27-mercurial/bin:/home/cltbld/bin'
+        'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:/tools/python27-mercurial/bin:/home/cltbld/bin'
         'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib64",
         ##
     },

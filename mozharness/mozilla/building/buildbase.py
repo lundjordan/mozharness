@@ -571,9 +571,9 @@ or run without that action (ie: --no-{action})"
         c = self.config
         if c.get('enable_ccache'):
             self._ccache_z()
-        # self._rm_old_package()
-        # self._get_mozconfig()
-        # self._run_tooltool()
+        self._rm_old_package()
+        self._get_mozconfig()
+        self._run_tooltool()
 
     def build(self):
         """build application"""

@@ -242,7 +242,7 @@ or run without that action (ie: --no-{action})"
         ccache_env = self.query_env()
         ccache_env.update(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
-                         cwd=dirs['abs_work_dir'],
+                         cwd=dirs['abs_src_dir'],
                          env=ccache_env)
 
     def _rm_old_package(self):
@@ -362,7 +362,7 @@ or run without that action (ie: --no-{action})"
         ]
         for prop in properties_needed:
             prop_val = self.get_output_from_command(
-                base_cmd + prop['ini_name'], cwd=dirs['abs_base_dir']
+                base_cmd + [prop['ini_name']], cwd=dirs['abs_base_dir']
             )
             self.set_buildbot_property(prop['prop_name'],
                                        prop_val,

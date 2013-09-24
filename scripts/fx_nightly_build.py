@@ -139,7 +139,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # Default configuration
             'config': self.default_config_for_all_platforms(),
         }
-        # TODO this is only here to represent the start of the buildbot build
+        # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
         # although it is about 4s off from the time this should be

@@ -239,15 +239,15 @@ or run without that action (ie: --no-{action})"
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
-        self.debug('abs_work_dir: %s' % (dirs['abs_work_dir']))
-        self.debug('exists: %s' % (str(os.path.exists(dirs['abs_work_dir']))))
-        self.debug('abs_src_dir: %s' % (dirs['abs_src_dir']))
-        self.debug('exists: %s' % (str(os.path.exists(dirs['abs_src_dir']))))
-        ccache_env = self.query_env()
-        ccache_env.update(c['ccache_env'])
-        self.run_command(command=['ccache', '-z'],
-                         cwd=dirs['abs_src_dir'],
-                         env=ccache_env)
+        self.info('abs_work_dir: %s' % (dirs['abs_work_dir']))
+        self.info('exists: %s' % (str(os.path.exists(dirs['abs_work_dir']))))
+        self.info('abs_src_dir: %s' % (dirs['abs_src_dir']))
+        self.info('exists: %s' % (str(os.path.exists(dirs['abs_src_dir']))))
+        # ccache_env = self.query_env()
+        # ccache_env.update(c['ccache_env'])
+        # self.run_command(command=['ccache', '-z'],
+        #                  cwd=dirs['abs_src_dir'])
+                         # env=ccache_env)
 
     def _rm_old_package(self):
         """rm the old package"""

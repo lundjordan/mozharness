@@ -604,11 +604,12 @@ class ScriptMixin(object):
             self.info("Copy/paste: %s" % subprocess.list2cmdline(command))
         # if env is supplied print var/value pairs
         if env:
+            self.info("With Environment:")
             max_env_key_len = max(len(key) for key in env.keys())
             for key, value in env.iteritems():
                 # pretty print format string
                 env_format = "%%s%%%ds %%s" % (max_env_key_len - len(key) + 2,)
-                print env_format % (key, '=', value)
+                self.info(env_format % (key, '=', value))
         shell = True
         if isinstance(command, list):
             shell = False

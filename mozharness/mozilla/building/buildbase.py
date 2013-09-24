@@ -239,6 +239,10 @@ or run without that action (ie: --no-{action})"
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
+        self.debug('abs_work_dir: %s' % (dirs['abs_work_dir']))
+        self.debug('exists: %s' % (str(os.path.exists(dirs['abs_work_dir']))))
+        self.debug('abs_src_dir: %s' % (dirs['abs_src_dir']))
+        self.debug('exists: %s' % (str(os.path.exists(dirs['abs_src_dir']))))
         ccache_env = self.query_env()
         ccache_env.update(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
@@ -568,9 +572,9 @@ or run without that action (ie: --no-{action})"
 
     def preflight_build(self):
         """set up machine state for a complete build"""
-        # c = self.config
-        # if c.get('enable_ccache'):
-        #     self._ccache_z()
+        c = self.config
+        if c.get('enable_ccache'):
+            self._ccache_z()
         # self._rm_old_package()
         # self._get_mozconfig()
         # self._run_tooltool()

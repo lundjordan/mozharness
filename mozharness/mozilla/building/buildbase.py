@@ -577,13 +577,12 @@ or run without that action (ie: --no-{action})"
 
     def build(self):
         """build application"""
-        self.info('on to build action...')
-        # dependencies in config = ['ccache_env', 'old_packages']
-        # see _pre_config_lock
-        # dirs = self.query_abs_dirs()
-        # base_cmd = 'make -f client.mk build'
-        # cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
-        # self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
+        dependencies in config = ['ccache_env', 'old_packages']
+        see _pre_config_lock
+        dirs = self.query_abs_dirs()
+        base_cmd = 'make -f client.mk build'
+        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
+        self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_stats(self):
         """this action handles all statitics from a build:

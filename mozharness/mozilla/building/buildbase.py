@@ -430,7 +430,7 @@ or run without that action (ie: --no-{action})"
                     self.query_buildbot_property('sourcestamp')])
         cmd.extend(['--resultsname', resultsname])
         cmd.extend(['--properties-file', 'properties.json'])
-        cmd.extend(['--timestamp', self.epoch_timestamp])
+        cmd.extend(['--timestamp', str(self.epoch_timestamp)])
 
         self.info("Obtaining graph server post results")
         # TODO buildbot puts this cmd through retry:

@@ -429,7 +429,8 @@ or run without that action (ie: --no-{action})"
         cmd.extend(['--sourcestamp',
                     self.query_buildbot_property('sourcestamp')])
         cmd.extend(['--resultsname', resultsname])
-        cmd.extend(['--properties-file', 'properties.json'])
+        cmd.extend(['--testresults',
+                    str(self.query_buildbot_property('testresults'))])
         cmd.extend(['--timestamp', str(self.epoch_timestamp)])
 
         self.info("Obtaining graph server post results")

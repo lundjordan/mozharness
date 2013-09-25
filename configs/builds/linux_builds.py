@@ -1,6 +1,6 @@
 config = {
     # for def pull()
-    "repos": [{"repo": "http://hg.mozilla.org/build/tools"}],
+    "repos": [{"repo": "http://hg.mozilla.org/users/jlund_mozilla.com/tools"}],
     "buildbot_json_path": "buildprops.json",
 
     'default_actions': [

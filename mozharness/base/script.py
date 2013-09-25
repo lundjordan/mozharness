@@ -608,7 +608,7 @@ class ScriptMixin(object):
             max_env_key_len = max(len(key) for key in env.keys())
             for key, value in sorted(env.iteritems()):
                 # pretty print format string
-                env_format = "%%s%%%ds %%s" % (max_env_key_len - len(key) + 2,)
+                env_format = " %%s%%%ds %%s" % (max_env_key_len - len(key) + 2,)
                 self.info(env_format % (key, '=', value))
         shell = True
         if isinstance(command, list):

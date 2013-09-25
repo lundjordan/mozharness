@@ -456,13 +456,13 @@ or run without that action (ie: --no-{action})"
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",
                "f", "-name", c['package_filename']]
         package_file_path = self.get_output_from_command(cmd,
-                                                         dirs['abs_base_dir'])
+                                                         dirs['abs_work_dir'])
         if not package_file_path:
             self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
 
         cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
                package_file_path]
-        package_hash = self.get_output_from_command(cmd, dirs['abs_base_dir'])
+        package_hash = self.get_output_from_command(cmd, dirs['abs_work_dir'])
         if not package_hash:
             self.fatal("undetermined package_hash with cmd: %s" % (str(cmd),))
         self.set_buildbot_property('packageFilename',
@@ -527,7 +527,7 @@ or run without that action (ie: --no-{action})"
         super(BuildingMixin, self).read_buildbot_config()
 
     def setup_mock(self):
-        """Overrides mock_setup found in MockMixin.
+        """Overrides setup_mock found in MockMixin.
         Initializes and runs any mock initialization actions.
         Finally, installs packages."""
         if self.done_mock_setup:

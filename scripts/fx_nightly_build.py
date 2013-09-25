@@ -144,7 +144,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         # status.build.gettime()[0] this will have to do as a rough estimate
         # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
-        self.epoch_timestamp = time.mktime(datetime.now().timetuple())
+        self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.repo_path = None
         self.objdir = None
         self.buildid = None

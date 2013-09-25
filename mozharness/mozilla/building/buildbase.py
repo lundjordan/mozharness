@@ -419,7 +419,7 @@ or run without that action (ie: --no-{action})"
         gs_env = self.query_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})
         branch = self.buildbot_config['properties']['branch']
-        resultsname = c['base_name'] % (branch,)
+        resultsname = c['base_name'] % {'branch': branch}
         resultsname = resultsname.replace(' ', '_')
         cmd = ['python', graph_server_post_path]
         cmd.extend(['--server', c['graph_server']])

@@ -25,6 +25,7 @@ config = {
         'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib64",
         ##
     },
+    'purge_minsize': 14,
     'mock_packages': [
         'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',
         'git', 'ccache', 'perl-Test-Simple', 'perl-Config-General',

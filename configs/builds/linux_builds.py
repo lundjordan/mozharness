@@ -10,21 +10,19 @@ config = {
         'setup-mock',
         'checkout-source',
         'build',
-        # 'generate-build-stats',
-        # 'make-build-symbols',
-        # 'make-packages',
-        # 'make-upload',
-        # 'test-pretty-names',
-        # 'check-test-complete',
-        # 'enable-ccache',
+        'generate-build-stats',
+        'make-build-symbols',
+        'make-packages',
+        'make-upload',
+        'test-pretty-names',
+        'check-test-complete',
+        'enable-ccache',
     ],
 
     'exes': {
         "buildbot": "/tools/buildbot/bin/buildbot",
     },
 
-    # we wish to purge builds
-    'purge_minsize': 12,
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
 
@@ -36,6 +34,7 @@ config = {
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/builds/gapi.data', '/builds/gapi.data')
+        ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
     'mock_pre_package_cmds': [
         'mkdir -p /builds/slave/m-cen-lx-000000000000000000000/build'

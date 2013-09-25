@@ -207,6 +207,7 @@ or run without that action (ie: --no-{action})"
             return self.fatal('The "objdir" could not be determined. '
                               'Please add an "objdir" to your config.')
         self.objdir = self.config['objdir']
+        return self.objdir
 
     # TODO query_repo is basically a copy from B2GBuild, maybe get B2GBuild to
     # inherit from BuildingMixin after buildbase's generality is more defined?

@@ -423,7 +423,7 @@ or run without that action (ie: --no-{action})"
         resultsname = resultsname.replace(' ', '_')
         cmd = ['python', graph_server_post_path]
         cmd.extend(['--server', c['graph_server']])
-        cmd.extend(['--selector', c['gragh_selector']])
+        cmd.extend(['--selector', c['graph_selector']])
         cmd.extend(['--branch', self._query_gragh_server_branch_name()])
         cmd.extend(['--buildid', self.query_buildbot_property('buildid')])
         cmd.extend(['--sourcestamp',
@@ -588,6 +588,7 @@ or run without that action (ie: --no-{action})"
     def generate_build_stats(self):
         """this action handles all statitics from a build:
             count_ctors, buildid, sourcestamp, and graph_server_post"""
+        # dependencies in config, see _pre_config_lock
         if self.config.get('enable_count_ctors'):
             self._count_ctors()
         else:

@@ -170,13 +170,16 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
             'build': ['ccache_env', 'old_packages', 'mock_target'],
+            'generate-build-stats': [
+                'graph_server', 'graph_selector',
+                'graph_branch', 'base_name'
+            ],
             'make-build-symbols': ['mock_target'],
             'setup-mock': ['mock_target'],
             'make-packages': ['package_filename', 'mock_target'],
             'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
             'test-pretty-names': ['pretty_name_pkg_targets',
                                   'l10n_check_test'],
-
         }
         for action in self.actions:
             if config_dependencies.get(action):

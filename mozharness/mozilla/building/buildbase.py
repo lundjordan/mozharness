@@ -577,8 +577,8 @@ or run without that action (ie: --no-{action})"
 
     def build(self):
         """build application"""
-        dependencies in config = ['ccache_env', 'old_packages']
-        see _pre_config_lock
+        # dependencies in config = ['ccache_env', 'old_packages']
+        # see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)

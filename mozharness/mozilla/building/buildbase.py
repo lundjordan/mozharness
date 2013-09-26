@@ -482,8 +482,8 @@ or run without that action (ie: --no-{action})"
         installer_url = [self.query_buildbot_property('packageUrl')]
         tests_url = [self.query_buildbot_property('testsUrl')]
         sendchange_props = {
-            'buildid': self.query_buildid('buildid'),
-            'builduid': self.query_builduid('builduid'),
+            'buildid': self.query_buildid(),
+            'builduid': self.query_builduid(),
             'nightly_build': self.query_is_nightly(),
             'pgo_build': c['pgo_build'],
         }

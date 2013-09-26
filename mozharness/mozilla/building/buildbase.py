@@ -420,7 +420,6 @@ or run without that action (ie: --no-{action})"
         gs_env.update({'PYTHONPATH': gs_pythonpath})
         branch = self.buildbot_config['properties']['branch']
         resultsname = c['base_name'] % {'branch': branch}
-        resultsname = resultsname.replace(' ', '_')
         cmd = ['python', graph_server_post_path]
         cmd.extend(['--server', c['graph_server']])
         cmd.extend(['--selector', c['graph_selector']])
@@ -472,7 +471,7 @@ or run without that action (ie: --no-{action})"
                                    os.path.getsize(package_file_path),
                                    write_to_file=True)
         self.set_buildbot_property('packageHash',
-                                   package_hash,
+                                   package_hash.strip().split(' ', 2)[1],
                                    write_to_file=True)
 
     def _do_sendchanges(self):
@@ -630,7 +629,7 @@ or run without that action (ie: --no-{action})"
 
     def make_upload(self):
         c = self.config
-        dirs = self.query_abs_dirs
+        dirs = self.query_abs_dirs()
         # dependencies in config = ['upload_env', 'stage_platform',
         # 'mock_target']
         # see _pre_config_lock

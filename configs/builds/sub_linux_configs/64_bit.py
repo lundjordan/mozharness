@@ -63,4 +63,5 @@ releng.manifest",
         'MINIDUMP_STACKWALK': 'breakpad/linux64/minidump_stackwalk',
         'MINIDUMP_SAVE_PATH': 'minidumps',
     },
+    'base_name': 'Linux_x86-64_%(branch)s',
 }

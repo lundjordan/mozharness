@@ -153,7 +153,7 @@ class BuildbotMixin(object):
             if self.buildbot_config['sourcestamp']['changes'][0].get('comments'):
                 sendchange += ['--comments', self.buildbot_config['sourcestamp']['changes'][0]['comments']]
         if sendchange_props:
-            for key, value in sendchange_props:
+            for key, value in sendchange_props.iteritems():
                 sendchange.extend(['--property', '%s:%s' % (key, value)])
         else:
             if self.buildbot_config["properties"].get("builduid"):

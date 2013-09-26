@@ -450,7 +450,7 @@ or run without that action (ie: --no-{action})"
     def _set_package_file_properties(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        find_dir = os.path.join(dirs['abs_work_dir'],
+        find_dir = os.path.join(dirs['abs_src_dir'],
                                 self._query_objdir(),
                                 'dist')
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",

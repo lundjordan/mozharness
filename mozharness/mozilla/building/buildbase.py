@@ -637,8 +637,10 @@ or run without that action (ie: --no-{action})"
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         # we want the env without MOZ_SIGN_CMD
         upload_env = self.query_env()
-        upload_env['POST_UPLOAD_CMD'] = subprocess.list2cmdline(
-            self._query_post_upload_cmd())
+        # _query_post_upload_cmd returns a list (a cmd list), for env sake here
+        # let's make it a string
+        pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
+        upload_env['POST_UPLOAD_CMD'] = pst_up_cmd
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
         self._do_build_mock_make_cmd('make upload',

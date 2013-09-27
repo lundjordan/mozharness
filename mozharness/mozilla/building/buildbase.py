@@ -699,7 +699,7 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         abs_check_test_env = {}
-        for env_var, env_value in c['check_test_env']:
+        for env_var, env_value in c['check_test_env'].iteritems():
             abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
                                                        env_value)
         env = self.query_env()

@@ -650,8 +650,7 @@ or run without that action (ie: --no-{action})"
                                      env=upload_env,
                                      output_parser=parser)
         self.info('Setting properties from make upload...')
-        upload_properties = parser.matches
-        for prop, value in upload_properties:
+        for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,
                                        value,
                                        write_to_file=True)

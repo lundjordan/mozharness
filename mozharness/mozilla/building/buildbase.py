@@ -89,7 +89,7 @@ class MakeUploadOutputParser(OutputParser):
             'packageUrl': "True",  # else block
         }
         if m:
-            for prop, condition in property_conditions:
+            for prop, condition in property_conditions.iteritems():
                 if eval(condition):
                     self.matches[prop] = m.group(1)
         # now let's check for retry errors which will give log levels:

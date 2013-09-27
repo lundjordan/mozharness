@@ -92,7 +92,7 @@ class MakeUploadOutputParser(OutputParser):
             }
             for prop, condition in property_conditions.iteritems():
                 if eval(condition):
-                    self.matches[prop] = m.group(1)
+                    self.matches[prop] = m
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
         for error_check in self.tbpl_error_list:
@@ -264,8 +264,8 @@ or run without that action (ie: --no-{action})"
         a mock_mozilla with the right env"""
         c = self.config
         if not env:
-            moz_sign_cmd = self.query_moz_sign_cmd()
             env = self.query_env()
+            moz_sign_cmd = self.query_moz_sign_cmd()
             env.update({
                 "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
             })

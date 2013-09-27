@@ -166,6 +166,7 @@ class BuildbotMixin(object):
         for d in downloadables:
             sendchange += [d]
 
-        retcode = self.run_command(buildbot + sendchange)
-        if retcode != 0:
-            self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)
+        self.info('DRY-RUN. Would run command: ' + str(buildbot + sendchange))
+        # retcode = self.run_command(buildbot + sendchange)
+        # if retcode != 0:
+        #     self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)

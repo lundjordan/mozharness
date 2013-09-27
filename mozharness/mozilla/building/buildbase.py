@@ -74,6 +74,8 @@ class MakeUploadOutputParser(OutputParser):
         m = re.compile(pat).match(line)
         if m:
             m = m.group(1)
+            # let's create a switch case using name-spaces/dict
+            # rather than a long if/else with duplicate code
             property_conditions = {
                 # key: property name, value: condition
                 'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
@@ -88,11 +90,19 @@ class MakeUploadOutputParser(OutputParser):
                 'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
                 'completeMarUrl': "m.endswith('.complete.mar')",
                 'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
-                'packageUrl': "True",  # else block
             }
             for prop, condition in property_conditions.iteritems():
+                prop_assigned = False
                 if eval(condition):
                     self.matches[prop] = m
+                    prop_assigned = True
+                    break
+            if not prop_assigned:
+                # if we found a match but havn't identified the prop then this
+                # is the packageURL. Let's consider this the else block
+                self.matches['packageUrl'] = m
+
+
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
         for error_check in self.tbpl_error_list:
@@ -265,10 +275,11 @@ or run without that action (ie: --no-{action})"
         c = self.config
         if not env:
             env = self.query_env()
-            moz_sign_cmd = self.query_moz_sign_cmd()
-            env.update({
-                "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
-            })
+            if c['enable_signing']:
+                moz_sign_cmd = self.query_moz_sign_cmd()
+                env.update({
+                    "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
+                })
         mock_target = c.get('mock_target')
         self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
 

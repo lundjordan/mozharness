@@ -106,8 +106,10 @@ config = {
     # # this will change for sub configs like asan, pgo etc
     # 'complete_platform': 'linux',
 
+    # for testing, here is my master
+    "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
     # production.py
-    "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
+    # "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
     # staging
     # 'dev-master01.build.scl1.mozilla.com:9901'
     # pre production

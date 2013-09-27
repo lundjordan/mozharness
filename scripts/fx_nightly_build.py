@@ -207,6 +207,8 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
 
             # hg tool stuff
             'default_vcs': 'hgtool',
+            # decides whether we want to use moz_sign_cmd in env
+            'enable_signing': True,
         }
 
     def query_abs_dirs(self):

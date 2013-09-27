@@ -72,23 +72,24 @@ class MakeUploadOutputParser(OutputParser):
     def parse_single_line(self, line):
         pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
         m = re.compile(pat).match(line)
-        property_conditions = {
-            # key: property name, value: condition
-            'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
-            'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
-            'packageRpmUrl': "m.endswith('.rpm')",
-            'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
-            'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
-            'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
-            'unsignedApkUrl': "m.endswith('apk') and "
-                              "'unsigned-unaligned' in m",
-            'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
-            'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
-            'completeMarUrl': "m.endswith('.complete.mar')",
-            'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
-            'packageUrl': "True",  # else block
-        }
         if m:
+            m = m.group(1)
+            property_conditions = {
+                # key: property name, value: condition
+                'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
+                'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
+                'packageRpmUrl': "m.endswith('.rpm')",
+                'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
+                'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
+                'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
+                'unsignedApkUrl': "m.endswith('apk') and "
+                            "'unsigned-unaligned' in m",
+                'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
+                'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
+                'completeMarUrl': "m.endswith('.complete.mar')",
+                'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
+                'packageUrl': "True",  # else block
+            }
             for prop, condition in property_conditions.iteritems():
                 if eval(condition):
                     self.matches[prop] = m.group(1)

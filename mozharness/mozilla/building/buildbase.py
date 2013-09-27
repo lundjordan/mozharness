@@ -479,8 +479,8 @@ or run without that action (ie: --no-{action})"
         platform = self.buildbot_config['properties']['platform']
         branch = self.buildbot_config['properties']['branch']
         talos_branch = "%s-%s-talos" % (branch, platform)
-        installer_url = [self.query_buildbot_property('packageUrl')]
-        tests_url = [self.query_buildbot_property('testsUrl')]
+        installer_url = self.query_buildbot_property('packageUrl')
+        tests_url = self.query_buildbot_property('testsUrl')
         sendchange_props = {
             'buildid': self.query_buildid(),
             'builduid': self.query_builduid(),
@@ -637,6 +637,7 @@ or run without that action (ie: --no-{action})"
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         # we want the env without MOZ_SIGN_CMD
         upload_env = self.query_env()
+        upload_env.update(c['upload_env'])
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
@@ -647,6 +648,7 @@ or run without that action (ie: --no-{action})"
                                      cwd=cwd,
                                      env=upload_env,
                                      output_parser=parser)
+        self.info('Setting properties from make upload...')
         upload_properties = parser.matches
         for prop, value in upload_properties:
             self.set_buildbot_property(prop,

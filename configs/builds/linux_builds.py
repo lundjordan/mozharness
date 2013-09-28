@@ -10,6 +10,7 @@ config = {
         'setup-mock',
         'checkout-source',
         'build',
+        'set_post_build_properties',
         'generate-build-stats',
         'make-build-symbols',
         'make-packages',
@@ -80,7 +81,6 @@ config = {
     'graph_branch': 'MozillaTest',
     'base_name': 'Linux %(branch)s',
 
-    'enable_symbols': True,
     'enable_package_tests': True,
 
     # TODO port self.platform_variation self.complete_platform for RPM check

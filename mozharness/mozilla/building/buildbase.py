@@ -354,33 +354,6 @@ or run without that action (ie: --no-{action})"
                                        testresults,
                                        write_to_file=True)
 
-    def _set_build_properties(self):
-        """sets buildid, sourcestamp, appVersion, and appName"""
-        dirs = self.query_abs_dirs()
-        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
-                                               'config/printconfigsetting.py')
-        application_ini_path = os.path.join(dirs['abs_src_dir'],
-                                            self._query_objdir(),
-                                            'dist/bin/application.ini')
-        base_cmd = [
-            'python', print_conf_setting_path, application_ini_path, 'App'
-        ]
-        properties_needed = [
-            # TODO, do we need to set buildid twice like we already do in
-            # self.query_buildid() ?
-            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
-            {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
-            {'ini_name': 'Version', 'prop_name': 'appVersion'},
-            {'ini_name': 'Name', 'prop_name': 'appName'}
-        ]
-        for prop in properties_needed:
-            prop_val = self.get_output_from_command(
-                base_cmd + [prop['ini_name']], cwd=dirs['base_work_dir']
-            )
-            self.set_buildbot_property(prop['prop_name'],
-                                       prop_val,
-                                       write_to_file=True)
-
     def _query_gragh_server_branch_name(self):
         # XXX TODO not sure if this is what I should do here. We need the
         # graphBranch name which, in misc.py, we define as:
@@ -597,6 +570,33 @@ or run without that action (ie: --no-{action})"
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
+    def set_post_build_properties(self):
+        """sets buildid, sourcestamp, appVersion, and appName"""
+        dirs = self.query_abs_dirs()
+        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
+                                               'config/printconfigsetting.py')
+        application_ini_path = os.path.join(dirs['abs_src_dir'],
+                                            self._query_objdir(),
+                                            'dist/bin/application.ini')
+        base_cmd = [
+            'python', print_conf_setting_path, application_ini_path, 'App'
+        ]
+        properties_needed = [
+            # TODO, do we need to set buildid twice like we already do in
+            # self.query_buildid() ?
+            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
+            {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
+            {'ini_name': 'Version', 'prop_name': 'appVersion'},
+            {'ini_name': 'Name', 'prop_name': 'appName'}
+        ]
+        for prop in properties_needed:
+            prop_val = self.get_output_from_command(
+                base_cmd + [prop['ini_name']], cwd=dirs['base_work_dir']
+            )
+            self.set_buildbot_property(prop['prop_name'],
+                                       prop_val,
+                                       write_to_file=True)
+
     def generate_build_stats(self):
         """this action handles all statitics from a build:
             count_ctors, buildid, sourcestamp, and graph_server_post"""
@@ -605,7 +605,6 @@ or run without that action (ie: --no-{action})"
             self._count_ctors()
         else:
             self.info("count_ctors not enabled for this build. Skipping...")
-        self._set_build_properties()
         if self.config.get('graph_server'):
             self._graph_server_post()
         else:
@@ -613,11 +612,7 @@ or run without that action (ie: --no-{action})"
             self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
 
     def make_build_symbols(self):
-        c = self.config
         dirs = self.query_abs_dirs()
-        if not c.get('enable_symbols'):
-            return self.info('enable_symbols not set. Skipping...')
-
         cmd = 'make buildsymbols'
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         self._do_build_mock_make_cmd(cmd, cwd)
@@ -627,14 +622,17 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         # dependencies in config, see _pre_config_lock
 
+        # make package-tests
         if c.get('enable_package_tests'):
             cmd = 'make package-tests'
             cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
             self._do_build_mock_make_cmd(cmd, cwd)
 
+        # make package
         cmd = 'make package'
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         self._do_build_mock_make_cmd(cmd, cwd)
+
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not in ('xulrunner', 'b2g'):
         self._set_package_file_properties()

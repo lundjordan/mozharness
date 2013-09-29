@@ -10,7 +10,7 @@ config = {
         'setup-mock',
         'checkout-source',
         'build',
-        'set_post_build_properties',
+        'generate-build-properties',
         'generate-build-stats',
         'make-build-symbols',
         'make-packages',

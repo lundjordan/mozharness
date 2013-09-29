@@ -570,7 +570,7 @@ or run without that action (ie: --no-{action})"
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
-    def set_post_build_properties(self):
+    def generate_build_properties(self):
         """sets buildid, sourcestamp, appVersion, and appName"""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],

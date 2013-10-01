@@ -80,6 +80,7 @@ class FxBuildOptionParser(object):
     @classmethod
     def set_bits_options(cls, option, opt, value, parser):
         """Used as 'callback' for options '--32-bit' and '-64-bit'"""
+        # TODO rm this method
         pltfrm = cls.query_current_platform()
         if opt == '--32-bit':
             bits_cfg_path = 'builds/sub_%s_configs/32_bit.py' % (pltfrm,)
@@ -101,20 +102,14 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
                     "infrastructure, use this option. It removes actions"
                     "that are not needed."}
          ],
-        [['--32-bit'], {
-            "action": "callback",
-            "callback": FxBuildOptionParser.set_bits_options,
-            "dest": "is_32_bit",
-            "default": False,
-            "help": "Adds 32bit config keys/values"}
-         ],
-        [['--64-bit'], {
-            "action": "callback",
-            "callback": FxBuildOptionParser.set_bits_options,
-            "dest": "is_64_bit",
-            "default": False,
-            "help": "Adds 64bit config keys/values"}
-         ],
+        # TODO re this
+        # [['--32-bit'], {
+        #     "action": "callback",
+        #     "callback": FxBuildOptionParser.set_bits_options,
+        #     "dest": "is_32_bit",
+        #     "default": False,
+        #     "help": "Adds 32bit config keys/values"}
+        #  ],
     ]
 
     def __init__(self, require_config_file=True):
@@ -158,13 +153,6 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         (if any)."""
 
         # verify config options are valid
-        c = self.config
-        are_bits_valid = (c.get('is_32_bit') or c.get('is_64_bit')) and not \
-            (c.get('is_32_bit') and c.get('is_64_bit'))
-        if not are_bits_valid:
-            self.fatal('Specifying bits are mandatory. '
-                       'Please use "--32-bit" or "--64-bit" but not both.')
-        # import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
         # now verify config keys are valid for actions being used this run
         config_dependencies = {

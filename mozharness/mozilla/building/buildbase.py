@@ -475,10 +475,12 @@ or run without that action (ie: --no-{action})"
 
         # TODO insert check for uploadMulti factory 2526
         # if not self.uploadMulti
-        self.sendchange(downloadables=[installer_url],
-                        branch=talos_branch,
-                        username='sendchange',
-                        sendchange_props=sendchange_props)
+
+        if c.get('enable_talos_sendchange'):
+            self.sendchange(downloadables=[installer_url],
+                            branch=talos_branch,
+                            username='sendchange',
+                            sendchange_props=sendchange_props)
 
         if c.get('enable_package_tests'):
             self.sendchange(downloadables=[installer_url, tests_url],

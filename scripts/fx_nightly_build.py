@@ -12,7 +12,6 @@ author: Jordan Lund
 """
 
 import sys
-import platform
 import os
 import time
 from datetime import datetime
@@ -29,67 +28,43 @@ class FxBuildOptionParser(object):
     """provides a namespace for extending opt parsing for
     fx desktop specsific builds"""
     platform = None
-
-    @staticmethod
-    def _is_windows():
-        # sys_platform check
-        if sys.platform.lower() in ['win32', 'cygwin']:
-            return True
-        # platform_system check
-        for valid_value in ['windows', 'microsoft', 'cygwin']:
-            if valid_value in platform.system().lower():
-                return True
-        return False
-
-    @staticmethod
-    def _is_linux():
-        # sys_platform check
-        if sys.platform.lower().startswith('linux'):
-            # handles linux2, linux3, etc
-            return True
-        # platform_system check
-        if platform.system().lower() == 'linux':
-            return True
-        return False
-
-    @staticmethod
-    def _is_mac():
-        # sys_platform check
-        if (sys.platform.lower() == 'darwin') or \
-                (platform.system().lower() == 'darwin'):
-            return True
-        return False
+    bits = None
 
     @classmethod
-    def query_current_platform(cls):
-        if cls.platform:
-            return cls.platform
-        result = ''
-        if cls._is_windows():
-            result = 'windows'
-        elif cls._is_linux():
-            result = 'linux'
-        elif cls._is_mac():
-            result = 'mac'
+    def _query_pltfrm_and_bits(cls, target_option, options):
+        # this method will inspect the config file path and determine the
+        # platform and bits being used. It is for releng configs only
+
+        # let's discover what platform we are using
+        if '32' in options.config_files[0]:
+            cls.bits = '32'
+        elif '64' in options.config_files[0]:
+            cls.bits = '64'
         else:
-            sys.exit("Could not determine platform. This script can currently"
-                     " only be used by: mac, win, or linux")
-        cls.platform = result
-        return cls.platform
+            sys.exit('Could not determine whether to use 32 or 64 bit config. '
+                     'Please ensure the "--config-file" has "32" or "64" in'
+                     ' it and is specified prior to: %s' % (target_option,))
+        # now let's discover what platform we are using
+        if 'windows' in options.config_files[0]:
+            cls.platform = 'windows'
+        elif 'mac' in options.config_files[0]:
+            cls.platform = 'mac'
+        elif 'linux' in options.config_files[0]:
+            cls.platform = 'linux'
+        else:
+            sys.exit('Could not determine platform being used. Please ensure '
+                     'the "--config" has "windows", "mac", or "linux" in'
+                     ' it and is specified prior to: %s' % (target_option,))
+        return (cls.bits, cls.platform)
 
     @classmethod
-    def set_bits_options(cls, option, opt, value, parser):
-        """Used as 'callback' for options '--32-bit' and '-64-bit'"""
-        # TODO rm this method
-        pltfrm = cls.query_current_platform()
-        if opt == '--32-bit':
-            bits_cfg_path = 'builds/sub_%s_configs/32_bit.py' % (pltfrm,)
-            parser.values.is_32_bit = True  # used in pre_config_lock()
-        else:  # opt == '--64-bit'
-            bits_cfg_path = 'builds/sub_%s_configs/64_bit.py' % (pltfrm,)
-            parser.values.is_64_bit = True  # used in pre_config_lock()
-        parser.values.config_files.append(bits_cfg_path)
-        return True
+    def set_releng_debug_config(cls, option, opt, value, parser):
+        if not cls.bits or not cls.platform:
+            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
+
+        debug_cfg = 'builds/releng_sub_%s_configs/%s_debug.py' % (pltfrm, bits)
+        parser.values.config_files.append(debug_cfg)
+        parser.values.using_releng_debug = True
 
 
 class FxNightlyBuild(BuildingMixin, MercurialScript, object):
@@ -98,18 +73,18 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
             "action": "store_false",
             "dest": "is_automation",
             "default": True,
-            "help": "If this is running outside of Mozilla's buildbot"
-                    "infrastructure, use this option. It removes actions"
-                    "that are not needed."}
+            "help": "If this is running outside of Mozilla's build"
+                    "infrastructure, use this option. It ignores actions"
+                    "that are not needed and adds config checks."}
          ],
-        # TODO re this
-        # [['--32-bit'], {
-        #     "action": "callback",
-        #     "callback": FxBuildOptionParser.set_bits_options,
-        #     "dest": "is_32_bit",
-        #     "default": False,
-        #     "help": "Adds 32bit config keys/values"}
-        #  ],
+        [['--use-releng-debug-cfg'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_releng_debug_config,
+            "dest": "using_releng_debug",
+            "default": False,
+            "help": "Sets the build to run in debug mode"}
+         ],
+
     ]
 
     def __init__(self, require_config_file=True):
@@ -152,7 +127,21 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         for actions being run. Then resolve optional config files
         (if any)."""
 
-        # verify config options are valid
+        ### verify config options are valid
+        # if not c['is_automation'] (ie: we are outside releng infra)
+        # lets make sure we haven't accidently added a releng config
+        c = self.config
+        if not c['is_automation']:
+            releng_configs_used = []
+            if c.get('using_releng_debug'):
+                releng_configs_used.append('--use-releng-debug-cfg')
+
+            for cfg in releng_configs_used:
+                self.warning("You're using a config that is specific to a \
+Mozilla build machine by running this script with the option: %s" % (cfg,))
+            if releng_configs_used:
+                self.fatal("If you're using a machine from our moz build infra"
+                           ", please remove the option: '--developer-run'.")
 
         # now verify config keys are valid for actions being used this run
         config_dependencies = {
@@ -180,25 +169,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
     def default_config_for_all_platforms(self):
         """a config dict that is used platform wide, any matching keys within a
         passed in config file (--config-file) will override these keys"""
-        clobberer_url = 'http://clobberer.pvt.build.mozilla.org/index.php'
-
-        return {
-            # if false, only clobber 'abs_work_dir'
-            # if true: possibly clobber, clobberer, and purge_builds
-            # see PurgeMixin for clobber() conditions
-            'is_automation': True,
-
-            'pgo_build': False,
-            'debug_build': False,
-
-            'clobberer_url': clobberer_url,  # we wish to clobberer
-            'periodic_clobber': 168,  # default anyway but can be overwritten
-
-            # hg tool stuff
-            'default_vcs': 'hgtool',
-            # decides whether we want to use moz_sign_cmd in env
-            'enable_signing': True,
-        }
+        return {}
 
     def query_abs_dirs(self):
         if self.abs_dirs:

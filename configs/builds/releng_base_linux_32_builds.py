@@ -1,4 +1,20 @@
+CLOBBERER_URL = 'http://clobberer.pvt.build.mozilla.org/index.php'
+
 config = {
+    # if false, only clobber 'abs_work_dir'
+    # if true: possibly clobber, clobberer, and purge_builds
+    # see PurgeMixin for clobber() conditions
+    'is_automation': True,
+
+    'pgo_build': False,
+
+    'clobberer_url': CLOBBERER_URL,  # we wish to clobberer
+    'periodic_clobber': 168,  # default anyway but can be overwritten
+
+    # hg tool stuff
+    'default_vcs': 'hgtool',
+    # decides whether we want to use moz_sign_cmd in env
+    'enable_signing': True,
     "repos": [{"repo": "http://hg.mozilla.org/users/jlund_mozilla.com/tools"}],
     "buildbot_json_path": "buildprops.json",
     'default_actions': [
@@ -91,6 +107,8 @@ config = {
     # # this will change for sub configs like asan, pgo etc
     # 'complete_platform': 'linux',
 
+    "enable_talos_sendchange": True,
+    # TODO create a pre/production/staging config
     # for testing, here is my master
     "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
     # production.py

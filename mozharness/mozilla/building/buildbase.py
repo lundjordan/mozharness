@@ -102,7 +102,6 @@ class MakeUploadOutputParser(OutputParser):
                 # is the packageURL. Let's consider this the else block
                 self.matches['packageUrl'] = m
 
-
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
         for error_check in self.tbpl_error_list:
@@ -355,39 +354,17 @@ or run without that action (ie: --no-{action})"
                                        write_to_file=True)
 
     def _query_gragh_server_branch_name(self):
-        # XXX TODO not sure if this is what I should do here. We need the
-        # graphBranch name which, in misc.py, we define as:
-# http://hg.mozilla.org/build/buildbotcustom/file/9620bbcc6485/misc.py#l1167
-        # 'graphBranch': config.get('graph_branch',
-        #                           config.get('tinderbox_tree', None))
-        # from what I can tell, this always relies on tinderbox_tree (not
-        # graph_branch) where the logic goes:
-        # if we are staging/preproduction (eg: mozilla/staging_config.py)
-        #   tinderbox_tree = 'MozillaTest'
-        # if we are in production (eg: mozilla/production_config.py)
-        #   if branch is 'mozilla-central':
-        #       tinderbox_tree = 'Firefox'
-        #   else for example say branch is 'mozilla-release':
-        #           tinderbox_tree = 'Mozilla-Release'
-        # If my logic is right, we have three options. 1) add 'tinderbox_tree'
-        # to buildbot_config 2) add a dict to self.config that holds all branch
-        # keys and assotiated tinderbox_tree values 3) do what I am doing below
-        # 4) what I should probably do, have a separate config for staging /
-        # production / preprod ...
-
-        # XXX not sure if this is the best way to determine staging/preprod
-        if 'dev-master' in self.buildbot_config['properties']['master']:
-            return 'MozillaTest'
-
-        # XXX more hacky shtuff
-        branch = self.buildbot_config['sourcestamp']['branch']
-        if branch is 'mozilla-central':
-            return 'Firefox'
+        if self.config.get('graph_server_branch_name'):
+            return self.config['graph_server_branch_name']
         else:
-            # capitalize every word inbetween '-'
-            branch_list = branch.split('-')
-            branch_list = [elem.capitalize() for elem in branch_list]
-            return '-'.join(branch_list)
+            branch = self.buildbot_config['sourcestamp']['branch']
+            if branch is 'mozilla-central':
+                return 'Firefox'
+            else:
+                # capitalize every word inbetween '-'
+                branch_list = branch.split('-')
+                branch_list = [elem.capitalize() for elem in branch_list]
+                return '-'.join(branch_list)
 
     def _graph_server_post(self):
         """graph server post results"""

@@ -86,9 +86,19 @@ config = {
     'graph_branch': 'MozillaTest',
     'base_name': 'Linux %(branch)s',
     'enable_package_tests': True,
+    'stage_product': 'firefox',
+    "enable_talos_sendchange": True,
+    "l10n_check_test": True,
     # TODO port self.platform_variation self.complete_platform for RPM check
+    # TODO find out if we need platform keys in config or if buildbot_config
+    # will do
+    # 'platform': 'linux',
+    # # this will change for sub configs like asan, pgo etc
+    # 'complete_platform': 'linux',
+
+
+    ######### TODO move this section to a production/staging/etc sep config
     'upload_env': {
-        # TODO ADD SEPARATE CONFIGS ?
         # /buildbot-configs/mozilla/preproduction_config.py
         # 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
         # /buildbot-configs/mozilla/production_config.py
@@ -100,15 +110,6 @@ config = {
         'UPLOAD_TO_TEMP': '1',
         'UPLOAD_SSH_KEY': '~/.ssh/ffxbld_dsa',
     },
-    'stage_product': 'firefox',
-    # TODO find out if we need platform keys in config or if buildbot_config
-    # will do
-    # 'platform': 'linux',
-    # # this will change for sub configs like asan, pgo etc
-    # 'complete_platform': 'linux',
-
-    "enable_talos_sendchange": True,
-    # TODO create a pre/production/staging config
     # for testing, here is my master
     "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
     # production.py
@@ -117,8 +118,11 @@ config = {
     # 'dev-master01.build.scl1.mozilla.com:9901'
     # pre-production
     # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
-    "pretty_name_pkg_targets": ["package"],
-    "l10n_check_test": True,
+    # if staging/preproduction we should have this key:
+    "graph_server_branch_name": "MozillaTest",
+    # else if production we let buildbot props decide in
+    # self._query_graph_server_branch_name()
+    ##############
 
 
     ###### 64 bit specific ######

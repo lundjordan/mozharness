@@ -17,7 +17,16 @@ config = {
         'check-test-complete',
         'enable-ccache',
     ],
+    'purge_minsize': 14,
+    'mock_pre_package_copy_files': [
+        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
+        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
+        ('/builds/gapi.data', '/builds/gapi.data'),
+    ],
+    "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
+    'enable_signing': False,
 
+    #### 32 bit build specific #####
     'env': {
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
@@ -37,18 +46,9 @@ config = {
 %s/dist/bin' % (MOZ_OBJDIR,),
         'XPCOM_DEBUG_BREAK': 'stack-and-abort',
     },
-    'purge_minsize': 14,
-    'mock_pre_package_copy_files': [
-        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
-    ],
-    "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
-
-    #### 32 bit build specific #####
     'src_mozconfig': 'browser/config/mozconfigs/linux32/debug',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
 production/mozilla2/linux/mozilla-central/debug/mozconfig',
-    'enable_signing': False,
+    'base_name': 'Linux %(branch)s leak test',
     #######################
 }

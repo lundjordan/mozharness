@@ -67,7 +67,7 @@ class FxBuildOptionParser(object):
         parser.values.using_releng_debug = True
 
 
-class FxNightlyBuild(BuildingMixin, MercurialScript, object):
+class FxDesktopBuild(BuildingMixin, MercurialScript, object):
     config_options = [
         [['--developer-run', '--skip-buildbot-actions'], {
             "action": "store_false",
@@ -120,7 +120,7 @@ class FxNightlyBuild(BuildingMixin, MercurialScript, object):
         self.objdir = None
         self.buildid = None
         self.builduid = None
-        super(FxNightlyBuild, self).__init__(**basescript_kwargs)
+        super(FxDesktopBuild, self).__init__(**basescript_kwargs)
 
     def _pre_config_lock(self, rw_config):
         """First, validate that the appropriate config are in self.config
@@ -174,7 +174,7 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
     def query_abs_dirs(self):
         if self.abs_dirs:
             return self.abs_dirs
-        abs_dirs = super(FxNightlyBuild, self).query_abs_dirs()
+        abs_dirs = super(FxDesktopBuild, self).query_abs_dirs()
 
         dirs = {
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
@@ -194,5 +194,5 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
 
 
 if __name__ == '__main__':
-    fx_nightly_build = FxNightlyBuild()
+    fx_nightly_build = FxDesktopBuild()
     fx_nightly_build.run_and_exit()

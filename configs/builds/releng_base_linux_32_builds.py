@@ -117,7 +117,7 @@ config = {
     # 'dev-master01.build.scl1.mozilla.com:9901'
     # pre production
     # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
-    "pretty_name_pkg_targets": ["package"],
+
     "l10n_check_test": True,
 
 

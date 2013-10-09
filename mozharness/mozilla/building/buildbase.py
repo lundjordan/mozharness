@@ -676,10 +676,9 @@ or run without that action (ie: --no-{action})"
         objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
 
-        for target in c['pretty_name_pkg_targets']:
-            self._do_build_mock_make_cmd(base_cmd % (target,),
-                                         cwd=objdir_path,
-                                         env=env)
+        self._do_build_mock_make_cmd(base_cmd % ("package",),
+                                     cwd=objdir_path,
+                                     env=env)
         update_package_cmd = '-C %s' % (os.path.join(objdir_path, 'tools',
                                                      'update-packaging'),)
         self._do_build_mock_make_cmd(base_cmd % (update_package_cmd,),

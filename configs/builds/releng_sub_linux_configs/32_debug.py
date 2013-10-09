@@ -9,10 +9,11 @@ config = {
         'checkout-source',
         'build',
         'generate-build-properties',
+        # 'generate-build-stats', debug does not do this action
         'make-build-symbols',
         'make-packages',
         'make-upload',
-        'test-pretty-names',
+        # 'test-pretty-names', debug does not do this action
         'check-test-complete',
         'enable-ccache',
     ],
@@ -42,7 +43,7 @@ config = {
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/builds/gapi.data', '/builds/gapi.data'),
     ],
-    "enable_talos_sendchange": False,
+    "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
 
     #### 32 bit build specific #####
     'src_mozconfig': 'browser/config/mozconfigs/linux32/debug',

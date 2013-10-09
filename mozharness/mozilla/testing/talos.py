@@ -136,21 +136,8 @@ class Talos(TestingMixin, MercurialScript):
 
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
+        self.metro_immersive = self.config.get('suite').endswith('-metro')
         # results output
-        self.metro_immersive = False
-        if self.config.get('suite').endswith('-metro'):
-            # TEMPORARY CODE: this script takes a `suite` option that is used as a
-            # key from a talos_json_url
-            # (eg: http://hg.mozilla.org/mozilla-central/raw-file/s(revision)/testing/talos/talos.json)
-            # if we pass a suite with a '-metro' suffix through buildbot or a developer,
-            # the talos.json file in m-c won't know about it yet.
-            # Until we modify that json file in m-c to add win metro based keys/values,
-            # let's just capture the fact we want 'metro_immersive' then use the
-            # non metro equivalent from the talos.json file
-            # (eg: self.talos_json_config['suites']['dromaeojs'])
-            # self.config['suite'] = self.config['suite'].replace('-metro', '')
-            self.metro_immersive = True
-            # self.info('metro immersive mode:' + str(self.config.get('suite')))
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
             # use a results_url by default based on the class name in the working directory
@@ -543,24 +530,6 @@ class Talos(TestingMixin, MercurialScript):
             manifest_target = os.path.join(self.query_python_site_packages_path(), pagesets_path)
             self.mkdir_p(os.path.dirname(manifest_target))
             self.copyfile(manifest_source, manifest_target)
-
-    # def install(self):
-    #     """decorates TestingMixin.install() to handle win metro browser"""
-    #     c = self.config
-    #     dirs = self.query_abs_dirs()
-    #     super(Talos, self).install()
-    #     if self.metro_immersive:
-    #         self.info("Triggering Metro Browser Immersive Mode")
-    #         # overwrite self.binary_path set from TestingMixin.install()
-    #         abs_app_dir = os.path.split(self.binary_path)[0]
-    #         orig_metro_path = os.path.join(dirs['abs_metro_harness_dir'],
-    #                                        c.get('metro_test_harness_exe'))
-    #         new_metro_path = os.path.join(abs_app_dir,
-    #                                       c.get('metro_test_harness_exe'))
-    #         self.copyfile(orig_metro_path, new_metro_path)
-    #         self.binary_path = new_metro_path
-    #         if not os.path.exists(self.binary_path):
-    #             self.fatal("metrotestharness executable could not be found")
 
     def preflight_run_tests(self):
         if not self.query_tests():

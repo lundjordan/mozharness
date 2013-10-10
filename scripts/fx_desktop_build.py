@@ -58,6 +58,15 @@ class FxBuildOptionParser(object):
         return (cls.bits, cls.platform)
 
     @classmethod
+    def set_releng_asan_config(cls, option, opt, value, parser):
+        if not cls.bits or not cls.platform:
+            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
+
+        asan_cfg = 'builds/releng_sub_%s_configs/%s_asan.py' % (pltfrm, bits)
+        parser.values.config_files.append(asan_cfg)
+        parser.values.using_releng_asan = True
+
+    @classmethod
     def set_releng_debug_config(cls, option, opt, value, parser):
         if not cls.bits or not cls.platform:
             bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
@@ -83,6 +92,13 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "dest": "using_releng_debug",
             "default": False,
             "help": "Sets the build to run in debug mode"}
+         ],
+        [['--use-releng-asan-cfg'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_releng_asan_config,
+            "dest": "using_releng_asan",
+            "default": False,
+            "help": "Sets the build to run in asan mode"}
          ],
 
     ]
@@ -135,6 +151,8 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             releng_configs_used = []
             if c.get('using_releng_debug'):
                 releng_configs_used.append('--use-releng-debug-cfg')
+            if c.get('using_releng_asan'):
+                releng_configs_used.append('--use-releng-asan-cfg')
 
             for cfg in releng_configs_used:
                 self.warning("You're using a config that is specific to a \

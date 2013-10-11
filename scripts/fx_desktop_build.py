@@ -29,6 +29,12 @@ class FxBuildOptionParser(object):
     fx desktop specsific builds"""
     platform = None
     bits = None
+    build_types = {
+        'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
+        'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
+        'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
+        'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
+    }
 
     @classmethod
     def _query_pltfrm_and_bits(cls, target_option, options):
@@ -36,44 +42,35 @@ class FxBuildOptionParser(object):
         # platform and bits being used. It is for releng configs only
 
         # let's discover what platform we are using
-        if '32' in options.config_files[0]:
-            cls.bits = '32'
-        elif '64' in options.config_files[0]:
-            cls.bits = '64'
-        else:
-            sys.exit('Could not determine whether to use 32 or 64 bit config. '
-                     'Please ensure the "--config-file" has "32" or "64" in'
-                     ' it and is specified prior to: %s' % (target_option,))
+        if not cls.bits:
+            if '32' in options.config_files[0]:
+                cls.bits = '32'
+            elif '64' in options.config_files[0]:
+                cls.bits = '64'
+            else:
+                sys.exit('Could not determine bits to use. '
+                         'Please ensure the "--config" has "32" or "64" in '
+                         'it and is specified prior to: %s' % (target_option,))
         # now let's discover what platform we are using
-        if 'windows' in options.config_files[0]:
-            cls.platform = 'windows'
-        elif 'mac' in options.config_files[0]:
-            cls.platform = 'mac'
-        elif 'linux' in options.config_files[0]:
-            cls.platform = 'linux'
-        else:
-            sys.exit('Could not determine platform being used. Please ensure '
-                     'the "--config" has "windows", "mac", or "linux" in'
-                     ' it and is specified prior to: %s' % (target_option,))
+        if not cls.platform:
+            if 'windows' in options.config_files[0]:
+                cls.platform = 'windows'
+            elif 'mac' in options.config_files[0]:
+                cls.platform = 'mac'
+            elif 'linux' in options.config_files[0]:
+                cls.platform = 'linux'
+            else:
+                sys.exit("Couldn't determine platform. Please ensure "
+                         'the "--config" has "windows", "mac", or "linux" in '
+                         'it and is specified prior to: %s' % (target_option,))
         return (cls.bits, cls.platform)
 
     @classmethod
-    def set_releng_asan_config(cls, option, opt, value, parser):
-        if not cls.bits or not cls.platform:
-            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
-
-        asan_cfg = 'builds/releng_sub_%s_configs/%s_asan.py' % (pltfrm, bits)
-        parser.values.config_files.append(asan_cfg)
-        parser.values.using_releng_asan = True
-
-    @classmethod
-    def set_releng_debug_config(cls, option, opt, value, parser):
-        if not cls.bits or not cls.platform:
-            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
-
-        debug_cfg = 'builds/releng_sub_%s_configs/%s_debug.py' % (pltfrm, bits)
-        parser.values.config_files.append(debug_cfg)
-        parser.values.using_releng_debug = True
+    def set_build_type(cls, option, opt, value, parser):
+        bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
+        config = cls.build_types.get(value, '') % (pltfrm, bits)
+        parser.values.config_files.append(config)
+        option.dest = value
 
 
 class FxDesktopBuild(BuildingMixin, MercurialScript, object):
@@ -86,21 +83,15 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                     "infrastructure, use this option. It ignores actions"
                     "that are not needed and adds config checks."}
          ],
-        [['--use-releng-debug-cfg'], {
+        [['--custom-build-type'], {
             "action": "callback",
-            "callback": FxBuildOptionParser.set_releng_debug_config,
-            "dest": "using_releng_debug",
-            "default": False,
-            "help": "Sets the build to run in debug mode"}
+            "callback": FxBuildOptionParser.set_build_type,
+            "type": "string",
+            "dest": "build_type",
+            "help": "Sets the build type and will determine appropriate "
+                    "additional config to use. Examples include: "
+                    "%s " % (FxBuildOptionParser.build_types.keys(),)}
          ],
-        [['--use-releng-asan-cfg'], {
-            "action": "callback",
-            "callback": FxBuildOptionParser.set_releng_asan_config,
-            "dest": "using_releng_asan",
-            "default": False,
-            "help": "Sets the build to run in asan mode"}
-         ],
-
     ]
 
     def __init__(self, require_config_file=True):

@@ -33,6 +33,9 @@ config = {
             "test_push": True,
             "force_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -72,6 +75,9 @@ config = {
                 },
             },
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
             "tag_config": {
@@ -101,6 +107,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -124,6 +133,9 @@ config = {
             "target_dest": "beagle/.git",
             "vcs": "git",
             "test_push": True,
+        }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
         }, {
             "target_dest": "github-beagle",
             "vcs": "git",
@@ -149,6 +161,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -173,6 +188,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -196,6 +214,9 @@ config = {
             "target_dest": "beagle/.git",
             "vcs": "git",
             "test_push": True,
+        }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
         }, {
             "target_dest": "github-beagle",
             "vcs": "git",
@@ -225,6 +246,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -253,6 +277,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -277,6 +304,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -296,6 +326,9 @@ config = {
             "target_dest": "beagle/.git",
             "vcs": "git",
             "test_push": True,
+        }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
         }, {
             "target_dest": "github-beagle",
             "vcs": "git",
@@ -317,6 +350,9 @@ config = {
             "vcs": "git",
             "test_push": True,
         }, {
+            "target_dest": "gitmo-beagle",
+            "vcs": "git",
+        }, {
             "target_dest": "github-beagle",
             "vcs": "git",
         }],
@@ -331,8 +367,13 @@ config = {
     }],
     "remote_targets": {
         "github-beagle": {
-            "repo": "git@github.com:escapewindow/test-beagle.git",
-            "ssh_key": "~/.ssh/github1_rsa",
+            "repo": "git@github.com:mozilla/integration-gecko-dev.git",
+            "ssh_key": "~/.ssh/releng-github-id_rsa",
+            "vcs": "git",
+        },
+        "gitmo-beagle": {
+            "repo": "gitolite3@git.mozilla.org:integration/gecko-dev.git",
+            "ssh_key": "~/.ssh/vcs-sync_rsa",
             "vcs": "git",
         },
     },
@@ -359,28 +400,27 @@ config = {
         "mozprocess==0.11",
     ],
     "find_links": [
-        "http://puppetagain.pub.build.mozilla.org/data/python/packages/",
-        "http://releng-puppet2.srv.releng.use1.mozilla.com/python/packages/",
-        "http://releng-puppet1.srv.releng.use1.mozilla.com/python/packages/",
-        "http://releng-puppet2.build.mtv1.mozilla.com/python/packages/",
-        "http://releng-puppet2.srv.releng.usw2.mozilla.com/python/packages/",
-        "http://releng-puppet1.srv.releng.usw2.mozilla.com/python/packages/",
-        "http://releng-puppet2.srv.releng.scl3.mozilla.com/python/packages/",
-        "http://releng-puppet2.build.scl1.mozilla.com/python/packages/",
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
     ],
     "pip_index": False,
 
     "upload_config": [{
-        "ssh_key": "~/.ssh/id_rsa",
+        "ssh_key": "~/.ssh/vcs-sync_rsa",
         "ssh_user": "asasaki",
-        "remote_host": "github-sync3",
-        "remote_path": "/home/asasaki/beagle1/beagle-upload",
+        "remote_host": "people.mozilla.org",
+        "remote_path": "/home/asasaki/public_html/vcs2vcs/gecko-dev",
     }],
 
     "default_notify_from": "vcs2vcs@%s" % hostname,
     "notify_config": [{
         "to": "aki@mozilla.com",
+        "failure_only": False,
+        "skip_empty_messages": False,
+    }, {
+        "to": "release+vcs2vcs@mozilla.com",
         "failure_only": True,
+        "skip_empty_messages": True,
     }],
 
     # Disallow sharing.  We may need a better way of doing this.

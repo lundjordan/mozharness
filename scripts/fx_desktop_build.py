@@ -165,8 +165,7 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
             'setup-mock': ['mock_target'],
             'make-packages': ['package_filename', 'mock_target'],
             'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
-            'test-pretty-names': ['pretty_name_pkg_targets',
-                                  'l10n_check_test'],
+            'test-pretty-names': ['l10n_check_test'],
         }
         for action in self.actions:
             if config_dependencies.get(action):

@@ -11,6 +11,7 @@ mozharness.
 """
 
 import codecs
+import gzip
 import inspect
 import os
 import platform
@@ -247,22 +248,45 @@ class ScriptMixin(object):
             self.log("IO error: %s" % str(e),
                      level=error_level, exit_code=exit_code)
             return -1
+        except shutil.Error, e:
+            self.log("shutil error: %s" % str(e),
+                     level=error_level, exit_code=exit_code)
+            return -1
         return 0
 
     def chmod(self, path, mode):
         self.info("Chmoding %s to %s" % (path, str(oct(mode))))
         os.chmod(path, mode)
 
-    def copyfile(self, src, dest, log_level=INFO, error_level=ERROR, copystat=False):
-        self.log("Copying %s to %s" % (src, dest), level=log_level)
-        try:
-            shutil.copyfile(src, dest)
-            if copystat:
+    def copyfile(self, src, dest, log_level=INFO, error_level=ERROR, copystat=False, compress=False):
+        if compress:
+            self.log("Compressing %s to %s" % (src, dest), level=log_level)
+            try:
+                infile = open(src, "rb")
+                outfile = gzip.open(dest, "wb")
+                outfile.writelines(infile)
+                outfile.close()
+                infile.close()
+            except IOError, e:
+                self.log("Can't compress %s to %s: %s!" % (src, dest, str(e)),
+                         level=error_level)
+                return -1
+        else:
+            self.log("Copying %s to %s" % (src, dest), level=log_level)
+            try:
+                shutil.copyfile(src, dest)
+            except (IOError, shutil.Error), e:
+                self.log("Can't copy %s to %s: %s!" % (src, dest, str(e)),
+                         level=error_level)
+                return -1
+
+        if copystat:
+            try:
                 shutil.copystat(src, dest)
-        except (IOError, shutil.Error), e:
-            self.log("Can't copy %s to %s: %s!" % (src, dest, str(e)),
-                     level=error_level)
-            return -1
+            except (IOError, shutil.Error), e:
+                self.log("Can't copy attributes of %s to %s: %s!" % (src, dest, str(e)),
+                         level=error_level)
+                return -1
 
     def copytree(self, src, dest, overwrite='no_overwrite', log_level=INFO,
                  error_level=ERROR):
@@ -524,12 +548,12 @@ class ScriptMixin(object):
             # allow for 'make': '%(abs_work_dir)s/...' etc.
             dirs = self.query_abs_dirs()
             repl_dict['abs_work_dir'] = dirs['abs_work_dir']
-        if isinstance(exe, list):
+        if isinstance(exe, list) or isinstance(exe, tuple):
             exe = [x % repl_dict for x in exe]
         elif isinstance(exe, str):
             exe = exe % repl_dict
         else:
-            self.log("query_exe: %s is not a string or list: %s!" % (exe_name, str(exe)), level=error_level)
+            self.log("query_exe: %s is not a list, tuple or string: %s!" % (exe_name, str(exe)), level=error_level)
             return exe
         if return_type == "list":
             if isinstance(exe, str):
@@ -541,21 +565,19 @@ class ScriptMixin(object):
             self.log("Unknown return_type type %s requested in query_exe!" % return_type, level=error_level)
         return exe
 
-    def run_command(self, command, cwd=None, error_list=None, parse_at_end=False,
+    def run_command(self, command, cwd=None, error_list=None,
                     halt_on_failure=False, success_codes=None,
-                    env=None, return_type='status', throw_exception=False,
-                    output_parser=None, output_timeout=None):
+                    env=None, partial_env=None, return_type='status',
+                    throw_exception=False, output_parser=None,
+                    output_timeout=None):
         """Run a command, with logging and error parsing.
 
         output_timeout is the number of seconds without output before the process
         is killed; it requires that mozprocess is installed in the script's
         virtualenv.
 
-        TODO: parse_at_end, context_lines
-        TODO: retry_interval?
+        TODO: context_lines
         TODO: error_level_override?
-        TODO: Add a copy-pastable version of |command| if it's a list.
-        TODO: print env if set
 
         output_parser lets you provide an instance of your own OutputParser
         subclass, or pass None to use OutputParser.
@@ -605,6 +627,12 @@ class ScriptMixin(object):
         shell = True
         if isinstance(command, list):
             shell = False
+        if env is None:
+            if partial_env:
+                self.info("Using partial env: %s" % pprint.pformat(partial_env))
+                env = self.query_env(partial_env=partial_env)
+        else:
+            self.info("Using env: %s" % pprint.pformat(env))
 
         if output_parser is None:
             parser = OutputParser(config=self.config, log_obj=self.log_obj,
@@ -616,12 +644,16 @@ class ScriptMixin(object):
             if output_timeout:
                 def processOutput(line):
                     parser.add_lines(line)
+                def onTimeout():
+                    self.info("mozprocess timed out")
 
                 p = ProcessHandler(command,
                                    env=env,
                                    cwd=cwd,
                                    storeOutput=False,
+                                   onTimeout=(onTimeout,),
                                    processOutputLine=[processOutput])
+                self.info("Calling %s with output_timeout %d" % (command, output_timeout))
                 p.run(outputTimeout=output_timeout)
                 p.wait()
                 if p.timedOut:
@@ -723,6 +755,7 @@ class ScriptMixin(object):
         shell = True
         if isinstance(command, list):
             shell = False
+            self.info("Copy/paste: %s" % subprocess.list2cmdline(command))
         p = subprocess.Popen(command, shell=shell, stdout=tmp_stdout,
                              cwd=cwd, stderr=tmp_stderr, env=env)
         #XXX: changed from self.debug to self.log due to this error:
@@ -774,6 +807,22 @@ class ScriptMixin(object):
         else:
             return output
 
+    def unpack(self, filename, extract_to):
+        '''
+        This method allows us to extract a file regardless of its extension 
+        '''
+        # XXX: Make sure that filename has a extension of one of our supported file formats
+        m = re.search('\.tar\.(bz2|gz)$', filename)
+        if m:
+            command = self.query_exe('tar', return_type='list')
+            tar_cmd = "jxfv"
+            if m.group(1) == "gz":
+                tar_cmd = "zxfv"
+            command.extend([tar_cmd, filename, "-C", extract_to])
+            self.run_command(command, halt_on_failure=True)
+        else:
+            # XXX implement
+            pass
 
 def PreScriptRun(func):
     """Decorator for methods that will be called before script execution.
@@ -879,11 +928,13 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 self._listeners['pre_run'].append(k)
 
             if hasattr(item, '_pre_action_listener'):
-                self._listeners['pre_action'].append((k,
+                self._listeners['pre_action'].append((
+                    k,
                     item._pre_action_listener))
 
             if hasattr(item, '_post_action_listener'):
-                self._listeners['post_action'].append((k,
+                self._listeners['post_action'].append((
+                    k,
                     item._post_action_listener))
 
             if hasattr(item, '_post_run_listener'):
@@ -972,8 +1023,8 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 method = getattr(self, fn)
                 method(action)
             except Exception:
-                self.error("Exception during pre-action for %s: %s" % (action,
-                    traceback.format_exc()))
+                self.error("Exception during pre-action for %s: %s" % (
+                    action, traceback.format_exc()))
 
                 for fn, target in self._listeners['post_action']:
                     if target is not None and target != action:
@@ -985,8 +1036,8 @@ class BaseScript(ScriptMixin, LogMixin, object):
                         method(action, success=False)
                     except Exception:
                         self.error("An additional exception occurred during "
-                            "post-action for %s: %s" % (action,
-                                traceback.format_exc()))
+                                   "post-action for %s: %s" % (action,
+                                   traceback.format_exc()))
 
                 self.fatal("Aborting due to exception in pre-action listener.")
 
@@ -1038,7 +1089,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 method()
             except Exception:
                 self.error("Exception during pre-run listener: %s" %
-                    traceback.format_exc())
+                           traceback.format_exc())
 
                 for fn in self._listeners['post_run']:
                     try:
@@ -1046,7 +1097,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
                         method()
                     except Exception:
                         self.error("An additional exception occurred during a "
-                            "post-run listener: %s" % traceback.format_exc())
+                                   "post-run listener: %s" % traceback.format_exc())
 
                 self.fatal("Aborting due to failure in pre-run listener.")
 
@@ -1066,7 +1117,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 except Exception:
                     post_success = False
                     self.error("Exception during post-run listener: %s" %
-                        traceback.format_exc())
+                               traceback.format_exc())
 
             if not post_success:
                 self.fatal("Aborting due to failure in post-run listener.")
@@ -1195,7 +1246,8 @@ class BaseScript(ScriptMixin, LogMixin, object):
 
     def copy_to_upload_dir(self, target, dest=None, short_desc="unknown",
                            long_desc="unknown", log_level=DEBUG,
-                           error_level=ERROR, max_backups=None):
+                           error_level=ERROR, max_backups=None,
+                           compress=False):
         """Copy target file to upload_dir/dest.
 
         Potentially update a manifest in the future if we go that route.
@@ -1208,14 +1260,18 @@ class BaseScript(ScriptMixin, LogMixin, object):
         upload_dir manifests.
         """
         dirs = self.query_abs_dirs()
+        dest_filename_given = dest is not None
         if dest is None:
             dest = os.path.basename(target)
         if dest.endswith('/'):
             dest_file = os.path.basename(target)
             dest_dir = os.path.join(dirs['abs_upload_dir'], dest)
+            dest_filename_given = False
         else:
             dest_file = os.path.basename(dest)
             dest_dir = os.path.join(dirs['abs_upload_dir'], os.path.dirname(dest))
+        if compress and not dest_filename_given:
+            dest_file += ".gz"
         dest = os.path.join(dest_dir, dest_file)
         if not os.path.exists(target):
             self.log("%s doesn't exist!" % target, level=error_level)
@@ -1249,7 +1305,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 if self.rmtree(dest, log_level=log_level):
                     self.log("Unable to remove %s!" % dest, level=error_level)
                     return -1
-        self.copyfile(target, dest, log_level=log_level)
+        self.copyfile(target, dest, log_level=log_level, compress=compress)
         if os.path.exists(dest):
             return dest
         else:

@@ -547,6 +547,8 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
+        if self.config['pgo_build']:
+            cmd + = ' MOZ_PGO=1'
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_properties(self):

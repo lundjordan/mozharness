@@ -4,10 +4,6 @@ config = {
     # if false, only clobber 'abs_work_dir'
     # if true: possibly clobber, clobberer, and purge_builds
     # see PurgeMixin for clobber() conditions
-    'is_automation': True,
-
-    'pgo_build': False,
-
     'clobberer_url': CLOBBERER_URL,  # we wish to clobberer
     'periodic_clobber': 168,  # default anyway but can be overwritten
 

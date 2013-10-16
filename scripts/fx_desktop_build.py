@@ -92,6 +92,12 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                     "additional config to use. Examples include: "
                     "%s " % (FxBuildOptionParser.build_types.keys(),)}
          ],
+        [['--enable-pgo'], {
+            "action": "store_true",
+            "dest": "pgo_build",
+            "default": False,
+            "help": "Sets the build to run in PGO mode"}
+         ],
     ]
 
     def __init__(self, require_config_file=True):
@@ -177,7 +183,10 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
     def default_config_for_all_platforms(self):
         """a config dict that is used platform wide, any matching keys within a
         passed in config file (--config-file) will override these keys"""
-        return {}
+        return {
+            "pgo_build": False,
+            'is_automation': True,
+        }
 
     def query_abs_dirs(self):
         if self.abs_dirs:

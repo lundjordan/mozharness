@@ -92,11 +92,6 @@ class Talos(TestingMixin, MercurialScript):
            "dest": "branch",
            "help": "Graphserver branch to report to"
            }],
-        # [["--metro-immersive"],
-        #   {"action": "store_true",
-        #    "dest": "metro_immersive",
-        #    "help": "Tells windows 8 machines to run tests with Metro Browser"
-        #    }],
         [["--system-bits"],
           {"action": "store",
            "dest": "system_bits",
@@ -136,7 +131,10 @@ class Talos(TestingMixin, MercurialScript):
 
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
+        # if suite ends with '-metro' then we are running tests against the
+        # metrotestharness.exe
         self.metro_immersive = self.config.get('suite').endswith('-metro')
+
         # results output
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
@@ -234,8 +232,6 @@ class Talos(TestingMixin, MercurialScript):
             if not talos_json_url:
                 self.fatal("Can't download talos_json without a talos_json_url!")
             self.download_talos_json()
-            self.info('made it here' + str(talos_json_url))
-        self.info('self.talos_json' + str(self.talos_json))
         self.talos_json_config = parse_config_file(self.talos_json)
         self.info(pprint.pformat(self.talos_json_config))
         return self.talos_json_config
@@ -400,17 +396,6 @@ class Talos(TestingMixin, MercurialScript):
         authfile = self.config.get('datazilla_authfile')
         if authfile:
             options.extend(['--authfile', authfile])
-        # if self.metro_immersive:
-        #     self.info("Triggering Metro Browser Immersive Mode")
-        #     if not self.config.get('metro_test_harness_exe'):
-        #         self.fatal('metro_test_harness_exe is needed in '
-        #                    'config if metro_immersive is true')
-        #     metro_harness_exe = self.config.get('metro_test_harness_exe')
-        #     abs_metro_path = os.path.join(dirs['abs_metro_harness_dir'],
-        #                                   metro_harness_exe)
-        #     if not os.path.exists(abs_metro_path):
-        #         self.fatal("metrotestharness executable could not be found")
-        #     options.extend(['--metro-immersive-path', abs_metro_path])
         # extra arguments
         if args is None:
             args = self.query_talos_options()
@@ -551,7 +536,7 @@ class Talos(TestingMixin, MercurialScript):
             self.copyfile(orig_metro_path, new_metro_path)
             self.binary_path = new_metro_path
             if not os.path.exists(self.binary_path):
-                self.fatal("metrotestharness executable could not be found") 
+                self.fatal("metrotestharness executable could not be found")
 
     def run_tests(self, args=None, **kw):
         """run Talos tests"""
@@ -563,14 +548,12 @@ class Talos(TestingMixin, MercurialScript):
         python = self.query_python_path()
         self.run_command([python, "--version"])
         # run talos tests
-        talos_path = os.path.join(self.talos_path, 'talos', 'run_tests.py')
-        if not os.path.exists(talos_path):
-            self.fatal('talos run_tests.py could not be determined')
-        command = [python, '-u', talos_path, '--noisy', '--debug'] + options
+        talos = self.query_python_path('talos')
+        command = [talos, '--noisy', '--debug'] + options
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
         self.return_code = self.run_command(command, cwd=self.workdir,
-                                            output_timeout=3600,
+                                            output_timeout=1800,
                                             output_parser=parser)
         if parser.minidump_output:
             self.info("Looking at the minidump files for debugging purposes...")

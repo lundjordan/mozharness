@@ -48,7 +48,4 @@ config = {
 
     "metro_harness_dir": "bin",
     "metro_test_harness_exe": "metrotestharness.exe",
-
-    # TODO REMOVE!!
-    "talos_json_url": "http://people.mozilla.org/~jlund/talos.json",
 }

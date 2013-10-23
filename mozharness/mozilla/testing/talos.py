@@ -157,8 +157,6 @@ class Talos(TestingMixin, MercurialScript):
         if 'run-tests' in self.actions:
             self.preflight_run_tests()
 
-
-
     def query_abs_dirs(self):
         c = self.config
         if self.abs_dirs:
@@ -168,7 +166,8 @@ class Talos(TestingMixin, MercurialScript):
         dirs['abs_test_dir'] = os.path.join(abs_dirs['abs_work_dir'],
                                             'tests')
         dirs['abs_metro_harness_dir'] = os.path.join(dirs['abs_test_dir'],
-                                                     c.get('metro_harness_dir', ''))
+                                                     c.get('metro_harness_dir',
+                                                           ''))
         abs_dirs.update(dirs)
         self.abs_dirs = abs_dirs
         return self.abs_dirs
@@ -358,7 +357,6 @@ class Talos(TestingMixin, MercurialScript):
 
     def talos_options(self, args=None, **kw):
         """return options to talos"""
-        dirs = self.query_abs_dirs()
         # binary path
         binary_path = self.binary_path or self.config.get('binary_path')
         if not binary_path:

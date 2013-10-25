@@ -452,6 +452,12 @@ class Talos(TestingMixin, MercurialScript):
                 for addons_url in addons_urls:
                     self._download_unzip(addons_url, talos_webdir)
 
+    def _is_metro_mode(self):
+        c = self.config
+        talos_config = self.query_talos_json_config()
+        if talos_config:
+            return talos_config['suites'][c['suite']].get('metro_mode')
+        return False
 
     # Action methods. {{{1
     # clobber defined in BaseScript
@@ -509,13 +515,6 @@ class Talos(TestingMixin, MercurialScript):
     def preflight_run_tests(self):
         if not self.query_tests():
             self.fatal("No tests specified; please specify --tests")
-
-    def _is_metro_mode(self):
-        c = self.config
-        talos_config = self.query_talos_json_config()
-        if talos_config:
-            return talos_config['suites'][c['suite']].get('metro_mode')
-        return False
 
     def install(self):
         """decorates TestingMixin.install() to handle win metro browser"""

@@ -137,7 +137,6 @@ class Talos(TestingMixin, MercurialScript):
             # use a results_url by default based on the class name in the working directory
             self.results_url = 'file://%s' % os.path.join(self.workdir, self.__class__.__name__.lower() + '.txt')
         self.installer_url = self.config.get("installer_url")
-        self.test_url = self.config.get('test_url')
         self.talos_json_url = self.config.get("talos_json_url")
         self.talos_json = self.config.get("talos_json")
         self.talos_json_config = self.config.get("talos_json_config")

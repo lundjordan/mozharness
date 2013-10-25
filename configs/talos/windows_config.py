@@ -46,4 +46,8 @@ config = {
     # Srsly gly? Ys
     "webroot_extract_cmd": r'''c:/mozilla-build/msys/bin/bash -c "PATH=/c/mozilla-build/msys/bin:$PATH tar zx --strip-components=1 -f '%(tarball)s' --wildcards '**/talos/'"''',
     "metro_harness_path_frmt": "%(metro_base_path)s/metro/metrotestharness.exe",
+
+    # TODO REMOVE!!!
+    # just needed until we update m-c talos.json
+    "talos_json_url": "http://people.mozilla.org/~jlund/talos.json"
 }

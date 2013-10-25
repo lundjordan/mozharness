@@ -72,6 +72,7 @@ class HgGitScript(VirtualenvMixin, TooltoolMixin, TransferMixin, VCSSyncScript):
                 'update-stage-mirror',
                 'update-work-mirror',
                 'push',
+                'combine-mapfiles',
                 'upload',
                 'notify',
             ],
@@ -83,6 +84,7 @@ class HgGitScript(VirtualenvMixin, TooltoolMixin, TransferMixin, VCSSyncScript):
                 'update-stage-mirror',
                 'update-work-mirror',
                 'push',
+                'combine-mapfiles',
                 'upload',
                 'notify',
             ],
@@ -250,7 +252,6 @@ intree=1
                 'repo_name': project,
                 'targets': [{
                     'target_dest': 'github-project-branches',
-                    'vcs': 'git',
                 }],
                 'bare_checkout': True,
                 'vcs': 'hg',
@@ -319,7 +320,7 @@ intree=1
                 self.run_command,
                 args=(cmd, ),
                 kwargs={
-                    'output_timeout': 2 * 60,
+                    'output_timeout': 5 * 60,
                     'cwd': source_dest,
                     'error_list': HgErrorList,
                     'success_codes': [0, 1, 256],
@@ -399,20 +400,29 @@ intree=1
         hg = self.query_exe('hg', return_type='list')
         return_status = ''
         for target_config in repo_config['targets']:
-            if target_config.get("vcs", "git") == "git":
+            test_push = False
+            remote_config = {}
+            if target_config.get("test_push"):
+                test_push = True
+                force_push = target_config.get("force_push")
+                target_name = os.path.join(
+                    dirs['abs_target_dir'], target_config['target_dest'])
+                target_vcs = target_config.get("vcs")
+            else:
+                target_name = target_config['target_dest']
+                remote_config = self.config.get('remote_targets', {}).get(target_name, {})
+                if not remote_config:
+                    self.fatal("Can't find %s in remote_targets!" % target_name)
+                force_push = remote_config.get("force_push", target_config.get("force_push"))
+                target_vcs = remote_config.get("vcs", target_config.get("vcs"))
+            if target_vcs == "git":
                 base_command = git + ['push']
                 env = {}
-                if target_config.get("force_push"):
+                if force_push:
                     base_command.append("-f")
-                if target_config.get("test_push"):
-                    target_name = os.path.join(
-                        dirs['abs_target_dir'], target_config['target_dest'])
+                if test_push:
                     base_command.append(target_name)
                 else:
-                    target_name = target_config['target_dest']
-                    remote_config = self.config.get('remote_targets', {}).get(target_name)
-                    if not remote_config:
-                        self.fatal("Can't find %s in remote_targets!" % target_name)
                     base_command.append(remote_config['repo'])
                     # Allow for using a custom git ssh key.
                     env['GIT_SSH_KEY'] = remote_config['ssh_key']
@@ -488,7 +498,7 @@ intree=1
             else:
                 # TODO write hg
                 error_msg = "%s: Don't know how to deal with vcs %s!\n" % (
-                    target_config['target_dest'], target_config['vcs'])
+                    target_config['target_dest'], target_vcs)
                 self.error(error_msg)
                 return_status += error_msg
         return return_status
@@ -596,38 +606,45 @@ intree=1
                         branch_map.setdefault(branch, branch)
         return branch_map
 
-    def combine_mapfiles(self, mapfiles, combined_mapfile='combined_mapfile'):
-        """ Ported from repo-sync-tools/combine_mapfiles
+    def _combine_mapfiles(self, mapfiles, combined_mapfile, cwd=None):
+        """ Adapted from repo-sync-tools/combine_mapfiles
 
             Consolidate multiple conversion processes' mapfiles into a
             single mapfile.
             """
         self.info("Determining whether we need to combine mapfiles...")
+        if cwd is None:
+            cwd = self.query_abs_dirs()['abs_upload_dir']
         existing_mapfiles = []
         for f in mapfiles:
-            if os.path.exists(f):
+            f_path = os.path.join(cwd, f)
+            if os.path.exists(f_path):
                 existing_mapfiles.append(f)
             else:
-                self.warning("%s doesn't exist!" % f)
-        if os.path.exists(combined_mapfile):
-            combined_timestamp = time.ctime(os.path.getmtime(combined_mapfile))
+                self.warning("%s doesn't exist!" % f_path)
+        combined_mapfile_path = os.path.join(cwd, combined_mapfile)
+        if os.path.exists(combined_mapfile_path):
+            combined_timestamp = os.path.getmtime(combined_mapfile_path)
             for f in existing_mapfiles:
-                if time.ctime(os.path.getmtime(f)) > combined_timestamp:
+                f_path = os.path.join(cwd, f)
+                if os.path.getmtime(f_path) > combined_timestamp:
                     # Yes, we want to combine mapfiles
                     break
             else:
                 self.info("No new mapfiles to combine.")
                 return
-            self.move(combined_mapfile, "%s.old" % combined_mapfile)
+            self.move(combined_mapfile_path, "%s.old" % combined_mapfile_path)
         output = self.get_output_from_command(
-            ['sort', '--unique', '--field-separarator=" "',
+            ['sort', '--unique', '-t', ' ',
              '--key=2'] + existing_mapfiles,
             silent=True, halt_on_failure=True,
+            cwd=cwd,
         )
-        self.write_to_file(combined_mapfile, output, verbose=False,
+        self.write_to_file(combined_mapfile_path, output, verbose=False,
                            error_level=FATAL)
         self.run_command(['ln', '-sf', combined_mapfile,
-                          '%s-latest' % combined_mapfile])
+                          '%s-latest' % combined_mapfile],
+                         cwd=cwd)
 
     # Actions {{{1
     def create_test_targets(self):
@@ -713,8 +730,16 @@ intree=1
                     self.fatal("Branch %s doesn't exist in %s!" % (branch, repo_name))
                 timestamp = int(time.time())
                 datetime = time.strftime('%Y-%m-%d %H:%M %Z')
-                self.run_command(hg + ['pull', '-r', rev, source], cwd=dest,
-                                 error_list=HgErrorList)
+                if self.run_command(hg + ['pull', '-r', rev, source], cwd=dest,
+                                    error_list=HgErrorList):
+                    # We shouldn't have an issue pulling!
+                    self.add_failure(
+                        repo_name,
+                        message="Unable to pull %s from stage_source; clobbering and skipping!" % repo_name,
+                        level=ERROR,
+                    )
+                    self.rmtree(source)
+                    break
                 self.run_command(
                     hg + ['bookmark', '-f', '-r', rev, target_branch],
                     cwd=dest, error_list=HgErrorList,
@@ -727,6 +752,9 @@ intree=1
                     'pull_timestamp': timestamp,
                     'pull_datetime': datetime,
                 }
+            if self.query_failure(repo_name):
+                # We hit an error in the for loop above
+                continue
             self.retry(
                 self.run_command,
                 args=(hg + ['-v', 'gexport'], ),
@@ -748,6 +776,32 @@ intree=1
                     revision=rev, mapfile=generated_mapfile)
                 repo_map['repos'][repo_name]['branches'][branch]['git_revision'] = git_revision
         self._write_repo_update_json(repo_map)
+
+    def combine_mapfiles(self):
+        """ This method is for any job (l10n, project-branches) that needs to combine
+            mapfiles.
+            """
+        if not self.config.get("combined_mapfile"):
+            self.info("No combined_mapfile set in config; skipping!")
+            return
+        dirs = self.query_abs_dirs()
+        mapfiles = []
+        if self.config.get('conversion_type') == 'b2g-l10n':
+            for repo_config in self.query_all_repos():
+                if repo_config.get("mapfile_name"):
+                    mapfiles.append(repo_config['mapfile_name'])
+        if self.config.get('external_mapfile_urls'):
+            for url in self.config['external_mapfile_urls']:
+                file_name = self.download_file(
+                    url,
+                    parent_dir=dirs['abs_upload_dir'],
+                    error_level=FATAL,
+                )
+                mapfiles.append(file_name)
+        if not mapfiles:
+            self.info("No mapfiles to combine; skipping!")
+            return
+        self._combine_mapfiles(mapfiles, self.config['combined_mapfile'])
 
     def push(self):
         """ Push to all targets.  test_targets are local directory test repos;
@@ -773,7 +827,11 @@ intree=1
                 repo_map.setdefault('repos', {}).setdefault(repo_name, {})['push_timestamp'] = timestamp
                 repo_map['repos'][repo_name]['push_datetime'] = datetime
             else:
-                self.add_failure("Unable to push %s." % repo_config['repo_name'])
+                self.add_failure(
+                    repo_config['repo_name'],
+                    message="Unable to push %s." % repo_config['repo_name'],
+                    level=ERROR,
+                )
                 failure_msg += status + "\n"
         if not failure_msg:
             repo_map['last_successful_push_timestamp'] = repo_map['last_push_timestamp']

@@ -45,7 +45,5 @@ config = {
     "populate_webroot": True,
     # Srsly gly? Ys
     "webroot_extract_cmd": r'''c:/mozilla-build/msys/bin/bash -c "PATH=/c/mozilla-build/msys/bin:$PATH tar zx --strip-components=1 -f '%(tarball)s' --wildcards '**/talos/'"''',
-
-    "metro_harness_dir": "bin",
-    "metro_test_harness_exe": "metrotestharness.exe",
+    "metro_harness_path_frmt": "%(metro_base_path)s/metro/metrotestharness.exe",
 }

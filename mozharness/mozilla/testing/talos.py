@@ -131,10 +131,6 @@ class Talos(TestingMixin, MercurialScript):
 
         self.workdir = self.query_abs_dirs()['abs_work_dir'] # convenience
 
-        # if suite ends with '-metro' then we are running tests against the
-        # metrotestharness.exe
-        self.metro_immersive = self.config.get('suite').endswith('-metro')
-
         # results output
         self.results_url = self.config.get('results_url')
         if self.results_url is None:
@@ -162,13 +158,10 @@ class Talos(TestingMixin, MercurialScript):
         if self.abs_dirs:
             return self.abs_dirs
         abs_dirs = super(Talos, self).query_abs_dirs()
-        dirs = {}
-        dirs['abs_test_dir'] = os.path.join(abs_dirs['abs_work_dir'],
-                                            'tests')
-        dirs['abs_metro_harness_dir'] = os.path.join(dirs['abs_test_dir'],
-                                                     c.get('metro_harness_dir',
-                                                           ''))
-        abs_dirs.update(dirs)
+        if c.get('metro_harness_path_frmt'):
+            abs_dirs['abs_metro_path'] = c['metro_harness_path_frmt'] % {
+                "metro_base_path": self.talos_path
+            }
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 
@@ -518,23 +511,32 @@ class Talos(TestingMixin, MercurialScript):
         if not self.query_tests():
             self.fatal("No tests specified; please specify --tests")
 
+    def _is_metro_mode(self):
+        talos_config = self.query_talos_json_config()
+        if talos_config:
+            return self.talos_json_config['suites'][c['suite']].get('metro_mode')
+        return False
+
     def install(self):
         """decorates TestingMixin.install() to handle win metro browser"""
-        c = self.config
         dirs = self.query_abs_dirs()
         super(Talos, self).install()
-        if self.metro_immersive:
-            self.info("Triggering Metro Browser Immersive Mode")
-            # overwrite self.binary_path set from TestingMixin.install()
-            abs_app_dir = os.path.split(self.binary_path)[0]
-            orig_metro_path = os.path.join(dirs['abs_metro_harness_dir'],
-                                           c.get('metro_test_harness_exe'))
-            new_metro_path = os.path.join(abs_app_dir,
-                                          c.get('metro_test_harness_exe'))
-            self.copyfile(orig_metro_path, new_metro_path)
-            self.binary_path = new_metro_path
-            if not os.path.exists(self.binary_path):
-                self.fatal("metrotestharness executable could not be found")
+        if self._is_metro_mode():
+            if not os.path.exists(dirs.get('abs_metro_path', '')):
+                unknown_path = 'None: is "metro_harness_path_frmt" in the cfg?'
+                self.fatal('Could not determine metrotestharness.exe path.'
+                           'Trying: ' % (dirs.get('abs_metro_path',
+                                                  unknown_path)))
+            self.info("Triggering metro browser immersive mode")
+            # Move metrotestharness.exe to the installer directory.
+            # Overwrite self.binary_path (set from TestingMixin.install())
+            # by replacing it with metrotestharness.exe
+            abs_installer_dir = os.path.split(self.binary_path)[0]
+            metro_harness_exe = os.path.split(dirs['abs_metro_path'])[1]
+            abs_dest_metro_path = os.path.join(abs_installer_dir,
+                                               metro_harness_exe)
+            self.copyfile(dirs['abs_metro_path'], abs_dest_metro_path)
+            self.binary_path = abs_dest_metro_path
 
     def run_tests(self, args=None, **kw):
         """run Talos tests"""

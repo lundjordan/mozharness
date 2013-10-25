@@ -159,7 +159,8 @@ class Talos(TestingMixin, MercurialScript):
         abs_dirs = super(Talos, self).query_abs_dirs()
         if c.get('metro_harness_path_frmt'):
             abs_dirs['abs_metro_path'] = c['metro_harness_path_frmt'] % {
-                "metro_base_path": self.talos_path
+                "metro_base_path": os.path.join(abs_dirs['abs_work_dir'],
+                                                'talos_repo')
             }
         self.abs_dirs = abs_dirs
         return self.abs_dirs

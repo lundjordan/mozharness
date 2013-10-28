@@ -553,7 +553,7 @@ class Talos(TestingMixin, MercurialScript):
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
         self.return_code = self.run_command(command, cwd=self.workdir,
-                                            output_timeout=1800,
+                                            # output_timeout=1800,
                                             output_parser=parser)
         if parser.minidump_output:
             self.info("Looking at the minidump files for debugging purposes...")

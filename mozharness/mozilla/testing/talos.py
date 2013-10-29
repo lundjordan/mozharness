@@ -552,9 +552,11 @@ class Talos(TestingMixin, MercurialScript):
         command = [talos, '--noisy', '--debug'] + options
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
-        self.return_code = self.run_command(command, cwd=self.workdir,
-                                            # output_timeout=1800,
-                                            output_parser=parser)
+        return_code = self.run_command(command, cwd=self.workdir,
+                                       output_timeout=1800,
+                                       output_parser=parser)
+        self.info("XXX DEBUG: %s" % (return_code,))
+        self.return_code = return_code
         if parser.minidump_output:
             self.info("Looking at the minidump files for debugging purposes...")
             for item in parser.minidump_output:

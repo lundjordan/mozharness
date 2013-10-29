@@ -553,7 +553,7 @@ class Talos(TestingMixin, MercurialScript):
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
         return_code = self.run_command(command, cwd=self.workdir,
-                                       output_timeout=1800,
+                                       # output_timeout=1800,
                                        output_parser=parser)
         self.info("XXX DEBUG: %s" % (return_code,))
         self.return_code = return_code

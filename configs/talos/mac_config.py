@@ -9,7 +9,6 @@ SCREEN_RESOLUTION_CHECK = {
 }
 
 import os
-import socket
 
 PYTHON = '/tools/buildbot/bin/python'
 VENV_PATH = '%s/build/venv' % os.getcwd()
@@ -19,8 +18,10 @@ config = {
     "buildbot_json_path": "buildprops.json",
     "installer_path": "installer.exe",
     "virtualenv_path": VENV_PATH,
-    "pypi_url": "http://repos/python/packages/",
-    "find_links": ["http://repos/python/packages/"],
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "pip_index": False,
     "use_talos_json": True,
     "exes": {
@@ -50,4 +51,8 @@ config = {
     "postflight_run_cmd_suites": [
         SCREEN_RESOLUTION_CHECK,
     ],
+    "default_blob_upload_servers": [
+         "https://blobupload.elasticbeanstalk.com",
+    ],
+    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
 }

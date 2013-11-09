@@ -13,7 +13,10 @@ config = {
         'tooltool.py': "/tools/tooltool.py",
     },
 
-    "find_links": ["http://repos/python/packages"],
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "pip_index": False,
 
     "buildbot_json_path": "buildprops.json",
@@ -76,7 +79,7 @@ config = {
 
     "xpcshell_options": [
         "--adbpath=%(adbpath)s", "--b2gpath=%(b2gpath)s", "--emulator=%(emulator)s",
-        "--logcat-dir=%(logcat_dir)s", "--manifest=%(test_manifest)s",
+        "--logcat-dir=%(logcat_dir)s", "--manifest=%(test_manifest)s", "--use-device-libs",
         "--testing-modules-dir=%(modules_dir)s", "--symbols-path=%(symbols_path)s",
         "--busybox=%(busybox)s", "--total-chunks=%(total_chunks)s", "--this-chunk=%(this_chunk)s",
     ],

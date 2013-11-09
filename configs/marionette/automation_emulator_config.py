@@ -1,4 +1,5 @@
 # This is a template config file for marionette production.
+import os
 
 config = {
     # marionette options
@@ -13,7 +14,10 @@ config = {
         'tooltool.py': "/tools/tooltool.py",
     },
 
-    "find_links": ["http://repos/python/packages"],
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "pip_index": False,
 
     "buildbot_json_path": "buildprops.json",
@@ -28,5 +32,8 @@ config = {
     ],
     "download_symbols": "ondemand",
     "download_minidump_stackwalk": True,
+    "default_blob_upload_servers": [
+         "https://blobupload.elasticbeanstalk.com",
+    ],
+    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
 }
-

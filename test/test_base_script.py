@@ -2,6 +2,7 @@ import gc
 import mock
 import os
 import re
+import types
 import unittest
 PYWIN32 = False
 if os.name == 'nt':
@@ -41,6 +42,12 @@ def get_debug_script_obj():
                                   'log_level': DEBUG},
                           initial_config_file='test/test.json')
     return s
+
+
+def _post_fatal(self, **kwargs):
+    fh = open('tmpfile_stdout', 'w')
+    print >>fh, test_string
+    fh.close()
 
 
 # TestScript {{{1
@@ -302,6 +309,17 @@ class TestHelperFunctions(unittest.TestCase):
         path = self.s.query_exe('foo')
         self.assertEqual(path, os.path.join('foo', 'bar', 'baz'))
 
+    def test_read_from_file(self):
+        self._create_temp_file()
+        self.s = script.BaseScript(initial_config_file='test/test.json')
+        contents = self.s.read_from_file(self.temp_file)
+        self.assertEqual(contents, test_string)
+
+    def test_read_from_nonexistent_file(self):
+        self.s = script.BaseScript(initial_config_file='test/test.json')
+        contents = self.s.read_from_file("nonexistent_file!!!")
+        self.assertEqual(contents, None)
+
 
 # TestScriptLogging {{{1
 class TestScriptLogging(unittest.TestCase):
@@ -364,10 +382,16 @@ class TestScriptLogging(unittest.TestCase):
         if log_level != FATAL:
             self.s.log('testing', level=log_level)
         else:
+            self.s._post_fatal = types.MethodType(_post_fatal, self.s)
             try:
                 self.s.fatal('testing')
             except SystemExit:
-                pass
+                contents = None
+                if os.path.exists('tmpfile_stdout'):
+                    fh = open('tmpfile_stdout')
+                    contents = fh.read()
+                    fh.close()
+                self.assertEqual(contents.rstrip(), test_string, "_post_fatal failed!")
         del(self.s)
         msg = ""
         for level in log_level_file_list:
@@ -608,10 +632,10 @@ class TestScriptDecorators(unittest.TestCase):
         self.assertEqual(self.s.post_action_1_args[1][0], ('build',))
         self.assertEqual(self.s.post_action_1_args[1][1], dict(success=True))
 
-        # post_action_3 should only get called for the action is is registered
+        # post_action_3 should only get called for the action it is registered
         # with.
         self.assertEqual(self.s.post_action_3_args[0], (('build',),
-            dict(success=True)))
+                         dict(success=True)))
 
         self.assertEqual(self.s.post_run_1_args[0], ((), {}))
 

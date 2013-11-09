@@ -13,7 +13,10 @@ config = {
         'hg': 'c:/mozilla-build/hg/hg',
     },
 
-    "find_links": ["http://repos/python/packages"],
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "pip_index": False,
 
     "default_actions": [

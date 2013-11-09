@@ -15,22 +15,24 @@ import re
 import sys
 import copy
 import shutil
+import glob
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import BaseErrorList
 from mozharness.base.log import INFO, ERROR
+from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import DesktopUnittestOutputParser
 
-SUITE_CATEGORIES = ['mochitest', 'reftest', 'xpcshell']
+SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell']
 
 
 # DesktopUnittest {{{1
-class DesktopUnittest(TestingMixin, MercurialScript):
-
+class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin):
     config_options = [
         [['--mochitest-suite', ], {
             "action": "extend",
@@ -56,6 +58,22 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     "Suites are defined in the config file\n."
                     "Examples: 'xpcshell'"}
          ],
+        [['--cppunittest-suite', ], {
+            "action": "extend",
+            "dest": "specified_cppunittest_suites",
+            "type": "string",
+            "help": "Specify which cpp unittest suite to run. "
+                    "Suites are defined in the config file\n."
+                    "Examples: 'cppunittest'"}
+         ],
+        [['--jittest-suite', ], {
+            "action": "extend",
+            "dest": "specified_jittest_suites",
+            "type": "string",
+            "help": "Specify which jit-test suite to run. "
+                    "Suites are defined in the config file\n."
+                    "Examples: 'jittest'"}
+         ],
         [['--run-all-suites', ], {
             "action": "store_true",
             "dest": "run_all_suites",
@@ -64,24 +82,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                     "in the config file. You do not need to specify "
                     "any other suites.\nBeware, this may take a while ;)"}
          ],
-    ] + copy.deepcopy(testing_config_options)
+    ] + copy.deepcopy(testing_config_options) + \
+        copy.deepcopy(blobupload_config_options)
 
-    # XXX Bug 879765: Dependent modules need to be listed before parent
-    # modules, otherwise they will get installed from the pypi server.
-    virtualenv_modules = [
-        "simplejson",
-        {'mozfile': os.path.join('tests', 'mozbase', 'mozfile')},
-        {'mozlog': os.path.join('tests', 'mozbase', 'mozlog')},
-        {'mozinfo': os.path.join('tests', 'mozbase', 'mozinfo')},
-        {'mozhttpd': os.path.join('tests', 'mozbase', 'mozhttpd')},
-        {'mozcrash': os.path.join('tests', 'mozbase', 'mozcrash')},
-        {'mozinstall': os.path.join('tests', 'mozbase', 'mozinstall')},
-        {'manifestdestiny': os.path.join('tests', 'mozbase', 'manifestdestiny')},
-        {'mozdevice': os.path.join('tests', 'mozbase', 'mozdevice')},
-        {'mozprofile': os.path.join('tests', 'mozbase', 'mozprofile')},
-        {'mozprocess': os.path.join('tests', 'mozbase', 'mozprocess')},
-        {'mozrunner': os.path.join('tests', 'mozbase', 'mozrunner')},
-    ]
 
     def __init__(self, require_config_file=True):
         # abs_dirs defined already in BaseScript but is here to make pylint happy
@@ -92,14 +95,13 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 'clobber',
                 'read-buildbot-config',
                 'download-and-extract',
-                'pull',
                 'create-virtualenv',
+                'pull',
                 'install',
                 'run-tests',
             ],
             require_config_file=require_config_file,
-            config={'virtualenv_modules': self.virtualenv_modules,
-                    'require_test_zip': True})
+            config={'require_test_zip': True})
 
         c = self.config
         self.global_test_options = []
@@ -143,6 +145,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         dirs['abs_mochitest_dir'] = os.path.join(dirs['abs_test_install_dir'], "mochitest")
         dirs['abs_reftest_dir'] = os.path.join(dirs['abs_test_install_dir'], "reftest")
         dirs['abs_xpcshell_dir'] = os.path.join(dirs['abs_test_install_dir'], "xpcshell")
+        dirs['abs_cppunittest_dir'] = os.path.join(dirs['abs_test_install_dir'], "cppunittests")
+        dirs['abs_blob_upload_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'blobber_upload_dir')
+        dirs['abs_jittest_dir'] = os.path.join(dirs['abs_test_install_dir'], "jit-test", "jit-test")
 
         if os.path.isabs(c['virtualenv_path']):
             dirs['abs_virtualenv_dir'] = c['virtualenv_path']
@@ -164,6 +169,33 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.fatal("Can't determine abs_app_dir (binary_path not set!)")
         self.abs_app_dir = os.path.dirname(self.binary_path)
         return self.abs_app_dir
+
+    @PreScriptAction('create-virtualenv')
+    def _pre_create_virtualenv(self, action):
+        dirs = self.query_abs_dirs()
+        self.register_virtualenv_module(name='simplejson')
+
+        requirements = os.path.join(dirs['abs_test_install_dir'],
+                                    'config',
+                                    'mozbase_requirements.txt')
+        if os.path.isfile(requirements):
+            self.register_virtualenv_module(requirements=[requirements],
+                                            two_pass=True)
+            return
+
+        # XXX Bug 879765: Dependent modules need to be listed before parent
+        # modules, otherwise they will get installed from the pypi server.
+        # XXX Bug 908356: This block can be removed as soon as the
+        # in-tree requirements files propagate to all active trees.
+        mozbase_dir = os.path.join('tests', 'mozbase')
+        self.register_virtualenv_module('manifestparser',
+            url=os.path.join(mozbase_dir, 'manifestdestiny'))
+
+        for m in ('mozfile', 'mozlog', 'mozinfo', 'moznetwork', 'mozhttpd',
+        'mozcrash', 'mozinstall', 'mozdevice', 'mozprofile', 'mozprocess',
+        'mozrunner'):
+            self.register_virtualenv_module(m, url=os.path.join(mozbase_dir,
+                m))
 
     def _query_symbols_url(self):
         """query the full symbols URL based upon binary URL"""
@@ -194,17 +226,23 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             run_file = c['run_file_names'][suite_category]
             base_cmd = [self.query_python_path('python'), '-u']
             base_cmd.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
+            abs_app_dir = self.query_abs_app_dir()
             str_format_values = {
                 'binary_path': self.binary_path,
-                'symbols_path': self._query_symbols_url()
+                'symbols_path': self._query_symbols_url(),
+                'abs_app_dir': abs_app_dir
             }
             # TestingMixin._download_and_extract_symbols() will set
             # self.symbols_path when downloading/extracting.
             if self.symbols_path:
                 str_format_values['symbols_path'] = self.symbols_path
 
+            # set pluginsPath
+            abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
+            str_format_values['test_plugin_path'] = abs_app_plugins_dir
+
             name = '%s_options' % suite_category
-            options = self.tree_config.get(name, self.config.get(name))
+            options = list(self.tree_config.get(name, c.get(name)))
             if options:
                 for i, option in enumerate(options):
                     options[i] = option % str_format_values
@@ -260,6 +298,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
     # create_virtualenv is in VirtualenvMixin.
     # preflight_install is in TestingMixin.
     # install is in TestingMixin.
+    # upload_blobber_files is in BlobUploadMixin
 
     def download_and_extract(self):
         """
@@ -270,12 +309,15 @@ class DesktopUnittest(TestingMixin, MercurialScript):
 
         target_unzip_dirs = None
         if c['specific_tests_zip_dirs']:
-            target_unzip_dirs = c['minimum_tests_zip_dirs']
+            target_unzip_dirs = list(c['minimum_tests_zip_dirs'])
             for category in c['specific_tests_zip_dirs'].keys():
                 if c['run_all_suites'] or self._query_specified_suites(category) \
                         or 'run-tests' not in self.actions:
                     target_unzip_dirs.extend(c['specific_tests_zip_dirs'][category])
         super(DesktopUnittest, self).download_and_extract(target_unzip_dirs=target_unzip_dirs)
+
+        dirs = self.query_abs_dirs()
+        self._download_unzip(self.query_jsshell_url(), dirs['abs_test_bin_dir'])
 
     # pull defined in VCSScript.
     # preflight_run_tests defined in TestingMixin.
@@ -285,6 +327,9 @@ class DesktopUnittest(TestingMixin, MercurialScript):
         self._run_category_suites('reftest')
         self._run_category_suites('xpcshell',
                                   preflight_run_method=self.preflight_xpcshell)
+        self._run_category_suites('cppunittest',
+                                  preflight_run_method=self.preflight_cppunittest)
+        self._run_category_suites('jittest')
 
     def preflight_xpcshell(self, suites):
         c = self.config
@@ -305,6 +350,17 @@ class DesktopUnittest(TestingMixin, MercurialScript):
             self.copytree(dirs['abs_test_bin_plugins_dir'],
                           abs_app_plugins_dir,
                           overwrite='overwrite_if_exists')
+
+    def preflight_cppunittest(self, suites):
+        abs_app_dir = self.query_abs_app_dir()
+        dirs = self.query_abs_dirs()
+        abs_cppunittest_dir = dirs['abs_cppunittest_dir']
+
+        # move manifest and js fils to app dir, where tests expect them
+        files = glob.glob(os.path.join(abs_cppunittest_dir, '*.js'))
+        files.extend(glob.glob(os.path.join(abs_cppunittest_dir, '*.manifest')))
+        for f in files:
+            self.move(f, abs_app_dir)
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
@@ -327,7 +383,7 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                 env = {}
                 if isinstance(suites[suite], dict):
                     options_list = suites[suite]['options']
-                    env = suites[suite]['env']
+                    env = copy.deepcopy(suites[suite]['env'])
                 else:
                     options_list = suites[suite]
 
@@ -346,8 +402,10 @@ class DesktopUnittest(TestingMixin, MercurialScript):
                                                      log_obj=self.log_obj)
                 if c.get('minidump_stackwalk_path'):
                     env['MINIDUMP_STACKWALK'] = c['minidump_stackwalk_path']
-                if c.get('minidump_save_path'):
-                    env['MINIDUMP_SAVE_PATH'] = c['minidump_save_path']
+                env['MOZ_UPLOAD_DIR'] = self.query_abs_dirs()['abs_blob_upload_dir']
+                env['MINIDUMP_SAVE_PATH'] = self.query_abs_dirs()['abs_blob_upload_dir']
+                if not os.path.isdir(env['MOZ_UPLOAD_DIR']):
+                    self.mkdir_p(env['MOZ_UPLOAD_DIR'])
                 env = self.query_env(partial_env=env, log_level=INFO)
                 return_code = self.run_command(cmd, cwd=dirs['abs_work_dir'],
                                                output_timeout=1000,

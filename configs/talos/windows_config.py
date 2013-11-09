@@ -1,7 +1,7 @@
 import os
 import socket
 
-PYTHON = 'c:/mozilla-build/python27/python'
+PYTHON = 'c:/mozilla-build/python27/python.exe'
 PYTHON_DLL = 'c:/mozilla-build/python27/python27.dll'
 VENV_PATH = os.path.join(os.getcwd(), 'build/venv')
 
@@ -11,13 +11,12 @@ config = {
     "installer_path": "installer.exe",
     "virtualenv_path": VENV_PATH,
     "virtualenv_python_dll": PYTHON_DLL,
-    "pypi_url": "http://repos/python/packages/",
-    "find_links": ["http://repos/python/packages/"],
     "pip_index": False,
-    "distribute_url": "http://repos/python/packages/distribute-0.6.26.tar.gz",
-    "pip_url": "http://repos/python/packages/pip-0.8.2.tar.gz",
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "use_talos_json": True,
-    "pywin32_url": "http://repos/python/packages/pywin32-216.win32-py2.7.exe",
     "virtualenv_modules": ['pywin32', 'talos', 'mozinstall'],
     "exes": {
         'python': PYTHON,
@@ -46,4 +45,9 @@ config = {
     "populate_webroot": True,
     # Srsly gly? Ys
     "webroot_extract_cmd": r'''c:/mozilla-build/msys/bin/bash -c "PATH=/c/mozilla-build/msys/bin:$PATH tar zx --strip-components=1 -f '%(tarball)s' --wildcards '**/talos/'"''',
+    "default_blob_upload_servers": [
+         "https://blobupload.elasticbeanstalk.com",
+    ],
+    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
+    "metro_harness_path_frmt": "%(metro_base_path)s/metro/metrotestharness.exe",
 }

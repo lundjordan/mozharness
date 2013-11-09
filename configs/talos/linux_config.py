@@ -1,5 +1,4 @@
 import os
-import socket
 
 PYTHON = '/tools/buildbot/bin/python'
 VENV_PATH = '/home/cltbld/talos-slave/test/build/venv'
@@ -9,8 +8,10 @@ config = {
     "buildbot_json_path": "buildprops.json",
     "installer_path": "installer.exe",
     "virtualenv_path": VENV_PATH,
-    "pypi_url": "http://repos/python/packages/",
-    "find_links": ["http://repos/python/packages/"],
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
     "pip_index": False,
     "use_talos_json": True,
     "exes": {
@@ -33,4 +34,8 @@ config = {
     "python_webserver": False,
     "webroot": '/builds/slave/talos-slave/talos-data',
     "populate_webroot": True,
+    "default_blob_upload_servers": [
+         "https://blobupload.elasticbeanstalk.com",
+    ],
+    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
 }

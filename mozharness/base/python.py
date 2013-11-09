@@ -8,6 +8,7 @@
 '''
 
 import os
+import sys
 import traceback
 
 from mozharness.base.script import (
@@ -72,8 +73,9 @@ class VirtualenvMixin(object):
         self._virtualenv_modules = []
         super(VirtualenvMixin, self).__init__(*args, **kwargs)
 
-    def register_virtualenv_module(self, name, url=None, method=None,
-            requirements=None, optional=False):
+    def register_virtualenv_module(self, name=None, url=None, method=None,
+                                   requirements=None, optional=False,
+                                   two_pass=False):
         """Register a module to be installed with the virtualenv.
 
         This method can be called up until create_virtualenv() to register
@@ -83,7 +85,7 @@ class VirtualenvMixin(object):
         applied.
         """
         self._virtualenv_modules.append((name, url, method, requirements,
-            optional))
+                                         optional, two_pass))
 
     def query_virtualenv_path(self):
         c = self.config
@@ -99,7 +101,6 @@ class VirtualenvMixin(object):
         c['virtualenv_path'] is set; otherwise return the binary name.
         Otherwise return None
         """
-        self._check_existing_virtualenv()
         if binary not in self.python_paths:
             bin_dir = 'bin'
             if self._is_windows():
@@ -166,14 +167,9 @@ class VirtualenvMixin(object):
         packages = self.package_versions(error_level=error_level).keys()
         return package_name.lower() in [package.lower() for package in packages]
 
-    def _check_existing_virtualenv(self, error_level=WARNING):
-        if 'VIRTUAL_ENV' in os.environ:
-            self.log("VIRTUAL_ENV %s set; this may break mozharness virtualenv calls!" % os.environ['VIRTUAL_ENV'],
-                     level=error_level)
-            return True
-
     def install_module(self, module=None, module_url=None, install_method=None,
-                       requirements=(), optional=False):
+                       requirements=(), optional=False, global_options=[],
+                       no_deps=False):
         """
         Install module via pip.
 
@@ -196,18 +192,24 @@ class VirtualenvMixin(object):
             if not module_url and not requirements:
                 self.fatal("Must specify module and/or requirements")
             pip = self.query_python_path("pip")
-            command = [pip, "install"]
+            if c.get("verbose_pip"):
+                command = [pip, "-v", "install"]
+            else:
+                command = [pip, "install"]
             pypi_url = c.get("pypi_url")
             if pypi_url:
                 command += ["--pypi-url", pypi_url]
-            virtualenv_cache_dir = c.get("virtualenv_cache_dir")
+            if no_deps:
+                command += ["--no-deps"]
+            virtualenv_cache_dir = c.get("virtualenv_cache_dir", os.path.join(venv_path, "cache"))
             if virtualenv_cache_dir:
-                self.mkdir_p(virtualenv_cache_dir)
                 command += ["--download-cache", virtualenv_cache_dir]
             for requirement in requirements:
                 command += ["-r", requirement]
             if c.get('find_links') and not c["pip_index"]:
                 command += ['--no-index']
+            for opt in global_options:
+                command += ["--global-option", opt]
         elif install_method == 'easy_install':
             if not module:
                 self.fatal("module parameter required with install_method='easy_install'")
@@ -241,15 +243,21 @@ class VirtualenvMixin(object):
         # for optional packages.
         success_codes = [0, 1] if optional else [0]
 
+        # If we're only installing a single requirements file, use
+        # the file's directory as cwd, so relative paths work correctly.
+        cwd = dirs['abs_work_dir']
+        if not module and len(requirements) == 1:
+            cwd = os.path.dirname(requirements[0])
+
         # Allow for errors while building modules, but require a
         # return status of 0.
         if self.run_command(command,
                             error_list=VirtualenvErrorList,
                             success_codes=success_codes,
-                            cwd=dirs['abs_work_dir']) != 0:
+                            cwd=cwd) != 0:
             if optional:
                 self.warning("Unable to install optional package %s." %
-                    module_url)
+                             module_url)
             else:
                 self.fatal("Unable to install %s!" % module_url)
 
@@ -268,13 +276,27 @@ class VirtualenvMixin(object):
 
             virtualenv_modules = ['module1', 'module2']
 
-        or it can be a list of dicts that define a module: url-or-path,
-        or a combination.
+        or it can be a heterogeneous list of modules names and dicts that
+        define a module by its name, url-or-path, and a list of its global
+        options.
 
             virtualenv_modules = [
-                'module1',
-                {'module2': 'http://url/to/package'},
-                {'module3': os.path.join('path', 'to', 'setup_py', 'dir')},
+                {
+                    'name': 'module1',
+                    'url': None,
+                    'global_options': ['--opt', '--without-gcc']
+                },
+                {
+                    'name': 'module2',
+                    'url': 'http://url/to/package',
+                    'global_options': ['--use-clang']
+                },
+                {
+                    'name': 'module3',
+                    'url': os.path.join('path', 'to', 'setup_py', 'dir')
+                    'global_options': []
+                },
+                'module4'
             ]
 
         virtualenv_requirements is an optional list of pip requirements files to
@@ -288,7 +310,6 @@ class VirtualenvMixin(object):
         c = self.config
         dirs = self.query_abs_dirs()
         venv_path = self.query_virtualenv_path()
-        self._check_existing_virtualenv()
         self.info("Creating virtualenv %s" % venv_path)
         virtualenv = c.get('virtualenv', self.query_exe('virtualenv'))
         if isinstance(virtualenv, str):
@@ -320,10 +341,13 @@ class VirtualenvMixin(object):
         virtualenv_options = c.get('virtualenv_options',
                                    ['--no-site-packages', '--distribute'])
 
-        self.run_command(virtualenv + virtualenv_options + [venv_path],
-                         cwd=dirs['abs_work_dir'],
-                         error_list=VirtualenvErrorList,
-                         halt_on_failure=True)
+        if os.path.exists(self.query_python_path()):
+            self.info("Virtualenv %s appears to already exist; skipping virtualenv creation." % self.query_python_path())
+        else:
+            self.run_command(virtualenv + virtualenv_options + [venv_path],
+                             cwd=dirs['abs_work_dir'],
+                             error_list=VirtualenvErrorList,
+                             halt_on_failure=True)
         if not modules:
             modules = c.get('virtualenv_modules', [])
         if not requirements:
@@ -333,23 +357,40 @@ class VirtualenvMixin(object):
                                 install_method='pip')
         for module in modules:
             module_url = module
+            global_options = []
             if isinstance(module, dict):
-                (module, module_url) = module.items()[0]
+                if module.get('name', None):
+                    module_name = module['name']
+                else:
+                    self.fatal("Can't install module without module name: %s" %
+                               str(module))
+                module_url = module.get('url', None)
+                global_options = module.get('global_options', [])
             else:
                 module_url = self.config.get('%s_url' % module, module_url)
+                module_name = module
             install_method = 'pip'
-            if module in ('pywin32',):
+            if module_name in ('pywin32',):
                 install_method = 'easy_install'
-            self.install_module(module=module,
+            self.install_module(module=module_name,
                                 module_url=module_url,
                                 install_method=install_method,
-                                requirements=requirements)
+                                requirements=requirements,
+                                global_options=global_options)
 
-        for module, url, method, requirements,optional in \
-            self._virtualenv_modules:
-            self.install_module(module=module, module_url=url,
+        for module, url, method, requirements, optional, two_pass in \
+                self._virtualenv_modules:
+            if two_pass:
+                self.install_module(
+                    module=module, module_url=url,
+                    install_method=method, requirements=requirements or (),
+                    optional=optional, no_deps=True
+                )
+            self.install_module(
+                module=module, module_url=url,
                 install_method=method, requirements=requirements or (),
-                optional=optional)
+                optional=optional
+            )
 
         self.info("Done creating virtualenv %s." % venv_path)
 
@@ -380,14 +421,20 @@ class ResourceMonitoringMixin(object):
         super(ResourceMonitoringMixin, self).__init__(*args, **kwargs)
 
         self.register_virtualenv_module('psutil==0.7.1', method='pip',
-            optional=True)
+                                        optional=True)
         self.register_virtualenv_module('mozsystemmonitor==0.0.0',
-            method='pip', optional=True)
+                                        method='pip', optional=True)
         self._resource_monitor = None
 
     @PostScriptAction('create-virtualenv')
     def _start_resource_monitoring(self, action, success=None):
         self.activate_virtualenv()
+
+        # Resource Monitor requires Python 2.7, however it's currently optional.
+        # Remove when all machines have had their Python version updated (bug 711299).
+        if sys.version_info[:2] < (2, 7):
+            self.warning('Resource monitoring will not be enabled! Python 2.7+ required.')
+            return
 
         try:
             from mozsystemmonitor.resourcemonitor import SystemResourceMonitor
@@ -397,7 +444,7 @@ class ResourceMonitoringMixin(object):
             self._resource_monitor.start()
         except Exception:
             self.warning("Unable to start resource monitor: %s" %
-                traceback.format_exc())
+                         traceback.format_exc())
 
     @PreScriptAction
     def _resource_record_pre_action(self, action):
@@ -427,7 +474,7 @@ class ResourceMonitoringMixin(object):
             self._log_resource_usage()
         except Exception:
             self.warning("Exception when reporting resource usage: %s" %
-                traceback.format_exc())
+                         traceback.format_exc())
 
     def _log_resource_usage(self):
         rm = self._resource_monitor
@@ -444,21 +491,27 @@ class ResourceMonitoringMixin(object):
 
         def log_usage(prefix, duration, cpu_percent, cpu_times, io):
             message = '{prefix} - Wall time: {duration:.0f}s; ' \
-                'CPU: {cpu_percent:.0f}%; ' \
+                'CPU: {cpu_percent}; ' \
                 'Read bytes: {io_read_bytes}; Write bytes: {io_write_bytes}; ' \
                 'Read time: {io_read_time}; Write time: {io_write_time}'
 
             # XXX Some test harnesses are complaining about a string being
             # being fed into a 'f' formatter. This will help diagnose the
             # issue.
+            cpu_percent_str = str(round(cpu_percent)) + '%' if cpu_percent else "Can't collect data"
+
             try:
-                self.info(message.format(prefix=prefix, duration=duration,
-                    cpu_percent=cpu_percent, io_read_bytes=io.read_bytes,
-                    io_write_bytes=io.write_bytes, io_read_time=io.read_time,
-                    io_write_time=io.write_time))
+                self.info(
+                    message.format(
+                        prefix=prefix, duration=duration,
+                        cpu_percent=cpu_percent_str, io_read_bytes=io.read_bytes,
+                        io_write_bytes=io.write_bytes, io_read_time=io.read_time,
+                        io_write_time=io.write_time
+                    )
+                )
             except ValueError:
                 self.warning("Exception when formatting: %s" %
-                    traceback.format_exc())
+                             traceback.format_exc())
 
         cpu_percent, cpu_times, io = resources(None)
         duration = rm.end_time - rm.start_time

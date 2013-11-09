@@ -21,21 +21,29 @@ config = {
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
     },
+    "find_links": [
+        "http://pypi.pvt.build.mozilla.org/pub",
+        "http://pypi.pub.build.mozilla.org/pub",
+    ],
+    "pip_index": False,
     ###
     "installer_path": INSTALLER_PATH,
     "binary_path": BINARY_PATH,
     "xpcshell_name": XPCSHELL_NAME,
-    "simplejson_url": "http://repos/python/packages/simplejson-2.1.3.tar.gz",
     "run_file_names": {
         "mochitest": "runtests.py",
         "reftest": "runreftest.py",
-        "xpcshell": "runxpcshelltests.py"
+        "xpcshell": "runxpcshelltests.py",
+        "cppunittest": "runcppunittests.py",
+        "jittest": "jit_test.py"
     },
     "minimum_tests_zip_dirs": ["bin/*", "certs/*", "modules/*", "mozbase/*", "config/*"],
     "specific_tests_zip_dirs": {
         "mochitest": ["mochitest/*"],
         "reftest": ["reftest/*", "jsreftest/*"],
-        "xpcshell": ["xpcshell/*"]
+        "xpcshell": ["xpcshell/*"],
+        "cppunittest": ["cppunittests/*"],
+        "jittest": ["jit-test/*"]
     },
     "reftest_options": [
         "--appname=%(binary_path)s", "--utility-path=tests/bin",
@@ -48,7 +56,16 @@ config = {
         "--console-level=INFO", "--setpref=webgl.force-enabled=true"
     ],
     "xpcshell_options": [
-        "--symbols-path=%(symbols_path)s"
+        "--symbols-path=%(symbols_path)s",
+        "--test-plugin-path=%(test_plugin_path)s"
+    ],
+    "cppunittest_options": [
+        "--symbols-path=%(symbols_path)s",
+        "--xre-path=%(abs_app_dir)s"
+    ],
+    "jittest_options": [
+        "tests/bin/js",
+        "--tinderbox"
     ],
     #local mochi suites
     "all_mochitest_suites": {
@@ -59,6 +76,9 @@ config = {
         "plain5": ["--total-chunks=5", "--this-chunk=5", "--chunk-by-dir=4"],
         "chrome": ["--chrome"],
         "browser-chrome": ["--browser-chrome"],
+        "browser-chrome-1": ["--total-chunks=3", "--this-chunk=1"],
+        "browser-chrome-2": ["--total-chunks=3", "--this-chunk=2"],
+        "browser-chrome-3": ["--total-chunks=3", "--this-chunk=3"],
         "a11y": ["--a11y"],
         "plugins": ['--setpref=dom.ipc.plugins.enabled=false',
                     '--setpref=dom.ipc.plugins.enabled.x86_64=false',
@@ -69,22 +89,28 @@ config = {
         "reftest": ["tests/reftest/tests/layout/reftests/reftest.list"],
         "crashtest": ["tests/reftest/tests/testing/crashtest/crashtests.list"],
         "jsreftest": ["--extra-profile-file=tests/jsreftest/tests/user.js", "tests/jsreftest/tests/jstests.list"],
-        "reftest-ipc": { 'env': {'MOZ_OMTC_ENABLED': '1',
-                                 'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
-                         'options': ['--setpref=browser.tabs.remote=true',
-                                     '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
-                                     'tests/reftest/tests/layout/reftests/reftest-sanity/reftest.list'] },
+        "reftest-ipc": {'env': {'MOZ_OMTC_ENABLED': '1',
+                                'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
+                        'options': ['--setpref=browser.tabs.remote=true',
+                                    '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
+                                    'tests/reftest/tests/layout/reftests/reftest-sanity/reftest.list']},
         "reftest-no-accel": ['--setpref=layers.acceleration.force-enabled=disabled',
                              'tests/reftest/tests/layout/reftests/reftest.list'],
-        "crashtest-ipc": { 'env': {'MOZ_OMTC_ENABLED': '1',
-                                   'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
-                           'options': ['--setpref=browser.tabs.remote=true',
-                                       '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
-                                       'tests/reftest/tests/testing/crashtest/crashtests.list'] },
+        "crashtest-ipc": {'env': {'MOZ_OMTC_ENABLED': '1',
+                                  'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
+                          'options': ['--setpref=browser.tabs.remote=true',
+                                      '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
+                                      'tests/reftest/tests/testing/crashtest/crashtests.list']},
     },
     "all_xpcshell_suites": {
         "xpcshell": ["--manifest=tests/xpcshell/tests/all-test-dirs.list",
                      "%(abs_app_dir)s/" + XPCSHELL_NAME]
+    },
+    "all_cppunittest_suites": {
+        "cppunittest": ['tests/cppunittests']
+    },
+    "all_jittest_suites": {
+        "jittest": []
     },
     "run_cmd_checks_enabled": True,
     "preflight_run_cmd_suites": [
@@ -111,7 +137,12 @@ config = {
         },
     ],
     "repos": [{"repo": "http://hg.mozilla.org/build/tools"}],
+    "vcs_output_timeout": 1000,
     "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
     "minidump_save_path": "%(abs_work_dir)s/../minidumps",
     "buildbot_max_log_size": 52428800,
+    "default_blob_upload_servers": [
+         "https://blobupload.elasticbeanstalk.com",
+    ],
+    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
 }

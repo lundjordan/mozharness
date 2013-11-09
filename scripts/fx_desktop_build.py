@@ -4,11 +4,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 # ***** END LICENSE BLOCK *****
-"""fx_nightly_build.py
+"""fx_nightly_build.py.
+
 script harness to build nightly firefox within Mozilla's build environment
 and developer machines alike
 
 author: Jordan Lund
+
 """
 
 import sys
@@ -25,8 +27,6 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 
 
 class FxBuildOptionParser(object):
-    """provides a namespace for extending opt parsing for
-    fx desktop specsific builds"""
     platform = None
     bits = None
     build_types = {
@@ -121,7 +121,10 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             ],
             'require_config_file': require_config_file,
             # Default configuration
-            'config': self.default_config_for_all_platforms(),
+            'config': {
+                "pgo_build": False,
+                'is_automation': True,
+            }
         }
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
@@ -136,9 +139,13 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         super(FxDesktopBuild, self).__init__(**basescript_kwargs)
 
     def _pre_config_lock(self, rw_config):
-        """First, validate that the appropriate config are in self.config
+        """Config Validation.
+
+        Validate that the appropriate configs are in self.config
         for actions being run. Then resolve optional config files
-        (if any)."""
+        (if any).
+
+        """
 
         ### verify config options are valid
         # if not c['is_automation'] (ie: we are outside releng infra)
@@ -168,7 +175,6 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
                 'graph_branch', 'base_name'
             ],
             'make-build-symbols': ['mock_target'],
-            'setup-mock': ['mock_target'],
             'make-packages': ['package_filename', 'mock_target'],
             'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
             'test-pretty-names': ['l10n_check_test'],
@@ -179,14 +185,6 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
                                                   action)
 
     # helpers
-
-    def default_config_for_all_platforms(self):
-        """a config dict that is used platform wide, any matching keys within a
-        passed in config file (--config-file) will override these keys"""
-        return {
-            "pgo_build": False,
-            'is_automation': True,
-        }
 
     def query_abs_dirs(self):
         if self.abs_dirs:

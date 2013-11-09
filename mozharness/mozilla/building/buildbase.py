@@ -4,10 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 # ***** END LICENSE BLOCK *****
-"""buildbase.py
-provides a base class for fx desktop builds
+""" buildbase.py.
 
+provides a base class for fx desktop builds
 author: Jordan Lund
+
 """
 
 import os
@@ -81,11 +82,11 @@ class MakeUploadOutputParser(OutputParser):
                 'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
                 'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
                 'packageRpmUrl': "m.endswith('.rpm')",
-                'symbolsUrl': "m.endswith('crashreporter-symbols.zip')",
-                'symbolsUrl': "m.endswith('crashreporter-symbols-full.zip')",
+                'symbolsUrl': "m.endswith('crashreporter-symbols.zip') or "
+                              "m.endswith('crashreporter-symbols-full.zip')",
                 'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
                 'unsignedApkUrl': "m.endswith('apk') and "
-                            "'unsigned-unaligned' in m",
+                                  "'unsigned-unaligned' in m",
                 'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
                 'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
                 'completeMarUrl': "m.endswith('.complete.mar')",
@@ -161,11 +162,17 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 
     objdir = None
     repo_path = None
+    buildid = None
+    builduid = None
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
-        """Takes a list of dependencies and ensures that each have an
+        """ assert dependency keys are in config for given action.
+
+        Takes a list of dependencies and ensures that each have an
         assoctiated key in the config. Displays error messages as
-        appropriate."""
+        appropriate.
+
+        """
         # TODO add type and value checking, not just keys
         # TODO solution should adhere to: bug 699343
         # TODO add this to basescript when the above is done
@@ -237,14 +244,13 @@ or run without that action (ie: --no-{action})"
         return self.repo_path
 
     def _skip_buildbot_specific_action(self):
-        """ignores actions that only should happen within
-        buildbot's infrastructure"""
+        """ ignore actions from buildbot's infra."""
         self.info("This action is specific to buildbot's infrastructure")
         self.info("Skipping......")
         return
 
     def _ccache_z(self):
-        """clear ccache stats"""
+        """clear ccache stats."""
         c = self.config
         dirs = self.query_abs_dirs()
 
@@ -257,7 +263,7 @@ or run without that action (ie: --no-{action})"
                          env=ccache_env)
 
     def _rm_old_package(self):
-        """rm the old package"""
+        """rm the old package."""
         c = self.config
         cmd = ["rm", "-rf"]
         old_packages = c.get('old_packages')
@@ -268,9 +274,13 @@ or run without that action (ie: --no-{action})"
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
     def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
-        """a similar setup is conducted for many make targets
+        """run make cmd against mock.
+
+        make a similar setup is conducted for many make targets
         throughout a build. This takes a cmd and cwd and calls
-        a mock_mozilla with the right env"""
+        a mock_mozilla with the right env
+
+        """
         c = self.config
         if not env:
             env = self.query_env()
@@ -283,7 +293,7 @@ or run without that action (ie: --no-{action})"
         self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
 
     def _get_mozconfig(self):
-        """assigns mozconfig"""
+        """assign mozconfig."""
         c = self.config
         dirs = self.query_abs_dirs()
         if c.get('src_mozconfig'):
@@ -326,7 +336,7 @@ or run without that action (ie: --no-{action})"
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
     def _count_ctors(self):
-        """count num of ctors and set testresults"""
+        """count num of ctors and set testresults."""
         dirs = self.query_abs_dirs()
         testresults = []
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
@@ -367,7 +377,7 @@ or run without that action (ie: --no-{action})"
                 return '-'.join(branch_list)
 
     def _graph_server_post(self):
-        """graph server post results"""
+        """graph server post results."""
         c = self.config
         dirs = self.query_abs_dirs()
         graph_server_post_path = os.path.join(dirs['abs_tools_dir'],
@@ -473,7 +483,10 @@ or run without that action (ie: --no-{action})"
         branch = self.buildbot_config['properties']['branch']
         buildid = self.query_buildbot_property('buildid')
         revision = self.query_buildbot_property('got_revision')
-        tinderboxBuildsDir = "%s-%s" % (branch, c['stage_platform'])
+        platform = c['stage_platform']
+        if c['is_pgo']:
+            platform += '-pgo'
+        tinderboxBuildsDir = "%s-%s" % (branch, platform)
 
         post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
         post_upload_cmd.extend(["-p", c['stage_product']])
@@ -490,9 +503,12 @@ or run without that action (ie: --no-{action})"
         super(BuildingMixin, self).read_buildbot_config()
 
     def setup_mock(self):
-        """Overrides setup_mock found in MockMixin.
+        """Override setup_mock found in MockMixin.
+
         Initializes and runs any mock initialization actions.
-        Finally, installs packages."""
+        Finally, installs packages.
+
+        """
         if self.done_mock_setup:
             return
 
@@ -511,7 +527,7 @@ or run without that action (ie: --no-{action})"
         self.done_mock_setup = True
 
     def checkout_source(self):
-        """use vcs_checkout to grab source needed for build"""
+        """use vcs_checkout to grab source needed for build."""
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
@@ -532,7 +548,7 @@ or run without that action (ie: --no-{action})"
                                        write_to_file=True)
 
     def preflight_build(self):
-        """set up machine state for a complete build"""
+        """set up machine state for a complete build."""
         c = self.config
         if c.get('enable_ccache'):
             self._ccache_z()
@@ -541,18 +557,18 @@ or run without that action (ie: --no-{action})"
         self._run_tooltool()
 
     def build(self):
-        """build application"""
+        """build application."""
         # dependencies in config = ['ccache_env', 'old_packages']
         # see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         if self.config['pgo_build']:
-            cmd + = ' MOZ_PGO=1'
+            cmd += ' MOZ_PGO=1'
         self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
 
     def generate_build_properties(self):
-        """sets buildid, sourcestamp, appVersion, and appName"""
+        """set buildid, sourcestamp, appVersion, and appName."""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config/printconfigsetting.py')
@@ -579,8 +595,12 @@ or run without that action (ie: --no-{action})"
                                        write_to_file=True)
 
     def generate_build_stats(self):
-        """this action handles all statitics from a build:
-            count_ctors, buildid, sourcestamp, and graph_server_post"""
+        """grab build stats following a compile.
+
+        this action handles all statitics from a build:
+        count_ctors, buildid, sourcestamp, and graph_server_post
+
+        """
         # dependencies in config, see _pre_config_lock
         if self.config.get('enable_count_ctors'):
             self._count_ctors()

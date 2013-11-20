@@ -193,7 +193,7 @@ Mozilla build machine by running this script with the option: %s" % (cfg,))
 
         dirs = {
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
-                                        'mozilla-central'),
+                                        'source'),
             'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
         }
         abs_dirs.update(dirs)

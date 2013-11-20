@@ -271,6 +271,16 @@ or run without that action (ie: --no-{action})"
         for product in old_packages:
             cmd.append(product % {"objdir": self._query_objdir()})
         self.info("removing old packages...")
+        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_src_dir'])
+
+    def _rm_old_symbols(self):
+        c = self.config
+        cmd = ["rm", "-rf"]
+        old_packages = c.get('old_packages')
+
+        for product in old_packages:
+            cmd.append(product % {"objdir": self._query_objdir()})
+        self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
     def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
@@ -553,6 +563,8 @@ or run without that action (ie: --no-{action})"
         if c.get('enable_ccache'):
             self._ccache_z()
         self._rm_old_package()
+        if self.query_is_nightly():
+            self._rm_old_symbols()
         self._get_mozconfig()
         self._run_tooltool()
 

@@ -7,6 +7,8 @@ import os
 import sys
 from datetime import datetime
 from functools import wraps
+import json
+import re
 
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
@@ -15,10 +17,11 @@ from mozharness.base.script import BaseScript
 from mozharness.base.transfer import TransferMixin
 from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.buildbot import BuildbotMixin
+from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.tooltool import TooltoolMixin
 
-SUCCESS, WARNINGS, FAILURE, EXCEPTION = xrange(4)
+SUCCESS, WARNINGS, FAILURE, EXCEPTION, RETRY = xrange(5)
 
 
 def requires(*queries):
@@ -36,7 +39,9 @@ def requires(*queries):
 nuisance_env_vars = ['TERMCAP', 'LS_COLORS', 'PWD', '_']
 
 
-class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, TooltoolMixin, TransferMixin):
+class SpidermonkeyBuild(MockMixin,
+                        PurgeMixin, BaseScript,
+                        VCSMixin, BuildbotMixin, TooltoolMixin, TransferMixin):
     config_options = [
         [["--repo"], {
             "dest": "repo",
@@ -66,6 +71,7 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
                             config_options=self.config_options,
                             # other stuff
                             all_actions=[
+                                'purge',
                                 'setup-mock',
                                 'reuse-mock',
                                 'checkout-tools',
@@ -88,8 +94,10 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
                                 'run-analysis',
                                 'collect-analysis-output',
                                 'upload-analysis',
+                                'check-expectations',
                             ],
                             default_actions=[
+                                'purge',
                                 #'reuse-mock',
                                 'setup-mock',
                                 'checkout-tools',
@@ -102,6 +110,7 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
                                 'run-analysis',
                                 'collect-analysis-output',
                                 'upload-analysis',
+                                'check-expectations',
                             ],
                             config={
                                 'default_vcs': 'hgtool',
@@ -130,15 +139,23 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
             self.read_buildbot_config()
 
         if self.buildbot_config:
-            bb_props = [('mock_target', 'mock_target'),
-                        ('base_bundle_urls', 'hgtool_base_bundle_urls'),
-                        ('base_mirror_urls', 'hgtool_base_mirror_urls'),
-                        ('hgurl', 'hgurl'),
+            bb_props = [('mock_target', 'mock_target', None),
+                        ('base_bundle_urls', 'hgtool_base_bundle_urls', None),
+                        ('base_mirror_urls', 'hgtool_base_mirror_urls', None),
+                        ('hgurl', 'hgurl', None),
+                        ('clobberer_url', 'clobberer_url', 'http://clobberer.pvt.build.mozilla.org/index.php'),
+                        ('purge_minsize', 'purge_minsize', 15),
+                        ('purge_maxage', 'purge_maxage', None),
+                        ('purge_skip', 'purge_skip', None),
+                        ('force_clobber', 'force_clobber', None),
                         ]
             buildbot_props = self.buildbot_config.get('properties', {})
-            for bb_prop, cfg_prop in bb_props:
-                if not self.config.get(cfg_prop) and buildbot_props.get(bb_prop):
-                    self.config[cfg_prop] = buildbot_props[bb_prop]
+            for bb_prop, cfg_prop, default in bb_props:
+                if not self.config.get(cfg_prop) and buildbot_props.get(bb_prop, default):
+                    self.config[cfg_prop] = buildbot_props.get(bb_prop, default)
+            self.config['is_automation'] = True
+        else:
+            self.config['is_automation'] = False
 
         self.mock_env = self.query_env(replace_dict=self.config['mock_env_replacements'],
                                        partial_env=self.config['mock_env'],
@@ -295,6 +312,15 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
         self.enable_mock()
         self.done_mock_setup = True
 
+    def purge(self):
+        dirs = self.query_abs_dirs()
+        PurgeMixin.clobber(
+            self,
+            always_clobber_dirs=[
+                dirs['abs_upload_dir'],
+            ],
+        )
+
     def checkout_tools(self):
         rev = self.vcs_checkout(
             vcs='hg',  # Don't have hgtool.py yet
@@ -303,8 +329,7 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
         )
         self.set_buildbot_property("tools_revision", rev, write_to_file=True)
 
-    @requires(query_repo)
-    def checkout_source(self):
+    def do_checkout_source(self):
         dirs = self.query_abs_dirs()
         dest = os.path.join(dirs['abs_work_dir'], 'source')
 
@@ -320,6 +345,13 @@ class SpidermonkeyBuild(MockMixin, BaseScript, VCSMixin, BuildbotMixin, Tooltool
             clean=True,
         )
         self.set_buildbot_property('source_revision', rev, write_to_file=True)
+
+    @requires(query_repo)
+    def checkout_source(self):
+        try:
+            self.do_checkout_source()
+        except Exception as e:
+            self.fatal("checkout failed: " + str(e), exit_code=RETRY)
 
     def clobber_shell(self):
         dirs = self.query_abs_dirs()
@@ -412,7 +444,6 @@ jobs = 2
             [
                 self.config['python'], os.path.join(analysis_scriptdir, 'analyze.py'),
                 "--buildcommand=%s" % build_command,
-                "--expect-file=%s" % os.path.join(analysis_scriptdir, self.config['expect_file'])
             ],
             cwd=analysis_dir,
             env=self.env,
@@ -471,14 +502,74 @@ jobs = 2
 
         if retval is not None:
             self.error("failed to upload")
-            self.return_code = 2
+            self.return_code = WARNINGS
         else:
             upload_url = "{baseuri}{upload_path}".format(
                 baseuri=self.query_upload_remote_baseuri(),
                 upload_path=upload_path,
             )
+            self.info("TinderboxPrint: uploaded to %s" % upload_url)
 
-            self.info("Upload successful: %s" % upload_url)
+    def check_expectations(self):
+        if 'expect_file' not in self.config:
+            self.info('No expect_file given; skipping comparison with expected hazard count')
+            return
+
+        dirs = self.query_abs_dirs()
+        analysis_dir = dirs['abs_analysis_dir']
+        analysis_scriptdir = os.path.join(dirs['abs_work_dir'], 'source/js/src/devtools/rootAnalysis')
+        expect_file = os.path.join(analysis_scriptdir, self.config['expect_file'])
+        expect = self.read_from_file(expect_file)
+        if expect is None:
+            self.fatal("could not load expectation file")
+        data = json.loads(expect)
+
+        num_hazards = 0
+        num_refs = 0
+        with self.opened(os.path.join(analysis_dir, "rootingHazards.txt")) as (hazards_fh, err):
+            if err:
+                self.fatal("hazards file required")
+            for line in hazards_fh:
+                m = re.match(r"^Function.*has unrooted.*live across GC call", line)
+                if m:
+                    num_hazards += 1
+
+                m = re.match(r'^Function.*takes unsafe address of unrooted', line)
+                if m:
+                    num_refs += 1
+
+        expect_hazards = data.get('expect-hazards')
+        status = []
+        if expect_hazards is None:
+            status.append("%d hazards" % num_hazards)
+        else:
+            status.append("%d/%d hazards" % (num_hazards, expect_hazards))
+
+        if expect_hazards is not None and expect_hazards != num_hazards:
+            if expect_hazards < num_hazards:
+                self.warning("%d more hazards than expected (expected %d, saw %d)" %
+                             (num_hazards - expect_hazards, expect_hazards, num_hazards))
+                self.buildbot_status(WARNINGS)
+            else:
+                self.info("%d fewer hazards than expected! (expected %d, saw %d)" %
+                          (expect_hazards - num_hazards, expect_hazards, num_hazards))
+
+        expect_refs = data.get('expect-refs')
+        if expect_refs is None:
+            status.append("%d unsafe refs" % num_refs)
+        else:
+            status.append("%d/%d unsafe refs" % (num_refs, expect_refs))
+
+        if expect_refs is not None and expect_refs != num_refs:
+            if expect_refs < num_refs:
+                self.warning("%d more unsafe refs than expected (expected %d, saw %d)" %
+                             (num_refs - expect_refs, expect_refs, num_refs))
+                self.buildbot_status(WARNINGS)
+            else:
+                self.info("%d fewer unsafe refs than expected! (expected %d, saw %d)" %
+                          (expect_refs - num_refs, expect_refs, num_refs))
+
+        self.info("TinderboxPrint: " + ", ".join(status))
 
 # main {{{1
 if __name__ == '__main__':

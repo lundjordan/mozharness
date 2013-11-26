@@ -27,7 +27,6 @@ PROJECT_BRANCHES = [
     # Non-twig projects
     "build-system",
     "graphics",
-    "profiling",
     "ux",
 ]
 
@@ -67,7 +66,7 @@ config = {
     "conversion_repos": CONVERSION_REPOS,
     "remote_targets": {
         "github-project-branches": {
-            "repo": "git@github.com:mozilla/integration-gecko-projects.git",
+            "repo": "git@github.com:mozilla/gecko-projects.git",
             "ssh_key": "~/.ssh/releng-github-id_rsa",
             "vcs": "git",
             "force_push": True,
@@ -119,7 +118,7 @@ config = {
         "skip_empty_messages": False,
     }, {
         "to": "release+vcs2vcs@mozilla.com",
-        "failure_only": True,
+        "failure_only": False,
         "skip_empty_messages": True,
     }],
 

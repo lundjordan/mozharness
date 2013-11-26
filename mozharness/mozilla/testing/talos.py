@@ -19,6 +19,9 @@ from mozharness.base.log import OutputParser, DEBUG, ERROR, CRITICAL, FATAL, INF
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options, INSTALLER_SUFFIXES
 from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe
+from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE
+from mozharness.mozilla.buildbot import TBPL_RETRY
 
 TalosErrorList = PythonErrorList + [
  {'regex': re.compile(r'''run-as: Package '.*' is unknown'''), 'level': DEBUG},
@@ -38,6 +41,8 @@ TalosErrorList = PythonErrorList + [
 class TalosOutputParser(OutputParser):
     minidump_regex = re.compile(r'''talosError: "error executing: '(\S+) (\S+) (\S+)'"''')
     minidump_output = None
+    tbpl_status = TBPL_SUCCESS
+
     def parse_single_line(self, line):
         """ In Talos land, every line that starts with RETURN: needs to be
         printed with a TinderboxPrint:"""
@@ -46,6 +51,17 @@ class TalosOutputParser(OutputParser):
         m = self.minidump_regex.search(line)
         if m:
             self.minidump_output = (m.group(1), m.group(2), m.group(3))
+
+        # not lets check if buildbot should retry
+        harness_retry_re = TinderBoxPrintRe['harness_error']['retry_regex']
+        if harness_retry_re.search(line):
+            self.critical(' %s' % line)
+            self.worst_log_level = self.worst_level(CRITICAL,
+                                                    self.worst_log_level)
+            self.tbpl_status = self.worst_level(TBPL_RETRY,
+                                                self.tbpl_status,
+                                                levels=TBPL_WORST_LEVEL_TUPLE)
+            return  # skip base parse_single_line
         super(TalosOutputParser, self).parse_single_line(line)
 
 
@@ -572,3 +588,4 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
             self.info("Looking at the minidump files for debugging purposes...")
             for item in parser.minidump_output:
                 self.run_command(["ls", "-l", item])
+        self.buildbot_status(parser.tbpl_status, level=parser.worst_log_level)

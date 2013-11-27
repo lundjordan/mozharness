@@ -596,4 +596,4 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
             parser.worst_tbpl_status = parser.worst_level(
                 TBPL_FAILURE, parser.worst_tbpl_status,
                 levels=TBPL_WORST_LEVEL_TUPLE)
-        self.buildbot_status(parser.tbpl_status, level=parser.worst_log_level)
+        self.buildbot_status(parser.worst_tbpl_status, level=parser.worst_log_level)

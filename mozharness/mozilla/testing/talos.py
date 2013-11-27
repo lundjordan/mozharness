@@ -21,7 +21,7 @@ from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_opt
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE
-from mozharness.mozilla.buildbot import TBPL_RETRY
+from mozharness.mozilla.buildbot import TBPL_RETRY, TBPL_FAILURE
 
 TalosErrorList = PythonErrorList + [
  {'regex': re.compile(r'''run-as: Package '.*' is unknown'''), 'level': DEBUG},
@@ -41,7 +41,7 @@ TalosErrorList = PythonErrorList + [
 class TalosOutputParser(OutputParser):
     minidump_regex = re.compile(r'''talosError: "error executing: '(\S+) (\S+) (\S+)'"''')
     minidump_output = None
-    tbpl_status = TBPL_SUCCESS
+    worst_tbpl_status = TBPL_SUCCESS
 
     def parse_single_line(self, line):
         """ In Talos land, every line that starts with RETURN: needs to be
@@ -58,8 +58,8 @@ class TalosOutputParser(OutputParser):
             self.critical(' %s' % line)
             self.worst_log_level = self.worst_level(CRITICAL,
                                                     self.worst_log_level)
-            self.tbpl_status = self.worst_level(TBPL_RETRY,
-                                                self.tbpl_status,
+            self.worst_tbpl_status = self.worst_level(TBPL_RETRY,
+                                                self.worst_tbpl_status,
                                                 levels=TBPL_WORST_LEVEL_TUPLE)
             return  # skip base parse_single_line
         super(TalosOutputParser, self).parse_single_line(line)
@@ -588,4 +588,12 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
             self.info("Looking at the minidump files for debugging purposes...")
             for item in parser.minidump_output:
                 self.run_command(["ls", "-l", item])
+        # let's grab the worst tbpl and log level status. Then compare that to
+        # the return code of the and record it for buildbot
+        if self.return_code not in [0]:
+            parser.worst_log_level = parser.worst_level(ERROR,
+                                                        parser.worst_log_level)
+            parser.worst_tbpl_status = parser.worst_level(
+                TBPL_FAILURE, parser.worst_tbpl_status,
+                levels=TBPL_WORST_LEVEL_TUPLE)
         self.buildbot_status(parser.tbpl_status, level=parser.worst_log_level)

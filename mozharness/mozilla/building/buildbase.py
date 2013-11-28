@@ -249,6 +249,14 @@ or run without that action (ie: --no-{action})"
         self.info("Skipping......")
         return
 
+    def query_env(self):
+        env = super(BuildingMixin, self).query_env()
+        if self.query_is_nightly():
+            env.update({
+                "IS_NIGHTLY": "yes",
+                "MOZ_UPDATE_CHANNEL": "nightly"
+            })
+
     def _ccache_z(self):
         """clear ccache stats."""
         c = self.config
@@ -274,7 +282,6 @@ or run without that action (ie: --no-{action})"
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_src_dir'])
 
     def _rm_old_symbols(self):
-        c = self.config
         cmd = [
             "find", "20*", "-maxdepth", "2", "-mtime", "+7", "-exec", "rm",
             "-rf", "{}", "';'"
@@ -565,14 +572,14 @@ or run without that action (ie: --no-{action})"
         if self.query_is_nightly():
             # TODO should we nuke the source dir during clobber?
             self.run_command(['rm', '-rf', dirs['abs_src_dir']],
-                            cwd=dirs['abs_work_dir'],
-                            env=self.query_env())
+                             cwd=dirs['abs_work_dir'],
+                             env=self.query_env())
             # TODO do we still need this? check if builds are producing '20*'
             # files in basedir
             self._rm_old_symbols()
         else:
-            # the old package should live in source dir so this works for
-            # nighties
+            # the old package should live in source dir so we don't need to do
+            # this for nighties
             self._rm_old_package()
         self._checkout_source()
         self._get_mozconfig()

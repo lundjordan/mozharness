@@ -108,7 +108,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'clobber',
                 'pull',
                 'setup-mock',
-                'checkout-source',
                 'build',
                 'generate-build-properties',
                 'generate-build-stats',

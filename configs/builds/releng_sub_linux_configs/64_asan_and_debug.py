@@ -6,7 +6,6 @@ config = {
         'clobber',
         'pull',
         'setup-mock',
-        'checkout-source',
         'build',
         'generate-build-properties',
         # 'generate-build-stats', asan and debug does not do this action

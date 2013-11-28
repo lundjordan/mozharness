@@ -275,12 +275,11 @@ or run without that action (ie: --no-{action})"
 
     def _rm_old_symbols(self):
         c = self.config
-        cmd = ["rm", "-rf"]
-        old_packages = c.get('old_packages')
-
-        for product in old_packages:
-            cmd.append(product % {"objdir": self._query_objdir()})
-        self.info("removing old packages...")
+        cmd = [
+            "find", "20*", "-maxdepth", "2", "-mtime", "+7", "-exec", "rm",
+            "-rf", "{}", "';'"
+        ]
+        self.info("removing old symbols...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
 
     def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
@@ -536,7 +535,7 @@ or run without that action (ie: --no-{action})"
 
         self.done_mock_setup = True
 
-    def checkout_source(self):
+    def _checkout_source(self):
         """use vcs_checkout to grab source needed for build."""
         c = self.config
         dirs = self.query_abs_dirs()
@@ -560,11 +559,22 @@ or run without that action (ie: --no-{action})"
     def preflight_build(self):
         """set up machine state for a complete build."""
         c = self.config
+        dirs = self.query_abs_dirs()
         if c.get('enable_ccache'):
             self._ccache_z()
-        self._rm_old_package()
         if self.query_is_nightly():
+            # TODO should we nuke the source dir during clobber?
+            self.run_command(['rm', '-rf', dirs['abs_src_dir']],
+                            cwd=dirs['abs_work_dir'],
+                            env=self.query_env())
+            # TODO do we still need this? check if builds are producing '20*'
+            # files in basedir
             self._rm_old_symbols()
+        else:
+            # the old package should live in source dir so this works for
+            # nighties
+            self._rm_old_package()
+        self._checkout_source()
         self._get_mozconfig()
         self._run_tooltool()
 

@@ -2,7 +2,6 @@ MOZ_OBJDIR = 'obj-firefox'
 
 config = {
     'default_actions': [
-        'read-buildbot-config',
         'clobber',
         'pull',
         'setup-mock',

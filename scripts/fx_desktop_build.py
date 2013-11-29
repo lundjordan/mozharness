@@ -98,13 +98,23 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "default": False,
             "help": "Sets the build to run in PGO mode"}
          ],
+        [['--enable-pgo'], {
+            "action": "store_true",
+            "dest": "pgo_build",
+            "default": False,
+            "help": "Sets the build to run in PGO mode"}
+         ],
+        [['--branch'], {
+            "action": "store",
+            "dest": "branch",
+            "help": "Sets the repo branch being used"}
+         ],
     ]
 
     def __init__(self, require_config_file=True):
         basescript_kwargs = {
             'config_options': self.config_options,
             'all_actions': [
-                'read-buildbot-config',
                 'clobber',
                 'pull',
                 'setup-mock',
@@ -121,8 +131,18 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             'require_config_file': require_config_file,
             # Default configuration
             'config': {
+                "branch_specific_config_file": "builds/branch_specifics.py",
                 "pgo_build": False,
                 'is_automation': True,
+                # create_snippets will be decided by configs/builds/branch_specifics.py
+                "create_snippets": False,
+                # We have "platform_supports_snippets" to dictate whether
+                # the platform even supports creating_snippets. In other words:
+                # we create snippets if the branch wants it AND the platform supports it
+                # So for eg: For nightlies, the 'mozilla-central' branch may
+                # set create_snippets to true but if it's a debug platform
+                # platform_supports_snippets will be False
+                "platform_supports_snippets": True,
             }
         }
         # TODO epoch is only here to represent the start of the buildbot build
@@ -135,21 +155,43 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         self.objdir = None
         self.buildid = None
         self.builduid = None
+        self.branch = None  # set in pre_config_lock
         super(FxDesktopBuild, self).__init__(**basescript_kwargs)
 
     def _pre_config_lock(self, rw_config):
-        """Config Validation.
+        """Validate cfg, parse buildbot props and load branch specifics.
 
-        Validate that the appropriate configs are in self.config
-        for actions being run. Then resolve optional config files
-        (if any).
+
+        First, if running through buildbot, add buildbot props to self.config
+        Then, if the branch specified is in branch_specifics, add the
+        keys/values to self.config for those.
+        Finally, validate that the appropriate configs are in
+        self.config for actions being run.
 
         """
+        c = self.config
+        if c['is_automation']:
+            # parse buildbot config and add it to self.config
+            self.info("Reading buildbot build properties...")
+            self.read_buildbot_config()
+            self.branch = self.buildbot_config['properties'].get('branch')
+        else:  # --developer-run was specified
+            self.branch = c.get("branch")
+        if not self.branch:
+            self.fatal("The branch could not be determined. If this is a "
+                       "developer run, you must specify a branch to use in "
+                       "your config. eg: '--branch mozilla-central'")
+        ### load branch specifics, if any
+        branch_configs = self.parse_config_file('builds/branch_specifics.py')
+        if branch_configs[self.branch]:
+            self.info('Branch found in file: "builds/branch_specifics.py". '
+                      'Updating self.config with keys/values under '
+                      'branch: "%s".' % (self.branch,))
+            self.config.update(branch_configs[self.branch])
 
         ### verify config options are valid
         # if not c['is_automation'] (ie: we are outside releng infra)
         # lets make sure we haven't accidently added a releng config
-        c = self.config
         if not c['is_automation']:
             releng_configs_used = []
             if c.get('using_releng_debug'):

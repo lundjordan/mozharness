@@ -250,12 +250,17 @@ or run without that action (ie: --no-{action})"
         return
 
     def query_env(self):
+        c = self.config
         env = super(BuildingMixin, self).query_env()
         if self.query_is_nightly():
-            env.update({
-                "IS_NIGHTLY": "yes",
-                "MOZ_UPDATE_CHANNEL": "nightly"
-            })
+            env["IS_NIGHTLY"] = "yes"
+            if c["create_snippets"] and c['platform_supports_snippets']:
+                # in branch_specifics.py we might set update_channel explicitly
+                if c.get('update_channel'):
+                    env["MOZ_UPDATE_CHANNEL"] = c['update_channel']
+                else: # let's just give the generic channel based on branch
+                    env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
+        return env
 
     def _ccache_z(self):
         """clear ccache stats."""
@@ -379,18 +384,15 @@ or run without that action (ie: --no-{action})"
                                        testresults,
                                        write_to_file=True)
 
-    def _query_gragh_server_branch_name(self):
-        if self.config.get('graph_server_branch_name'):
-            return self.config['graph_server_branch_name']
+    def _query_graph_server_branch_name(self):
+        c = self.config
+        if c.get('graph_server_branch_name'):
+            return c['graph_server_branch_name']
         else:
-            branch = self.buildbot_config['sourcestamp']['branch']
-            if branch is 'mozilla-central':
-                return 'Firefox'
-            else:
-                # capitalize every word inbetween '-'
-                branch_list = branch.split('-')
-                branch_list = [elem.capitalize() for elem in branch_list]
-                return '-'.join(branch_list)
+            # capitalize every word inbetween '-'
+            branch_list = self.branch.split('-')
+            branch_list = [elem.capitalize() for elem in branch_list]
+            return '-'.join(branch_list)
 
     def _graph_server_post(self):
         """graph server post results."""
@@ -406,12 +408,11 @@ or run without that action (ie: --no-{action})"
 
         gs_env = self.query_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})
-        branch = self.buildbot_config['properties']['branch']
-        resultsname = c['base_name'] % {'branch': branch}
+        resultsname = c['base_name'] % {'branch': self.branch}
         cmd = ['python', graph_server_post_path]
         cmd.extend(['--server', c['graph_server']])
         cmd.extend(['--selector', c['graph_selector']])
-        cmd.extend(['--branch', self._query_gragh_server_branch_name()])
+        cmd.extend(['--branch', self._query_graph_server_branch_name()])
         cmd.extend(['--buildid', self.query_buildbot_property('buildid')])
         cmd.extend(['--sourcestamp',
                     self.query_buildbot_property('sourcestamp')])
@@ -465,8 +466,7 @@ or run without that action (ie: --no-{action})"
     def _do_sendchanges(self):
         c = self.config
         platform = self.buildbot_config['properties']['platform']
-        branch = self.buildbot_config['properties']['branch']
-        talos_branch = "%s-%s-talos" % (branch, platform)
+        talos_branch = "%s-%s-talos" % (self.branch, platform)
         installer_url = self.query_buildbot_property('packageUrl')
         tests_url = self.query_buildbot_property('testsUrl')
         sendchange_props = {
@@ -496,13 +496,12 @@ or run without that action (ie: --no-{action})"
         c = self.config
         post_upload_cmd = ["post_upload.py"]
 
-        branch = self.buildbot_config['properties']['branch']
         buildid = self.query_buildbot_property('buildid')
         revision = self.query_buildbot_property('got_revision')
         platform = c['stage_platform']
         if c['is_pgo']:
             platform += '-pgo'
-        tinderboxBuildsDir = "%s-%s" % (branch, platform)
+        tinderboxBuildsDir = "%s-%s" % (self.branch, platform)
 
         post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
         post_upload_cmd.extend(["-p", c['stage_product']])

@@ -14,7 +14,6 @@ config = {
     "repos": [{"repo": "http://hg.mozilla.org/users/jlund_mozilla.com/tools"}],
     "buildbot_json_path": "buildprops.json",
     'default_actions': [
-        'read-buildbot-config',
         'clobber',
         'pull',
         'setup-mock',
@@ -90,7 +89,6 @@ config = {
     # 'platform': 'linux',
     # # this will change for sub configs like asan, pgo etc
     # 'complete_platform': 'linux',
-
 
 
     ######### TODO move this section to a production/staging/etc sep config

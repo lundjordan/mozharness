@@ -14,7 +14,6 @@ config = {
     "repos": [{"repo": "http://hg.mozilla.org/users/jlund_mozilla.com/tools"}],
     "buildbot_json_path": "buildprops.json",
     'default_actions': [
-        'read-buildbot-config',
         'clobber',
         'pull',
         'setup-mock',

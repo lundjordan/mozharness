@@ -78,7 +78,6 @@ config = {
     'graph_server': 'graphs.allizom.org',
     'graph_selector': '/server/collect.cgi',
     'graph_branch': 'MozillaTest',
-    'base_name': 'Linux %(branch)s',
     'enable_package_tests': True,
     'stage_product': 'firefox',
     "enable_talos_sendchange": True,
@@ -199,7 +198,7 @@ config = {
     ],
     'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux/mozilla-central/nightly/mozconfig',
+production/mozilla2/linux/%(branch)s/nightly/mozconfig',
 
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",

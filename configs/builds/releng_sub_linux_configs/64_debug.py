@@ -43,7 +43,7 @@ config = {
     },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/debug',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux64/mozilla-central/debug/mozconfig',
+production/mozilla2/linux64/%(branch)s/debug/mozconfig',
     'base_name': 'Linux x86-64 %(branch)s leak test',
     #######################
 }

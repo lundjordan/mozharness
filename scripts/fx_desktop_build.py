@@ -98,12 +98,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "default": False,
             "help": "Sets the build to run in PGO mode"}
          ],
-        [['--enable-pgo'], {
-            "action": "store_true",
-            "dest": "pgo_build",
-            "default": False,
-            "help": "Sets the build to run in PGO mode"}
-         ],
         [['--branch'], {
             "action": "store",
             "dest": "branch",
@@ -188,23 +182,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                       'Updating self.config with keys/values under '
                       'branch: "%s".' % (self.branch,))
             self.config.update(branch_configs[self.branch])
-
-        ### verify config options are valid
-        # if not c['is_automation'] (ie: we are outside releng infra)
-        # lets make sure we haven't accidently added a releng config
-        if not c['is_automation']:
-            releng_configs_used = []
-            if c.get('using_releng_debug'):
-                releng_configs_used.append('--use-releng-debug-cfg')
-            if c.get('using_releng_asan'):
-                releng_configs_used.append('--use-releng-asan-cfg')
-
-            for cfg in releng_configs_used:
-                self.warning("You're using a config that is specific to a \
-Mozilla build machine by running this script with the option: %s" % (cfg,))
-            if releng_configs_used:
-                self.fatal("If you're using a machine from our moz build infra"
-                           ", please remove the option: '--developer-run'.")
 
         # now verify config keys are valid for actions being used this run
         config_dependencies = {

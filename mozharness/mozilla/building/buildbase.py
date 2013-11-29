@@ -258,7 +258,7 @@ or run without that action (ie: --no-{action})"
                 # in branch_specifics.py we might set update_channel explicitly
                 if c.get('update_channel'):
                     env["MOZ_UPDATE_CHANNEL"] = c['update_channel']
-                else: # let's just give the generic channel based on branch
+                else:  # let's just give the generic channel based on branch
                     env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
         return env
 
@@ -328,7 +328,7 @@ or run without that action (ie: --no-{action})"
                           os.path.join(dirs['abs_src_dir'], '.mozconfig'))
         else:
             self.info('Downloading mozconfig')
-            hg_mozconfig_url = c.get('hg_mozconfig')
+            hg_mozconfig_url = c.get('hg_mozconfig') % (self.branch,)
             if not hg_mozconfig_url:
                 self.fatal(ERROR_MSGS['hg_mozconfig_undetermined'])
             self.download_file(hg_mozconfig_url,
@@ -575,7 +575,7 @@ or run without that action (ie: --no-{action})"
                              env=self.query_env())
             # TODO do we still need this? check if builds are producing '20*'
             # files in basedir
-            self._rm_old_symbols()
+            # self._rm_old_symbols()
         else:
             # the old package should live in source dir so we don't need to do
             # this for nighties

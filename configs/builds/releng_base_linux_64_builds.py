@@ -78,7 +78,6 @@ config = {
     'graph_server': 'graphs.allizom.org',
     'graph_selector': '/server/collect.cgi',
     'graph_branch': 'MozillaTest',
-    'base_name': 'Linux %(branch)s',
     'enable_package_tests': True,
     'stage_product': 'firefox',
     "enable_talos_sendchange": True,
@@ -112,6 +111,7 @@ config = {
     # 'dev-master01.build.scl1.mozilla.com:9901'
     # pre-production
     # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
+
     # if staging/preproduction we should have this key:
     "graph_server_branch_name": "MozillaTest",
     # else if production we let buildbot props decide in
@@ -173,7 +173,7 @@ config = {
     ],
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly',
     'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux64/mozilla-central/nightly/mozconfig',
+production/mozilla2/linux64/%(branch)s/nightly/mozconfig',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 releng.manifest",
     'package_filename': '*.linux-x86_64*.tar.bz2',

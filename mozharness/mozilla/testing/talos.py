@@ -52,7 +52,7 @@ class TalosOutputParser(OutputParser):
         if m:
             self.minidump_output = (m.group(1), m.group(2), m.group(3))
 
-        # not lets check if buildbot should retry
+        # now let's check if buildbot should retry
         harness_retry_re = TinderBoxPrintRe['harness_error']['retry_regex']
         if harness_retry_re.search(line):
             self.critical(' %s' % line)
@@ -589,9 +589,8 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
             self.info("Looking at the minidump files for debugging purposes...")
             for item in parser.minidump_output:
                 self.run_command(["ls", "-l", item])
-        # let's grab the worst tbpl and log level status. Then compare that to
-        # the return code of the and record it for buildbot
         if self.return_code not in [0]:
+            # update the worst log level and tbpl status
             parser.worst_log_level = parser.worst_level(ERROR,
                                                         parser.worst_log_level)
             parser.worst_tbpl_status = parser.worst_level(

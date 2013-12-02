@@ -58,9 +58,10 @@ class TalosOutputParser(OutputParser):
             self.critical(' %s' % line)
             self.worst_log_level = self.worst_level(CRITICAL,
                                                     self.worst_log_level)
-            self.worst_tbpl_status = self.worst_level(TBPL_RETRY,
-                                                self.worst_tbpl_status,
-                                                levels=TBPL_WORST_LEVEL_TUPLE)
+            self.worst_tbpl_status = self.worst_level(
+                TBPL_RETRY, self.worst_tbpl_status,
+                levels=TBPL_WORST_LEVEL_TUPLE
+            )
             return  # skip base parse_single_line
         super(TalosOutputParser, self).parse_single_line(line)
 
@@ -595,5 +596,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
                                                         parser.worst_log_level)
             parser.worst_tbpl_status = parser.worst_level(
                 TBPL_FAILURE, parser.worst_tbpl_status,
-                levels=TBPL_WORST_LEVEL_TUPLE)
-        self.buildbot_status(parser.worst_tbpl_status, level=parser.worst_log_level)
+                levels=TBPL_WORST_LEVEL_TUPLE
+            )
+        self.buildbot_status(parser.worst_tbpl_status,
+                             level=parser.worst_log_level)

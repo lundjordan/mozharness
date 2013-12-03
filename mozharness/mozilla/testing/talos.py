@@ -589,7 +589,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
             self.info("Looking at the minidump files for debugging purposes...")
             for item in parser.minidump_output:
                 self.run_command(["ls", "-l", item])
-        if self.return_code not in [0]:
+        if self.return_code not in [0, 1]:
             # update the worst log level and tbpl status
             parser.worst_log_level = parser.worst_level(ERROR,
                                                         parser.worst_log_level)

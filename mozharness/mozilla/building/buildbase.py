@@ -422,12 +422,10 @@ or run without that action (ie: --no-{action})"
         cmd.extend(['--timestamp', str(self.epoch_timestamp)])
 
         self.info("Obtaining graph server post results")
-        # TODO buildbot puts this cmd through retry:
-        # tools/buildfarm/utils/retry.py -s 5 -t 120 -r 8
-        # Find out if I should do the same here
-        result_code = self.run_command(cmd,
-                                       cwd=dirs['abs_src_dir'],
-                                       env=gs_env)
+        result_code = self.retry(self.run_command,
+                                 args=(cmd,),
+                                 kwargs={'cwd': dirs['abs_src_dir'],
+                                         'env': gs_env})
         # TODO find out if this translates to the same from this file:
         # http://mxr.mozilla.org/build/source/buildbotcustom/steps/test.py#73
         if result_code != 0:
@@ -465,8 +463,7 @@ or run without that action (ie: --no-{action})"
 
     def _do_sendchanges(self):
         c = self.config
-        platform = self.buildbot_config['properties']['platform']
-        talos_branch = "%s-%s-talos" % (self.branch, platform)
+
         installer_url = self.query_buildbot_property('packageUrl')
         tests_url = self.query_buildbot_property('testsUrl')
         sendchange_props = {
@@ -475,18 +472,35 @@ or run without that action (ie: --no-{action})"
             'nightly_build': self.query_is_nightly(),
             'pgo_build': c['pgo_build'],
         }
-
         # TODO insert check for uploadMulti factory 2526
         # if not self.uploadMulti
 
-        if c.get('enable_talos_sendchange'):
+        if c.get('enable_talos_sendchange'):  # do talos sendchange
+            if c['pgo_build']:
+                build_type = 'pgo-'
+            else:  # we don't do talos sendchanges for debug.
+                build_type = ''  # leave 'opt' out of branch for talos
+            talos_branch = "%s-%s-%s%s" % (self.branch,
+                                           self.platform,
+                                           build_type,
+                                           'talos')
             self.sendchange(downloadables=[installer_url],
                             branch=talos_branch,
                             username='sendchange',
                             sendchange_props=sendchange_props)
-
-        if c.get('enable_package_tests'):
+        if c.get('enable_package_tests'):  # do unittest sendchange
+            if c['pgo_build']:
+                build_type = 'pgo'
+            if c['debug_build']:
+                build_type = 'debug'
+            else:  # generic opt build
+                build_type = 'opt'
+            unittest_branch = "%s-%s-%s-%s" % (self.branch,
+                                               self.platform,
+                                               build_type,
+                                               'unittest')
             self.sendchange(downloadables=[installer_url, tests_url],
+                            branch=unittest_branch,
                             sendchange_props=sendchange_props)
 
     def _query_post_upload_cmd(self):
@@ -498,8 +512,8 @@ or run without that action (ie: --no-{action})"
 
         buildid = self.query_buildbot_property('buildid')
         revision = self.query_buildbot_property('got_revision')
-        platform = c['stage_platform']
-        if c['is_pgo']:
+        platform = self.platform
+        if c['pgo_build']:
             platform += '-pgo'
         tinderboxBuildsDir = "%s-%s" % (self.branch, platform)
 
@@ -586,8 +600,7 @@ or run without that action (ie: --no-{action})"
 
     def build(self):
         """build application."""
-        # dependencies in config = ['ccache_env', 'old_packages']
-        # see _pre_config_lock
+        # dependencies in config see _pre_config_lock
         dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
@@ -626,25 +639,32 @@ or run without that action (ie: --no-{action})"
         """grab build stats following a compile.
 
         this action handles all statitics from a build:
-        count_ctors, buildid, sourcestamp, and graph_server_post
+        count_ctors and graph_server_post
 
         """
-        # dependencies in config, see _pre_config_lock
-        if self.config.get('enable_count_ctors'):
-            self._count_ctors()
-        else:
-            self.info("count_ctors not enabled for this build. Skipping...")
-        if self.config.get('graph_server'):
+        self._count_ctors()
+        # TODO in buildbot, we see if self.graphServer exists, but we know that
+        # nightly does not use graph server so let's use that instead of adding
+        # confusion to the configs. This may need to change once we
+        # port xul, valgrind, etc over
+        # if self.config.get('graph_server'):
+        if not self.query_is_nightly():
             self._graph_server_post()
         else:
             num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
             self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
 
-    def make_build_symbols(self):
+    def make_and_upload_symbols(self):
+        c = self.config
         dirs = self.query_abs_dirs()
-        cmd = 'make buildsymbols'
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-        self._do_build_mock_make_cmd(cmd, cwd)
+        self._do_build_mock_make_cmd('make buildsymbols', cwd)
+        # TODO this condition might be extended with xul, valgrind, etc as more
+        # variants are added
+        if self.query_is_nightly() and c.get('upload_symbols'):
+            # TODO wrap this in a retry. Not sure if I should wrap the mock
+            # cmd inside a retry or the opposite. Look into how to do this
+            self._do_build_mock_make_cmd('make uploadsymbols', cwd)
 
     def make_packages(self):
         c = self.config
@@ -669,9 +689,7 @@ or run without that action (ie: --no-{action})"
     def make_upload(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        # dependencies in config = ['upload_env', 'stage_platform',
-        # 'mock_target']
-        # see _pre_config_lock
+        # dependencies in config see _pre_config_lock
 
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         # we want the env without MOZ_SIGN_CMD
@@ -695,8 +713,7 @@ or run without that action (ie: --no-{action})"
         self._do_sendchanges()
 
     def test_pretty_names(self):
-        # dependencies in config
-        # see _pre_config_lock
+        # dependencies in config see _pre_config_lock
         c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_env()
@@ -711,7 +728,7 @@ or run without that action (ie: --no-{action})"
         self._do_build_mock_make_cmd(base_cmd % (update_package_cmd,),
                                      cwd=dirs['abs_src_dir'],
                                      env=env)
-        if c['l10n_check_test']:
+        if c.get('l10n_check_test'):
             self._do_build_mock_make_cmd(base_cmd % ("l10n-check",),
                                          cwd=objdir_path,
                                          env=env)

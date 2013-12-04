@@ -15,6 +15,7 @@ config = {
         'check-test-complete',
         'enable-ccache',
     ],
+    'platform': 'linux-debug',
     'purge_minsize': 14,
     'mock_pre_package_copy_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
@@ -23,6 +24,7 @@ config = {
     ],
     "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
     'enable_signing': False,
+    'upload_symbols': False,
 
     #### 32 bit build specific #####
     'env': {

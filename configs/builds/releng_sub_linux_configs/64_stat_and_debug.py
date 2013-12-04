@@ -15,6 +15,7 @@ config = {
         # 'check-test-complete', stat debug does not do this action
         'enable-ccache',
     ],
+    'platform': 'linux64-st-an-debug',
     'mock_pre_package_copy_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
@@ -27,6 +28,7 @@ config = {
     'purge_minsize': 12,
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 clang.manifest",
+    'upload_symbols': False,
 
     #### 64 bit build specific #####
     'env': {

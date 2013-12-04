@@ -15,6 +15,7 @@ config = {
         'check-test-complete',
         'enable-ccache',
     ],
+    'platform': 'linux64-asan',
     'purge_minsize': 12,
     'mock_pre_package_copy_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
@@ -25,6 +26,7 @@ config = {
     'enable_signing': False,  # asan has no MOZ_SIGN_CMD
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 asan.manifest",
+    'upload_symbols': False,
 
     #### 64 bit build specific #####
     'env': {

@@ -82,12 +82,14 @@ config = {
     'stage_product': 'firefox',
     "enable_talos_sendchange": True,
     "l10n_check_test": True,
+    # TODO find out if we need all these platform keys
     # TODO port self.platform_variation self.complete_platform for RPM check
-    # TODO find out if we need platform keys in config or if buildbot_config
-    # will do
-    # 'platform': 'linux',
+    'platform': 'linux64',
     # # this will change for sub configs like asan, pgo etc
+    # 'platform_variation': '',
     # 'complete_platform': 'linux',
+    # 'stage_platform': 'linux64',
+    'upload_symbols': True,
 
 
     ######### TODO move this section to a production/staging/etc sep config
@@ -203,7 +205,6 @@ production/mozilla2/linux/%(branch)s/nightly/mozconfig',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",
     'package_filename': '*.linux-i686*.tar.bz2',
-    'stage_platform': 'linux',
 
     "check_test_env": {
         'MINIDUMP_STACKWALK': 'breakpad/linux/minidump_stackwalk',

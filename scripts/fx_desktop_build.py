@@ -103,6 +103,11 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "dest": "branch",
             "help": "Sets the repo branch being used"}
          ],
+        [['--platform'], {
+            "action": "store",
+            "dest": "platform",
+            "help": "Sets the platform being used"}
+         ],
     ]
 
     def __init__(self, require_config_file=True):
@@ -128,14 +133,15 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 "branch_specific_config_file": "builds/branch_specifics.py",
                 "pgo_build": False,
                 'is_automation': True,
-                # create_snippets will be decided by configs/builds/branch_specifics.py
+                # create_snippets will be decided by
+                # configs/builds/branch_specifics.py
                 "create_snippets": False,
-                # We have "platform_supports_snippets" to dictate whether
-                # the platform even supports creating_snippets. In other words:
-                # we create snippets if the branch wants it AND the platform supports it
-                # So for eg: For nightlies, the 'mozilla-central' branch may
-                # set create_snippets to true but if it's a debug platform
-                # platform_supports_snippets will be False
+                # We have "platform_supports_snippets" to dictate whether the
+                # platform even supports creating_snippets. In other words:
+                # create snippets if the branch wants it AND the platform
+                # supports it So for eg: For nightlies, the 'mozilla-central'
+                # branch may set create_snippets to true but if it's a debug
+                # platform platform_supports_snippets will be False
                 "platform_supports_snippets": True,
             }
         }
@@ -155,7 +161,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
     def _pre_config_lock(self, rw_config):
         """Validate cfg, parse buildbot props and load branch specifics.
 
-
         First, if running through buildbot, add buildbot props to self.config
         Then, if the branch specified is in branch_specifics, add the
         keys/values to self.config for those.
@@ -164,17 +169,33 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
 
         """
         c = self.config
+        ### set the branch and platform
         if c['is_automation']:
             # parse buildbot config and add it to self.config
-            self.info("Reading buildbot build properties...")
             self.read_buildbot_config()
             self.branch = self.buildbot_config['properties'].get('branch')
+            self.platform = self.buildbot_config['properties'].get('platform')
+            if not self.branch or not self.platform:
+                warn_msg_template = ("Could not determine %s in buildbot props"
+                                     ". Falling back to '%s' in self.config.")
+                if not self.branch:
+                    self.warning(warn_msg_template % ('branch', 'branch'))
+                    self.branch = c.get("branch")
+                if not self.platform:
+                    self.warning(warn_msg_template % ('platform', 'platform'))
+                    self.platform = c.get("platform")
         else:  # --developer-run was specified
             self.branch = c.get("branch")
-        if not self.branch:
-            self.fatal("The branch could not be determined. If this is a "
-                       "developer run, you must specify a branch to use in "
-                       "your config. eg: '--branch mozilla-central'")
+            self.platform = c.get("platform")
+        if not self.branch or not self.platform:
+            self.fatal("The branch or platorm could not be determined. If this"
+                       "is a developer run, you must specify them in your"
+                       "config. Branch: %s, Platform: %s" (
+                           self.branch or 'undetermined',
+                           self.platform or 'undetermined')
+                       )
+        ###
+
         ### load branch specifics, if any
         branch_configs = self.parse_config_file('builds/branch_specifics.py')
         if branch_configs[self.branch]:
@@ -182,20 +203,19 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                       'Updating self.config with keys/values under '
                       'branch: "%s".' % (self.branch,))
             self.config.update(branch_configs[self.branch])
+        ###
 
         # now verify config keys are valid for actions being used this run
         config_dependencies = {
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
             'build': ['ccache_env', 'old_packages', 'mock_target'],
-            'generate-build-stats': [
-                'graph_server', 'graph_selector',
-                'graph_branch', 'base_name'
-            ],
+            # 'generate-build-stats': [
+            #     'graph_server', 'graph_selector', 'graph_branch', 'base_name'
+            # ],
             'make-build-symbols': ['mock_target'],
             'make-packages': ['package_filename', 'mock_target'],
             'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
-            'test-pretty-names': ['l10n_check_test'],
         }
         for action in self.actions:
             if config_dependencies.get(action):

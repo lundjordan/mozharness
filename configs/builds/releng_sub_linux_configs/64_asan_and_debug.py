@@ -8,7 +8,7 @@ config = {
         'build',
         'generate-build-properties',
         # 'generate-build-stats', asan and debug does not do this action
-        'make-build-symbols',
+        'make-and-upload-symbols',
         'make-packages',
         'make-upload',
         # 'test-pretty-names', asan and debug does not do this action

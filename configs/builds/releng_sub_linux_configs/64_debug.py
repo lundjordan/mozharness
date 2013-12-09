@@ -8,7 +8,7 @@ config = {
         'build',
         'generate-build-properties',
         # 'generate-build-stats', debug does not do this action
-        'make-build-symbols',
+        'make-and-upload-symbols',
         'make-packages',
         'make-upload',
         # 'test-pretty-names', debug does not do this action
@@ -24,6 +24,7 @@ config = {
     "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
     'enable_signing': False,
     'upload_symbols': False,
+    "platform_supports_snippets": False,
 
     #### 64 bit build specific #####
     'env': {

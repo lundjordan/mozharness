@@ -249,9 +249,14 @@ or run without that action (ie: --no-{action})"
         self.info("Skipping......")
         return
 
-    def query_env(self):
+    def query_build_env(self, skip_keys=None, **kwargs):
         c = self.config
-        env = super(BuildingMixin, self).query_env()
+        if skip_keys is None:
+            skip_keys = []
+        # let's envoke the base query_env and make a shallow copy of it
+        # as we don't always want every key below added to the same dict
+        env = super(BuildingMixin, self).query_env(**kwargs).copy()
+
         if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
             if c["create_snippets"] and c['platform_supports_snippets']:
@@ -260,6 +265,11 @@ or run without that action (ie: --no-{action})"
                     env["MOZ_UPDATE_CHANNEL"] = c['update_channel']
                 else:  # let's just give the generic channel based on branch
                     env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
+
+        if c['enable_signing'] and 'MOZ_SIGN_CMD' not in skip_keys:
+            moz_sign_cmd = self.query_moz_sign_cmd()
+            env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
+
         return env
 
     def _ccache_z(self):
@@ -269,7 +279,7 @@ or run without that action (ie: --no-{action})"
 
         c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
-        ccache_env = self.query_env()
+        ccache_env = self.query_build_env()
         ccache_env.update(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
                          cwd=dirs['abs_src_dir'],
@@ -293,25 +303,6 @@ or run without that action (ie: --no-{action})"
         ]
         self.info("removing old symbols...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
-
-    def _do_build_mock_make_cmd(self, cmd, cwd, env=None, **kwargs):
-        """run make cmd against mock.
-
-        make a similar setup is conducted for many make targets
-        throughout a build. This takes a cmd and cwd and calls
-        a mock_mozilla with the right env
-
-        """
-        c = self.config
-        if not env:
-            env = self.query_env()
-            if c['enable_signing']:
-                moz_sign_cmd = self.query_moz_sign_cmd()
-                env.update({
-                    "MOZ_SIGN_CMD": subprocess.list2cmdline(moz_sign_cmd)
-                })
-        mock_target = c.get('mock_target')
-        self.run_mock_command(mock_target, cmd, cwd=cwd, env=env, **kwargs)
 
     def _get_mozconfig(self):
         """assign mozconfig."""
@@ -406,7 +397,7 @@ or run without that action (ie: --no-{action})"
                                      'lib',
                                      'python')
 
-        gs_env = self.query_env()
+        gs_env = self.query_build_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})
         resultsname = c['base_name'] % {'branch': self.branch}
         cmd = ['python', graph_server_post_path]
@@ -586,7 +577,7 @@ or run without that action (ie: --no-{action})"
             # TODO should we nuke the source dir during clobber?
             self.run_command(['rm', '-rf', dirs['abs_src_dir']],
                              cwd=dirs['abs_work_dir'],
-                             env=self.query_env())
+                             env=self.query_build_env())
             # TODO do we still need this? check if builds are producing '20*'
             # files in basedir
             # self._rm_old_symbols()
@@ -601,12 +592,14 @@ or run without that action (ie: --no-{action})"
     def build(self):
         """build application."""
         # dependencies in config see _pre_config_lock
-        dirs = self.query_abs_dirs()
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         if self.config['pgo_build']:
             cmd += ' MOZ_PGO=1'
-        self._do_build_mock_make_cmd(cmd, dirs['abs_src_dir'])
+        self.run_mock_command(self.config.get('mock_target'),
+                              cmd=cmd,
+                              cwd=self.query_abs_dirs()['abs_src_dir'],
+                              env=self.query_build_env())
 
     def generate_build_properties(self):
         """set buildid, sourcestamp, appVersion, and appName."""
@@ -658,42 +651,65 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-        self._do_build_mock_make_cmd('make buildsymbols', cwd)
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make buildsymbols',
+                              cwd=cwd,
+                              env=self.query_build_env())
         # TODO this condition might be extended with xul, valgrind, etc as more
         # variants are added
+        # not all nightly platforms upload symbols!
         if self.query_is_nightly() and c.get('upload_symbols'):
             # TODO wrap this in a retry. Not sure if I should wrap the mock
             # cmd inside a retry or the opposite. Look into how to do this
-            self._do_build_mock_make_cmd('make uploadsymbols', cwd)
+            self.run_mock_command(c.get('mock_target'),
+                                  cmd='make uploadsymbols',
+                                  cwd=cwd,
+                                  env=self.query_build_env())
 
     def make_packages(self):
         c = self.config
         dirs = self.query_abs_dirs()
+        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         # dependencies in config, see _pre_config_lock
 
         # make package-tests
         if c.get('enable_package_tests'):
-            cmd = 'make package-tests'
-            cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-            self._do_build_mock_make_cmd(cmd, cwd)
+            self.run_mock_command(c.get('mock_target'),
+                                  cmd='make package-tests',
+                                  cwd=cwd,
+                                  env=self.query_build_env())
 
         # make package
-        cmd = 'make package'
-        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-        self._do_build_mock_make_cmd(cmd, cwd)
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make package',
+                              cwd=cwd,
+                              env=self.query_build_env())
 
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not in ('xulrunner', 'b2g'):
         self._set_package_file_properties()
+
+self.addStep(ShellCommand(
+    name='rm_existing_mars',
+    command=['bash', '-c', 'rm -rf *.mar'],
+    env=self.env,
+    workdir='%s/dist/update' % self.absMozillaObjDir,
+    haltOnFailure=True,
+))
+
 
     def make_upload(self):
         c = self.config
         dirs = self.query_abs_dirs()
         # dependencies in config see _pre_config_lock
 
+        if self.query_is_nightly():
+            # if branch supports snippets and platform supports snippets
+            if c['create_snippets'] and c['platform_supports_snippets']:
+                self._create_update()
+
         cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
-        # we want the env without MOZ_SIGN_CMD
-        upload_env = self.query_env()
+        upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
@@ -701,10 +717,11 @@ or run without that action (ie: --no-{action})"
         upload_env['POST_UPLOAD_CMD'] = pst_up_cmd
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
-        self._do_build_mock_make_cmd('make upload',
-                                     cwd=cwd,
-                                     env=upload_env,
-                                     output_parser=parser)
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make upload',
+                              cwd=cwd,
+                              env=self.query_build_env(),
+                              output_parser=parser)
         self.info('Setting properties from make upload...')
         for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,
@@ -716,26 +733,43 @@ or run without that action (ie: --no-{action})"
         # dependencies in config see _pre_config_lock
         c = self.config
         dirs = self.query_abs_dirs()
-        env = self.query_env()
+        # we want the env without MOZ_SIGN_CMD
+        env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
         objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
 
-        self._do_build_mock_make_cmd(base_cmd % ("package",),
-                                     cwd=objdir_path,
-                                     env=env)
+        # TODO  port below from process/factory.py line 1526
+        # if 'mac' in self.platform:
+        #     self.addStep(ShellCommand(
+        #                  name='postflight_all',
+        #                  command=self.makeCmd + [
+        #                  '-f', 'client.mk', 'postflight_all'],
+
+        package_targets = ['package']
+        # TODO  port below from process/factory.py line 1539
+        # if self.enableInstaller:
+        #     pkg_targets.append('installer')
+        for target in package_targets:
+            self.run_mock_command(c.get('mock_target'),
+                                  cmd=base_cmd % (target,),
+                                  cwd=objdir_path ,
+                                  env=env)
         update_package_cmd = '-C %s' % (os.path.join(objdir_path, 'tools',
                                                      'update-packaging'),)
-        self._do_build_mock_make_cmd(base_cmd % (update_package_cmd,),
-                                     cwd=dirs['abs_src_dir'],
-                                     env=env)
+        self.run_mock_command(c.get('mock_target'),
+                              cmd=base_cmd % (update_package_cmd,),
+                              cwd=dirs['abs_src_dir'],
+                              env=env)
         if c.get('l10n_check_test'):
-            self._do_build_mock_make_cmd(base_cmd % ("l10n-check",),
-                                         cwd=objdir_path,
-                                         env=env)
-            # make l10n-hcek again without pretty names?
-            self._do_build_mock_make_cmd('make l10n-check',
-                                         cwd=objdir_path,
-                                         env=env)
+            self.run_mock_command(c.get('mock_target'),
+                                  cmd=base_cmd % ("l10n-check",),
+                                  cwd=objdir_path,
+                                  env=env)
+            # make l10n-check again without pretty names
+            self.run_mock_command(c.get('mock_target'),
+                                  cmd='make l10n-check',
+                                  cwd=objdir_path,
+                                  env=env)
 
     def check_test_complete(self):
         c = self.config
@@ -745,18 +779,19 @@ or run without that action (ie: --no-{action})"
         for env_var, env_value in c['check_test_env'].iteritems():
             abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
                                                        env_value)
-        env = self.query_env()
+        env = self.query_build_env()
         env.update(abs_check_test_env)
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-        self._do_build_mock_make_cmd('make -k check',
-                                     cwd=objdir_path,
-                                     env=env,
-                                     output_parser=parser)
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make -k check',
+                              cwd=objdir_path,
+                              env=env,
+                              output_parser=parser)
         parser.evaluate_parser()
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()
-        env = self.query_env()
+        env = self.query_build_env()
         cmd = ['ccache', '-s']
         self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)

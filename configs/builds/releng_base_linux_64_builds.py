@@ -20,7 +20,7 @@ config = {
         'build',
         'generate-build-properties',
         'generate-build-stats',
-        'make-build-symbols',
+        'make-and-upload-symbols',
         'make-packages',
         'make-upload',
         'test-pretty-names',

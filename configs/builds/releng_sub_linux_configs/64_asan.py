@@ -8,7 +8,7 @@ config = {
         'build',
         'generate-build-properties',
         # 'generate-build-stats', asan does not do this action
-        'make-build-symbols',
+        'make-and-upload-symbols',
         'make-packages',
         'make-upload',
         # 'test-pretty-names', asan does not do this action
@@ -27,6 +27,7 @@ config = {
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 asan.manifest",
     'upload_symbols': False,
+    "platform_supports_snippets": False,
 
     #### 64 bit build specific #####
     'env': {

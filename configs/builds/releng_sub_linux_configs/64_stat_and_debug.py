@@ -8,7 +8,7 @@ config = {
         'build',
         'generate-build-properties',
         # 'generate-build-stats', stat debug does not do this action
-        # 'make-build-symbols', stat debug does not do this action
+        # 'make-and-upload-symbols', stat debug does not do this action
         'make-packages',
         'make-upload',
         # 'test-pretty-names', stat debug does not do this action
@@ -29,6 +29,7 @@ config = {
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 clang.manifest",
     'upload_symbols': False,
+    "platform_supports_snippets": False,
 
     #### 64 bit build specific #####
     'env': {

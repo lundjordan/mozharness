@@ -120,7 +120,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'build',
                 'generate-build-properties',
                 'generate-build-stats',
-                'make-build-symbols',
+                'make-and-upload-symbols',
                 'make-packages',
                 'make-upload',
                 'test-pretty-names',
@@ -138,10 +138,10 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 "create_snippets": False,
                 # We have "platform_supports_snippets" to dictate whether the
                 # platform even supports creating_snippets. In other words:
-                # create snippets if the branch wants it AND the platform
-                # supports it So for eg: For nightlies, the 'mozilla-central'
+                # we create snippets if the branch wants it AND the platform
+                # supports it. So for eg: For nightlies, the 'mozilla-central'
                 # branch may set create_snippets to true but if it's a debug
-                # platform platform_supports_snippets will be False
+                # platform,  platform_supports_snippets will be False
                 "platform_supports_snippets": True,
             }
         }
@@ -210,6 +210,9 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             # key = action, value = list of action's config dependencies
             'setup-mock': ['mock_target'],
             'build': ['ccache_env', 'old_packages', 'mock_target'],
+            # TODO we may need graph keys/values but not all variants that run
+            # this action, run graphserver/ need them. Should we be asserting
+            # they are there?
             # 'generate-build-stats': [
             #     'graph_server', 'graph_selector', 'graph_branch', 'base_name'
             # ],

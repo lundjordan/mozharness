@@ -288,11 +288,12 @@ or run without that action (ie: --no-{action})"
     def _rm_old_package(self):
         """rm the old package."""
         c = self.config
+        dirs = self.query_abs_dirs()
         cmd = ["rm", "-rf"]
         old_packages = c.get('old_packages')
 
         for product in old_packages:
-            cmd.append(product % {"objdir": self._query_objdir()})
+            cmd.append(product % {"objdir": dirs['abs_obj_dir']})
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_src_dir'])
 
@@ -352,10 +353,13 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         testresults = []
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
-                                            'buildfarm/utils/count_ctors.py')
-        abs_libxul_path = os.path.join(dirs['abs_src_dir'],
-                                       self._query_objdir(),
-                                       'dist/bin/libxul.so')
+                                            'buildfarm',
+                                            'utils',
+                                            'count_ctors.py')
+        abs_libxul_path = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'bin',
+                                       'libxul.so')
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
         output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
@@ -424,32 +428,29 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("graph server post ok")
 
-    def _set_package_file_properties(self):
+    def _set_file_properties(self, file_name, find_dir, prop_type):
         c = self.config
         dirs = self.query_abs_dirs()
-        find_dir = os.path.join(dirs['abs_src_dir'],
-                                self._query_objdir(),
-                                'dist')
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",
-               "f", "-name", c['package_filename']]
-        package_file_path = self.get_output_from_command(cmd,
-                                                         dirs['abs_work_dir'])
-        if not package_file_path:
+               "f", "-name", file_name]
+        file_path = self.get_output_from_command(cmd,
+                                                 dirs['abs_work_dir'])
+        if not file_path:
             self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
 
         cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
-               package_file_path]
-        package_hash = self.get_output_from_command(cmd, dirs['abs_work_dir'])
-        if not package_hash:
-            self.fatal("undetermined package_hash with cmd: %s" % (str(cmd),))
-        self.set_buildbot_property('packageFilename',
-                                   os.path.split(package_file_path)[1],
+               file_path]
+        hash_prop = self.get_output_from_command(cmd, dirs['abs_work_dir'])
+        if not hash_prop:
+            self.fatal("undetermined hash_prop with cmd: %s" % (str(cmd),))
+        self.set_buildbot_property(prop_type + 'Filename',
+                                   os.path.split(file_path)[1],
                                    write_to_file=True)
-        self.set_buildbot_property('packageSize',
-                                   os.path.getsize(package_file_path),
+        self.set_buildbot_property(prop_type + 'Size',
+                                   os.path.getsize(file_path),
                                    write_to_file=True)
-        self.set_buildbot_property('packageHash',
-                                   package_hash.strip().split(' ', 2)[1],
+        self.set_buildbot_property(prop_type + 'Hash',
+                                   hash_prop.strip().split(' ', 2)[1],
                                    write_to_file=True)
 
     def _do_sendchanges(self):
@@ -606,9 +607,10 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config/printconfigsetting.py')
-        application_ini_path = os.path.join(dirs['abs_src_dir'],
-                                            self._query_objdir(),
-                                            'dist/bin/application.ini')
+        application_ini_path = os.path.join(dirs['abs_obj_dir'],
+                                            'dist',
+                                            'bin',
+                                            'application.ini')
         base_cmd = [
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
@@ -649,8 +651,7 @@ or run without that action (ie: --no-{action})"
 
     def make_and_upload_symbols(self):
         c = self.config
-        dirs = self.query_abs_dirs()
-        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
+        cwd = self.query_abs_dirs()['abs_obj_dir']
         self.run_mock_command(c.get('mock_target'),
                               cmd='make buildsymbols',
                               cwd=cwd,
@@ -668,8 +669,7 @@ or run without that action (ie: --no-{action})"
 
     def make_packages(self):
         c = self.config
-        dirs = self.query_abs_dirs()
-        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
+        cwd = self.query_abs_dirs()['abs_obj_dir']
         # dependencies in config, see _pre_config_lock
 
         # make package-tests
@@ -687,20 +687,40 @@ or run without that action (ie: --no-{action})"
 
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not in ('xulrunner', 'b2g'):
-        self._set_package_file_properties()
+        find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
+                                'dist')
+        self._set_file_properties(file_name=c['package_filename'],
+                                  find_dir=find_dir,
+                                  prop_type='package')
 
-self.addStep(ShellCommand(
-    name='rm_existing_mars',
-    command=['bash', '-c', 'rm -rf *.mar'],
-    env=self.env,
-    workdir='%s/dist/update' % self.absMozillaObjDir,
-    haltOnFailure=True,
-))
-
+    def _create_update(self):
+        c = self.config
+        env = self.query_build_env()
+        dirs = self.query_abs_dirs()
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
+        self.info('removing existing mar...')
+        self.run_command(['bash', '-c', 'rm -rf *.mar'],
+                         cwd=dist_update_dir,
+                         env=env,
+                         halt_on_failuer=True)
+        self.info('making a complete new mar...')
+        update_pkging_dir = os.path.join(dirs['abs_obj_dir'],
+                                         'tools',
+                                         'update-packaging')
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make -C %s' % (update_pkging_dir,),
+                              cwd=dirs['abs_src_dir'],
+                              env=self.query_build_env())
+        # now: bash -c 'find build/obj-firefox/dist/update -maxdepth 1 -type f -name *.complete.mar'
+        #  in dir /builds/slave/m-cen-lx-000000000000000000000/.
+        self._set_file_properties(file_name=c['complete_mar_filename'],
+                                  find_dir=dist_update_dir,
+                                  prop_type='completeMar')
 
     def make_upload(self):
         c = self.config
-        dirs = self.query_abs_dirs()
         # dependencies in config see _pre_config_lock
 
         if self.query_is_nightly():
@@ -708,7 +728,6 @@ self.addStep(ShellCommand(
             if c['create_snippets'] and c['platform_supports_snippets']:
                 self._create_update()
 
-        cwd = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
@@ -719,7 +738,7 @@ self.addStep(ShellCommand(
                                         log_obj=self.log_obj)
         self.run_mock_command(c.get('mock_target'),
                               cmd='make upload',
-                              cwd=cwd,
+                              cwd=self.query_abs_dirs()['abs_obj_dir'],
                               env=self.query_build_env(),
                               output_parser=parser)
         self.info('Setting properties from make upload...')
@@ -735,7 +754,6 @@ self.addStep(ShellCommand(
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
-        objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
 
         # TODO  port below from process/factory.py line 1526
@@ -752,10 +770,12 @@ self.addStep(ShellCommand(
         for target in package_targets:
             self.run_mock_command(c.get('mock_target'),
                                   cmd=base_cmd % (target,),
-                                  cwd=objdir_path ,
+                                  cwd=dirs['abs_obj_dir'],
                                   env=env)
-        update_package_cmd = '-C %s' % (os.path.join(objdir_path, 'tools',
-                                                     'update-packaging'),)
+        update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],
+                                                     'tools',
+                                                     'update-packaging'),
+                                        )
         self.run_mock_command(c.get('mock_target'),
                               cmd=base_cmd % (update_package_cmd,),
                               cwd=dirs['abs_src_dir'],
@@ -763,18 +783,17 @@ self.addStep(ShellCommand(
         if c.get('l10n_check_test'):
             self.run_mock_command(c.get('mock_target'),
                                   cmd=base_cmd % ("l10n-check",),
-                                  cwd=objdir_path,
+                                  cwd=dirs['abs_obj_dir'],
                                   env=env)
             # make l10n-check again without pretty names
             self.run_mock_command(c.get('mock_target'),
                                   cmd='make l10n-check',
-                                  cwd=objdir_path,
+                                  cwd=dirs['abs_obj_dir'],
                                   env=env)
 
     def check_test_complete(self):
         c = self.config
         dirs = self.query_abs_dirs()
-        objdir_path = os.path.join(dirs['abs_src_dir'], self._query_objdir())
         abs_check_test_env = {}
         for env_var, env_value in c['check_test_env'].iteritems():
             abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
@@ -785,7 +804,7 @@ self.addStep(ShellCommand(
                                          log_obj=self.log_obj)
         self.run_mock_command(c.get('mock_target'),
                               cmd='make -k check',
-                              cwd=objdir_path,
+                              cwd=dirs['abs_obj_dir'],
                               env=env,
                               output_parser=parser)
         parser.evaluate_parser()

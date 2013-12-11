@@ -28,6 +28,7 @@ config = {
 asan.manifest",
     'upload_symbols': False,
     "platform_supports_snippets": False,
+    "platform_supports_partial": False,
 
     #### 64 bit build specific #####
     'env': {

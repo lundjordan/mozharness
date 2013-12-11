@@ -24,7 +24,6 @@ config = {
     "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
     'enable_signing': False,
     'upload_symbols': False,
-    "platform_supports_snippets": False,
 
     #### 64 bit build specific #####
     'env': {

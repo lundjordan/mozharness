@@ -27,6 +27,8 @@ config = {
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 asan.manifest",
     'upload_symbols': False,
+    "platform_supports_partial": False,
+    "platform_supports_snippets": False,
 
     #### 64 bit build specific #####
     'env': {

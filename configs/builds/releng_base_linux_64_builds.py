@@ -1,4 +1,15 @@
 CLOBBERER_URL = 'http://clobberer.pvt.build.mozilla.org/index.php'
+STAGE_PRODUCT = 'firefox'
+# TODO move stage_server to a production/staging/etc sep config
+STAGE_SERVER = 'dev-stage01.srv.releng.scl3.mozilla.com'
+# /buildbot-configs/mozilla/preproduction_config.py
+# 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
+# /buildbot-configs/mozilla/production_config.py
+# 'stage_server': 'stage.mozilla.org',
+# /buildbot-configs/mozilla/staging_config.py
+# TODO Reminder, stage_username and stage_ssh_key differ on Try
+STAGE_USERNAME = 'ffxbld'
+STAGE_SSH_KEY = 'ffxbld_dsa'
 
 config = {
     # if false, only clobber 'abs_work_dir'
@@ -79,31 +90,27 @@ config = {
     'graph_selector': '/server/collect.cgi',
     'graph_branch': 'MozillaTest',
     'enable_package_tests': True,
-    'stage_product': 'firefox',
+    'stage_product': STAGE_PRODUCT,
     "enable_talos_sendchange": True,
     "l10n_check_test": True,
-    # TODO find out if we need all these platform keys
-    # TODO port self.platform_variation self.complete_platform for RPM check
-    'platform': 'linux',
-    # 'platform_variation': '',
-    # 'complete_platform': 'linux',
-    # 'stage_platform': 'linux64',
     'upload_symbols': True,
 
-
-    ######### TODO move this section to a production/staging/etc sep config
+    'stage_server': STAGE_SERVER,
+    'stage_username': STAGE_USERNAME,
+    'stage_ssh_key': STAGE_SSH_KEY,
     'upload_env': {
-        # /buildbot-configs/mozilla/preproduction_config.py
-        # 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
-        # /buildbot-configs/mozilla/production_config.py
-        # 'stage_server': 'stage.mozilla.org',
-        # /buildbot-configs/mozilla/staging_config.py
-        'UPLOAD_HOST': 'dev-stage01.srv.releng.scl3.mozilla.com',
-        # TODO I think upload_user differs on TRY branch
-        'UPLOAD_USER': 'ffxbld',
+        'UPLOAD_HOST': STAGE_SERVER,
+        'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '~/.ssh/ffxbld_dsa',
+        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
     },
+    'update_env': {
+        'MAR': '../dist/host/bin/mar',
+        'MBSDIFF': '../dist/host/bin/mbsdiff'
+    },
+    'latest_mar_dir': '/pub/mozilla.org/%s/nightly/latest-%%(branch)s' % (
+        STAGE_PRODUCT,)
+
     # for testing, here is my master
     "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
     # production.py
@@ -113,7 +120,7 @@ config = {
     # pre-production
     # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
 
-    # if staging/preproduction we should have this key:
+    # TODO if staging/preproduction we should have this key:
     "graph_server_branch_name": "MozillaTest",
     # else if production we let buildbot props decide in
     # self._query_graph_server_branch_name()
@@ -121,6 +128,14 @@ config = {
 
 
     ###### 64 bit specific ######
+    # TODO find out if we need all these platform keys
+    # TODO port self.platform_variation self.complete_platform for RPM check
+    'platform': 'linux64',
+    # # this will change for sub configs like asan, pgo etc
+    # 'platform_variation': '',
+    # 'complete_platform': 'linux',
+    # 'stage_platform': 'linux64',
+    'platform_ftp_name': 'linux-x86_64.complete.mar',
     'env': {
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',

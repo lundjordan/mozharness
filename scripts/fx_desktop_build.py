@@ -135,14 +135,19 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'is_automation': True,
                 # create_snippets will be decided by
                 # configs/builds/branch_specifics.py
+                # and whether or not this is a nightly build
                 "create_snippets": False,
-                # We have "platform_supports_snippets" to dictate whether the
-                # platform even supports creating_snippets. In other words:
-                # we create snippets if the branch wants it AND the platform
-                # supports it. So for eg: For nightlies, the 'mozilla-central'
-                # branch may set create_snippets to true but if it's a debug
-                # platform,  platform_supports_snippets will be False
+                "create_partial": False,
+                # We have "platform_supports_{snippets, partial}" to dictate
+                # whether the platform even supports creating_{snippets,
+                # partial}. In other words: we create {snippets, partial} if
+                # the branch wants it AND the platform supports it. So for eg:
+                # For nightlies, the 'mozilla-central' branch may set
+                # create_snippets to true but if it's a linux asan platform,
+                # platform_supports_snippets will be False
                 "platform_supports_snippets": True,
+                "platform_supports_partial": True,
+                'complete_mar_filename': '*.complete.mar',
             }
         }
         # TODO epoch is only here to represent the start of the buildbot build
@@ -205,26 +210,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             self.config.update(branch_configs[self.branch])
         ###
 
-        # now verify config keys are valid for actions being used this run
-        config_dependencies = {
-            # key = action, value = list of action's config dependencies
-            'setup-mock': ['mock_target'],
-            'build': ['ccache_env', 'old_packages', 'mock_target'],
-            # TODO we may need graph keys/values but not all variants that run
-            # this action, run graphserver/ need them. Should we be asserting
-            # they are there?
-            # 'generate-build-stats': [
-            #     'graph_server', 'graph_selector', 'graph_branch', 'base_name'
-            # ],
-            'make-build-symbols': ['mock_target'],
-            'make-packages': ['package_filename', 'mock_target'],
-            'make-upload': ['upload_env', 'stage_platform', 'mock_target'],
-        }
-        for action in self.actions:
-            if config_dependencies.get(action):
-                self._assert_cfg_valid_for_action(config_dependencies[action],
-                                                  action)
-
     # helpers
 
     def query_abs_dirs(self):
@@ -235,6 +220,9 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         dirs = {
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
                                         'source'),
+            'abs_obj_dir': os.path.join(abs_dirs['abs_work_dir'],
+                                        'source',
+                                        self._query_objdir()),
             'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
         }
         abs_dirs.update(dirs)

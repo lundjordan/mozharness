@@ -16,6 +16,7 @@ import subprocess
 import re
 import time
 import uuid
+import copy
 
 # import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
@@ -27,6 +28,7 @@ from mozharness.base.log import OutputParser
 from mozharness.mozilla.buildbot import TBPL_RETRY
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
+from mozharness.base.log import FATAL
 
 TBPL_UPLOAD_ERRORS = [
     {
@@ -43,11 +45,13 @@ TBPL_UPLOAD_ERRORS = [
     }
 ]
 
+MISSING_CFG_KEY_MSG = "The key '%s' could not be determined \
+Please add this to your config."
 
 ERROR_MSGS = {
     'undetermined_repo_path': 'The repo_path could not be determined. \
-Please make sure there is a "repo_path" in either your config or a \
-buildbot_config.',
+Please make sure there is a "repo_path" in either your config or, if \
+you are running this in buildbot, in your buildbot_config.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.',
     'src_mozconfig_path_not_found': '"abs_src_mozconfig" path could not be \
@@ -65,6 +69,23 @@ ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
 class MakeUploadOutputParser(OutputParser):
     tbpl_error_list = TBPL_UPLOAD_ERRORS
+    # let's create a switch case using name-spaces/dict
+    # rather than a long if/else with duplicate code
+    property_conditions = {
+        # key: property name, value: condition
+        'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
+        'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
+        'packageRpmUrl': "m.endswith('.rpm')",
+        'symbolsUrl': "m.endswith('crashreporter-symbols.zip') or "
+                      "m.endswith('crashreporter-symbols-full.zip')",
+        'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
+        'unsignedApkUrl': "m.endswith('apk') and "
+                          "'unsigned-unaligned' in m",
+        'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
+        'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
+        'completeMarUrl': "m.endswith('.complete.mar')",
+        'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
+    }
 
     def __init__(self, **kwargs):
         self.matches = {}
@@ -75,24 +96,7 @@ class MakeUploadOutputParser(OutputParser):
         m = re.compile(pat).match(line)
         if m:
             m = m.group(1)
-            # let's create a switch case using name-spaces/dict
-            # rather than a long if/else with duplicate code
-            property_conditions = {
-                # key: property name, value: condition
-                'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
-                'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
-                'packageRpmUrl': "m.endswith('.rpm')",
-                'symbolsUrl': "m.endswith('crashreporter-symbols.zip') or "
-                              "m.endswith('crashreporter-symbols-full.zip')",
-                'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
-                'unsignedApkUrl': "m.endswith('apk') and "
-                                  "'unsigned-unaligned' in m",
-                'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
-                'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
-                'completeMarUrl': "m.endswith('.complete.mar')",
-                'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
-            }
-            for prop, condition in property_conditions.iteritems():
+            for prop, condition in self.property_conditions.iteritems():
                 prop_assigned = False
                 if eval(condition):
                     self.matches[prop] = m
@@ -221,8 +225,7 @@ or run without that action (ie: --no-{action})"
             return self.objdir
 
         if not self.config.get('objdir'):
-            return self.fatal('The "objdir" could not be determined. '
-                              'Please add an "objdir" to your config.')
+            return self.fatal(MISSING_CFG_KEY_MSG % ('objdir',))
         self.objdir = self.config['objdir']
         return self.objdir
 
@@ -251,11 +254,12 @@ or run without that action (ie: --no-{action})"
 
     def query_build_env(self, skip_keys=None, **kwargs):
         c = self.config
+        env = {}
         if skip_keys is None:
             skip_keys = []
-        # let's envoke the base query_env and make a shallow copy of it
+        # let's envoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
-        env = super(BuildingMixin, self).query_env(**kwargs).copy()
+        env = copy.deepcopy(super(BuildingMixin, self).query_env(**kwargs))
 
         if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
@@ -266,7 +270,7 @@ or run without that action (ie: --no-{action})"
                 else:  # let's just give the generic channel based on branch
                     env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
 
-        if c['enable_signing'] and 'MOZ_SIGN_CMD' not in skip_keys:
+        if c.get('enable_signing') and 'MOZ_SIGN_CMD' not in skip_keys:
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
 
@@ -274,16 +278,18 @@ or run without that action (ie: --no-{action})"
 
     def _ccache_z(self):
         """clear ccache stats."""
+        self._assert_cfg_valid_for_action(['ccache_env'], 'build')
         c = self.config
         dirs = self.query_abs_dirs()
-
-        c['ccache_env']['CCACHE_BASEDIR'] = c['ccache_env'].get(
+        env = self.query_build_env()
+        # update env for just this command
+        ccache_env = copy.deepcopy(c['ccache_env'])
+        ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
-        ccache_env = self.query_build_env()
-        ccache_env.update(c['ccache_env'])
+        env.update(c['ccache_env'])
         self.run_command(command=['ccache', '-z'],
                          cwd=dirs['abs_src_dir'],
-                         env=ccache_env)
+                         env=env)
 
     def _rm_old_package(self):
         """rm the old package."""
@@ -330,6 +336,10 @@ or run without that action (ie: --no-{action})"
 
     # TODO add this / or merge with ToolToolMixin
     def _run_tooltool(self):
+        self._assert_cfg_valid_for_action(
+            ['tooltool_script', 'tooltool_bootstrap', 'tooltool_url_list'],
+            'build'
+        )
         c = self.config
         dirs = self.query_abs_dirs()
         if not c.get('tooltool_manifest_src'):
@@ -391,6 +401,10 @@ or run without that action (ie: --no-{action})"
 
     def _graph_server_post(self):
         """graph server post results."""
+        self._assert_cfg_valid_for_action(
+            ['base_name', 'graph_server', 'graph_selector'],
+            'generate-build-stats'
+        )
         c = self.config
         dirs = self.query_abs_dirs()
         graph_server_post_path = os.path.join(dirs['abs_tools_dir'],
@@ -462,13 +476,13 @@ or run without that action (ie: --no-{action})"
             'buildid': self.query_buildid(),
             'builduid': self.query_builduid(),
             'nightly_build': self.query_is_nightly(),
-            'pgo_build': c['pgo_build'],
+            'pgo_build': c.get('pgo_build', False),
         }
         # TODO insert check for uploadMulti factory 2526
         # if not self.uploadMulti
 
         if c.get('enable_talos_sendchange'):  # do talos sendchange
-            if c['pgo_build']:
+            if c.get('pgo_build'):
                 build_type = 'pgo-'
             else:  # we don't do talos sendchanges for debug.
                 build_type = ''  # leave 'opt' out of branch for talos
@@ -481,9 +495,9 @@ or run without that action (ie: --no-{action})"
                             username='sendchange',
                             sendchange_props=sendchange_props)
         if c.get('enable_package_tests'):  # do unittest sendchange
-            if c['pgo_build']:
+            if c.get('pgo_build'):
                 build_type = 'pgo'
-            if c['debug_build']:
+            if c.get('debug_build'):
                 build_type = 'debug'
             else:  # generic opt build
                 build_type = 'opt'
@@ -499,13 +513,13 @@ or run without that action (ie: --no-{action})"
         # TODO support more from postUploadCmdPrefix()
         # as needed
         # h.m.o/build/buildbotcustom/process/factory.py#l119
+        self._assert_cfg_valid_for_action(['stage_product'], 'make-upload')
         c = self.config
         post_upload_cmd = ["post_upload.py"]
-
         buildid = self.query_buildbot_property('buildid')
         revision = self.query_buildbot_property('got_revision')
         platform = self.platform
-        if c['pgo_build']:
+        if c.get('pgo_build'):
             platform += '-pgo'
         tinderboxBuildsDir = "%s-%s" % (self.branch, platform)
 
@@ -532,7 +546,7 @@ or run without that action (ie: --no-{action})"
         """
         if self.done_mock_setup:
             return
-
+        self._assert_cfg_valid_for_action(['mock_target'], 'setup-mock')
         c = self.config
         self.reset_mock(c['mock_target'])
         self.init_mock(c['mock_target'])
@@ -595,7 +609,7 @@ or run without that action (ie: --no-{action})"
         # dependencies in config see _pre_config_lock
         base_cmd = 'make -f client.mk build'
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
-        if self.config['pgo_build']:
+        if self.config.get('pgo_build'):
             cmd += ' MOZ_PGO=1'
         self.run_mock_command(self.config.get('mock_target'),
                               cmd=cmd,
@@ -660,27 +674,26 @@ or run without that action (ie: --no-{action})"
         # variants are added
         # not all nightly platforms upload symbols!
         if self.query_is_nightly() and c.get('upload_symbols'):
-            # TODO wrap this in a retry. Not sure if I should wrap the mock
-            # cmd inside a retry or the opposite. Look into how to do this
-            self.run_mock_command(c.get('mock_target'),
-                                  cmd='make uploadsymbols',
-                                  cwd=cwd,
-                                  env=self.query_build_env())
+            self.retry(self.run_mock_command(c.get('mock_target'),
+                                             cmd='make uploadsymbols',
+                                             cwd=cwd,
+                                             env=self.query_build_env()))
 
     def make_packages(self):
+        self._assert_cfg_valid_for_action(['mock_target', 'package_filename'],
+                                          'make-packages')
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
-        # dependencies in config, see _pre_config_lock
 
         # make package-tests
         if c.get('enable_package_tests'):
-            self.run_mock_command(c.get('mock_target'),
+            self.run_mock_command(c['mock_target'],
                                   cmd='make package-tests',
                                   cwd=cwd,
                                   env=self.query_build_env())
 
         # make package
-        self.run_mock_command(c.get('mock_target'),
+        self.run_mock_command(c['mock_target'],
                               cmd='make package',
                               cwd=cwd,
                               env=self.query_build_env())
@@ -693,7 +706,11 @@ or run without that action (ie: --no-{action})"
                                   find_dir=find_dir,
                                   prop_type='package')
 
-    def _create_update(self):
+    def _create_partial(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'complete_mar_filename'],
+            'make-update'
+        )
         c = self.config
         env = self.query_build_env()
         dirs = self.query_abs_dirs()
@@ -706,27 +723,105 @@ or run without that action (ie: --no-{action})"
                          env=env,
                          halt_on_failuer=True)
         self.info('making a complete new mar...')
-        update_pkging_dir = os.path.join(dirs['abs_obj_dir'],
-                                         'tools',
-                                         'update-packaging')
-        self.run_mock_command(c.get('mock_target'),
-                              cmd='make -C %s' % (update_pkging_dir,),
+        update_pkging_path = os.path.join(dirs['abs_obj_dir'],
+                                          'tools',
+                                          'update-packaging')
+        self.run_mock_command(c['mock_target'],
+                              cmd='make -C %s' % (update_pkging_path,),
                               cwd=dirs['abs_src_dir'],
-                              env=self.query_build_env())
-        # now: bash -c 'find build/obj-firefox/dist/update -maxdepth 1 -type f -name *.complete.mar'
-        #  in dir /builds/slave/m-cen-lx-000000000000000000000/.
+                              env=env)
         self._set_file_properties(file_name=c['complete_mar_filename'],
                                   find_dir=dist_update_dir,
                                   prop_type='completeMar')
 
-    def make_upload(self):
+    def _publish_updates(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'update_env', 'platform_ftp_name'],
+            'make-upload'
+        )
         c = self.config
-        # dependencies in config see _pre_config_lock
+        dirs = self.query_abs_dirs()
+        update_env = self.query_build_env()
+        update_env.update(c['update_env'])
+        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
+                                              'tools',
+                                              'update-pacakaging',
+                                              'unwrap_full_update.pl')
+        self.info('removing old unpacked dirs...')
+        self.run_command(['rm', '-rf', 'current', 'current.work', 'previous'],
+                         cwd=dirs['abs_obj_dir'],
+                         env=update_env,
+                         halt_on_failure=True)
+        self.info('making unpacked dirs...')
+        self.run_command(['mkdir', 'current', 'previous'],
+                         cwd=dirs['abs_obj_dir'],
+                         env=update_env,
+                         halt_on_failure=True)
+        self.info('unpacking current mar...')
+        mar_file = self.query_buildbot_property('completeMarFilename')
+        abs_mar_file = os.path.join(dirs['abs_obj_dir'],
+                                    'dist',
+                                    'update',
+                                    mar_file)
+        self.run_mock_command(c['mock_target'],
+                              cmd='perl %s %s' % (abs_unwrap_update_path,
+                                                  abs_mar_file),
+                              cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
+                              env=update_env,
+                              halt_on_failure=True)
+        # The mar file name will be the same from one day to the next,
+        # *except* when we do a version bump for a release. To cope with
+        # this, we get the name of the previous complete mar directly
+        # from staging. Version bumps can also often involve multiple mars
+        # living in the latest dir, so we grab the latest one.
+        self.info('getting previous mar filename...')
+        latest_mar_dir = c['latest_mar_dir'] % (self.branch,)
+        cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
+            c['stage_username'], c['stage_ssh_key'], c['stage_server'],
+            latest_mar_dir, c['platform_ftp_name']
+        )
+        previous_mar_file = self.get_output_from_command('bash -c ' + cmd)
 
+        if not re.search(r'\.mar$', previous_mar_file):
+            self.fatal('could not determine the previous complete mar file')
+        previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
+                                               latest_mar_dir,
+                                               previous_mar_file)
+        self.info('downloading previous mar...')
+        cmd = 'wget -O previous.mar --no-check-certificate %s' % (
+            previous_mar_url,)
+        self.retry(self.run_mock_command(c.get('mock_target'),
+                                         cmd=cmd,
+                                         cwd=os.path.join(dirs['abs_obj_dir'],
+                                                          'dist',
+                                                          'update'),
+                                         error_level=FATAL))
+        self.info('unpacking previous mar...')
+        cmd = 'perl %s %s' % (abs_unwrap_update_path,
+                              '../dist/update/previous.mar'),
+        self.run_mock_command(c['mock_target'],
+                              cmd=cmd,
+                              cwd=os.path.join(dirs['abs_obj_dir'],
+                                               'previous'),
+                              env=update_env,
+                              halt_on_failure=True)
+        # TODO start here tomorrow
+        # factory.py line 2214
+        # Extract the build ID from the unpacked previous complete mar.
+
+    def make_upload(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'upload_env', 'create_snippets',
+             'platform_supports_snippets', 'create_partial',
+             'platform_supports_partials'], 'make-upload'
+        )
+        c = self.config
         if self.query_is_nightly():
             # if branch supports snippets and platform supports snippets
             if c['create_snippets'] and c['platform_supports_snippets']:
-                self._create_update()
+                self._publish_updates()
+                if c['create_partial'] and c['platform_supports_partials']:
+                    self._create_partial()
 
         upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
@@ -792,6 +887,8 @@ or run without that action (ie: --no-{action})"
                                   env=env)
 
     def check_test_complete(self):
+        self._assert_cfg_valid_for_action(['check_test_env'],
+                                          'check-test-complete')
         c = self.config
         dirs = self.query_abs_dirs()
         abs_check_test_env = {}

@@ -17,6 +17,7 @@ import re
 import time
 import uuid
 import copy
+from itertools import chain
 
 # import the power of mozharness ;)
 from mozharness.mozilla.buildbot import BuildbotMixin
@@ -620,7 +621,8 @@ or run without that action (ie: --no-{action})"
         """set buildid, sourcestamp, appVersion, and appName."""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
-                                               'config/printconfigsetting.py')
+                                               'config',
+                                               'printconfigsetting.py')
         application_ini_path = os.path.join(dirs['abs_obj_dir'],
                                             'dist',
                                             'bin',
@@ -805,9 +807,52 @@ or run without that action (ie: --no-{action})"
                                                'previous'),
                               env=update_env,
                               halt_on_failure=True)
-        # TODO start here tomorrow
-        # factory.py line 2214
         # Extract the build ID from the unpacked previous complete mar.
+        self.info("finding previous mar's inipath...")
+        cmd = [
+            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
+            "application.ini"
+        ]
+        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
+        print_conf_path = os.path.join(dirs['abs_src_dir'],
+                                       'config',
+                                       'printconfigsetting.py')
+        previous_buildid = self.get_output_from_command([
+            'python', print_conf_path,
+            os.path.join(dirs['abs_obj_dir'], prev_ini_path), 'App', 'BuildID'
+        ])
+        self.set_buildbot_property("previous_buildid",
+                                   previous_buildid,
+                                   write_to_file=True)
+        self.info('removing pgc files from previous and current dirs')
+        for mars_dirs in ['current', 'previous']:
+            self.run_command(cmd=["find" "." "-name" "\*.pgc" "-print"
+                                  "-delete"],
+                             env=update_env,
+                             cwd=os.path.join(dirs['abs_obj_dir'],
+                                              mars_dirs))
+        self.info("removing existing partial mar...")
+        self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
+                         env=self.query_build_env,
+                         cwd=os.path.join(dirs['abs_obj_dir'],
+                                          'dist',
+                                          'update'),
+                         halt_on_failure=True)
+
+        self.info('generating partial patch from two unpacked complete mars...')
+        make_partial_env = {
+            'STAGE_DIR': '../../dist/update',
+            'SRC_BUILD': '../../previous',
+            'SRC_BUILD_ID': previous_buildid,
+            'DST_BUILD': '../../current',
+            'DST_BUILD_ID': self.query_buildid()
+        }
+        self.run_mock_command(c.get('mock_target'),
+                              cmd='make -C tools/update-packaging partial-patch',
+                              cwd=self.query_abs_dirs()['abs_obj_dir'],
+                              env=dict(chain(update_env.items(),
+                                             make_partial_env.items())))
+        # TODO XXX continue from here
 
     def make_upload(self):
         self._assert_cfg_valid_for_action(

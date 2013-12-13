@@ -359,6 +359,27 @@ or run without that action (ie: --no-{action})"
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
+    def _checkout_source(self):
+        """use vcs_checkout to grab source needed for build."""
+        c = self.config
+        dirs = self.query_abs_dirs()
+        repo = self._query_repo()
+        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src_dir'])
+        if c.get('is_automation'):
+            changes = self.buildbot_config['sourcestamp']['changes']
+            if changes:
+                comments = changes[0].get('comments', '')
+                self.set_buildbot_property('comments',
+                                           comments,
+                                           write_to_file=True)
+            else:
+                self.warning(ERROR_MSGS['comments_undetermined'])
+            # TODO is rev not in buildbot_config (possibly multiple
+            # times) as 'revision'?
+            self.set_buildbot_property('got_revision',
+                                       rev[:12],
+                                       write_to_file=True)
+
     def _count_ctors(self):
         """count num of ctors and set testresults."""
         dirs = self.query_abs_dirs()
@@ -389,6 +410,157 @@ or run without that action (ie: --no-{action})"
             self.set_buildbot_property('testresults',
                                        testresults,
                                        write_to_file=True)
+
+    def _create_partial(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'complete_mar_pattern'],
+            'make-update'
+        )
+        c = self.config
+        env = self.query_build_env()
+        dirs = self.query_abs_dirs()
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
+        self.info('removing existing mar...')
+        self.run_command(['bash', '-c', 'rm -rf *.mar'],
+                         cwd=dist_update_dir,
+                         env=env,
+                         halt_on_failuer=True)
+        self.info('making a complete new mar...')
+        update_pkging_path = os.path.join(dirs['abs_obj_dir'],
+                                          'tools',
+                                          'update-packaging')
+        self.run_mock_command(c['mock_target'],
+                              cmd='make -C %s' % (update_pkging_path,),
+                              cwd=dirs['abs_src_dir'],
+                              env=env)
+        self._set_file_properties(file_name=c['complete_mar_pattern'],
+                                  find_dir=dist_update_dir,
+                                  prop_type='completeMar')
+
+    def _publish_updates(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'update_env', 'platform_ftp_name'],
+            'make-upload'
+        )
+        c = self.config
+        dirs = self.query_abs_dirs()
+        generic_env = self.query_build_env()
+        update_env = dict(chain(generic_env.items(), c['update_env'].items()))
+        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
+                                              'tools',
+                                              'update-pacakaging',
+                                              'unwrap_full_update.pl')
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
+        self.info('removing old unpacked dirs...')
+        self.run_command(['rm', '-rf', 'current', 'current.work', 'previous'],
+                         cwd=dirs['abs_obj_dir'],
+                         env=update_env,
+                         halt_on_failure=True)
+        self.info('making unpacked dirs...')
+        self.run_command(['mkdir', 'current', 'previous'],
+                         cwd=dirs['abs_obj_dir'],
+                         env=update_env,
+                         halt_on_failure=True)
+        self.info('unpacking current mar...')
+        mar_file = self.query_buildbot_property('completeMarFilename')
+        cmd = 'perl %s %s' % (abs_unwrap_update_path,
+                              os.path.join(dist_update_dir, mar_file)),
+        self.run_mock_command(c['mock_target'],
+                              cmd=cmd,
+                              cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
+                              env=update_env,
+                              halt_on_failure=True)
+        # The mar file name will be the same from one day to the next,
+        # *except* when we do a version bump for a release. To cope with
+        # this, we get the name of the previous complete mar directly
+        # from staging. Version bumps can also often involve multiple mars
+        # living in the latest dir, so we grab the latest one.
+        self.info('getting previous mar filename...')
+        latest_mar_dir = c['latest_mar_dir'] % (self.branch,)
+        cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
+            c['stage_username'], c['stage_ssh_key'], c['stage_server'],
+            latest_mar_dir, c['platform_ftp_name']
+        )
+        previous_mar_file = self.get_output_from_command('bash -c ' + cmd)
+        if not re.search(r'\.mar$', previous_mar_file):
+            self.fatal('could not determine the previous complete mar file')
+        previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
+                                               latest_mar_dir,
+                                               previous_mar_file)
+        self.info('downloading previous mar...')
+        cmd = 'wget -O previous.mar --no-check-certificate %s' % (
+            previous_mar_url,
+        )
+        self.retry(self.run_mock_command(c.get('mock_target'),
+                                         cmd=cmd,
+                                         cwd=dist_update_dir,
+                                         error_level=FATAL))
+        self.info('unpacking previous mar...')
+        cmd = 'perl %s %s' % (abs_unwrap_update_path,
+                              os.path.join(dist_update_dir, 'previous.mar')),
+        self.run_mock_command(c['mock_target'],
+                              cmd=cmd,
+                              cwd=os.path.join(dirs['abs_obj_dir'],
+                                               'previous'),
+                              env=update_env,
+                              halt_on_failure=True)
+        # Extract the build ID from the unpacked previous complete mar.
+        self.info("finding previous mar's inipath...")
+        cmd = [
+            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
+            "application.ini"
+        ]
+        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
+        print_conf_path = os.path.join(dirs['abs_src_dir'],
+                                       'config',
+                                       'printconfigsetting.py')
+        abs_prev_ini_path = os.path.join(dirs['abs_obj_dir'], prev_ini_path)
+        previous_buildid = self.get_output_from_command(['python',
+                                                         print_conf_path,
+                                                         abs_prev_ini_path,
+                                                         'App', 'BuildID'])
+        self.set_buildbot_property("previous_buildid",
+                                   previous_buildid,
+                                   write_to_file=True)
+        self.info('removing pgc files from previous and current dirs')
+        for mar_dirs in ['current', 'previous']:
+            self.run_command(cmd=["find" "." "-name" "\*.pgc" "-print"
+                                  "-delete"],
+                             env=update_env,
+                             cwd=os.path.join(dirs['abs_obj_dir'],
+                                              mar_dirs))
+        self.info("removing existing partial mar...")
+        self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
+                         env=self.query_build_env(),
+                         cwd=dist_update_dir,
+                         halt_on_failure=True)
+
+        self.info('generating partial patch from two complete mars...')
+        make_partial_env = {
+            'STAGE_DIR': '../../dist/update',
+            'SRC_BUILD': '../../previous',
+            'SRC_BUILD_ID': previous_buildid,
+            'DST_BUILD': '../../current',
+            'DST_BUILD_ID': self.query_buildid()
+        }
+        cmd = 'make -C tools/update-packaging partial-patch',
+        self.run_mock_command(c.get('mock_target'),
+                              cmd=cmd,
+                              cwd=self.query_abs_dirs()['abs_obj_dir'],
+                              env=dict(chain(update_env.items(),
+                                             make_partial_env.items())),
+                              halt_on_failure=True)
+        self.run_command(cmd=['rm', '-rf', 'previous.mar'],
+                         env=self.query_build_env(),
+                         cwd=dist_update_dir,
+                         halt_on_failure=True)
+        self._set_file_properties(file_name=c['partial_mar_pattern'],
+                                  find_dir=dist_update_dir,
+                                  prop_type='partialMar')
 
     def _query_graph_server_branch_name(self):
         c = self.config
@@ -485,7 +657,7 @@ or run without that action (ie: --no-{action})"
         if c.get('enable_talos_sendchange'):  # do talos sendchange
             if c.get('pgo_build'):
                 build_type = 'pgo-'
-            else:  # we don't do talos sendchanges for debug.
+            else:  # we don't do talos sendchange for debug so no need to check
                 build_type = ''  # leave 'opt' out of branch for talos
             talos_branch = "%s-%s-%s%s" % (self.branch,
                                            self.platform,
@@ -529,8 +701,11 @@ or run without that action (ie: --no-{action})"
         post_upload_cmd.extend(['-i', buildid])
         post_upload_cmd.extend(['--revision', revision])
         post_upload_cmd.append('--release-to-tinderbox-dated-builds')
-
-        return post_upload_cmd
+        if self.query_is_nightly():
+            post_upload_cmd.extend(['-b', self.branch])
+            post_upload_cmd.append('--release-to-dated')
+            if c['platform_supports_post_upload_to_latest']:
+                post_upload_cmd.append('--release-to-latest')
 
     def read_buildbot_config(self):
         c = self.config
@@ -559,29 +734,7 @@ or run without that action (ie: --no-{action})"
         if c.get('mock_packages'):
             self.install_mock_packages(c['mock_target'],
                                        c.get('mock_packages'))
-
         self.done_mock_setup = True
-
-    def _checkout_source(self):
-        """use vcs_checkout to grab source needed for build."""
-        c = self.config
-        dirs = self.query_abs_dirs()
-        repo = self._query_repo()
-        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src_dir'])
-        if c.get('is_automation'):
-            changes = self.buildbot_config['sourcestamp']['changes']
-            if changes:
-                comments = changes[0].get('comments', '')
-                self.set_buildbot_property('comments',
-                                           comments,
-                                           write_to_file=True)
-            else:
-                self.warning(ERROR_MSGS['comments_undetermined'])
-            # TODO is rev not in buildbot_config (possibly multiple
-            # times) as 'revision'?
-            self.set_buildbot_property('got_revision',
-                                       rev[:12],
-                                       write_to_file=True)
 
     def preflight_build(self):
         """set up machine state for a complete build."""
@@ -708,152 +861,6 @@ or run without that action (ie: --no-{action})"
                                   find_dir=find_dir,
                                   prop_type='package')
 
-    def _create_partial(self):
-        self._assert_cfg_valid_for_action(
-            ['mock_target', 'complete_mar_filename'],
-            'make-update'
-        )
-        c = self.config
-        env = self.query_build_env()
-        dirs = self.query_abs_dirs()
-        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
-                                       'dist',
-                                       'update')
-        self.info('removing existing mar...')
-        self.run_command(['bash', '-c', 'rm -rf *.mar'],
-                         cwd=dist_update_dir,
-                         env=env,
-                         halt_on_failuer=True)
-        self.info('making a complete new mar...')
-        update_pkging_path = os.path.join(dirs['abs_obj_dir'],
-                                          'tools',
-                                          'update-packaging')
-        self.run_mock_command(c['mock_target'],
-                              cmd='make -C %s' % (update_pkging_path,),
-                              cwd=dirs['abs_src_dir'],
-                              env=env)
-        self._set_file_properties(file_name=c['complete_mar_filename'],
-                                  find_dir=dist_update_dir,
-                                  prop_type='completeMar')
-
-    def _publish_updates(self):
-        self._assert_cfg_valid_for_action(
-            ['mock_target', 'update_env', 'platform_ftp_name'],
-            'make-upload'
-        )
-        c = self.config
-        dirs = self.query_abs_dirs()
-        update_env = self.query_build_env()
-        update_env.update(c['update_env'])
-        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
-                                              'tools',
-                                              'update-pacakaging',
-                                              'unwrap_full_update.pl')
-        self.info('removing old unpacked dirs...')
-        self.run_command(['rm', '-rf', 'current', 'current.work', 'previous'],
-                         cwd=dirs['abs_obj_dir'],
-                         env=update_env,
-                         halt_on_failure=True)
-        self.info('making unpacked dirs...')
-        self.run_command(['mkdir', 'current', 'previous'],
-                         cwd=dirs['abs_obj_dir'],
-                         env=update_env,
-                         halt_on_failure=True)
-        self.info('unpacking current mar...')
-        mar_file = self.query_buildbot_property('completeMarFilename')
-        abs_mar_file = os.path.join(dirs['abs_obj_dir'],
-                                    'dist',
-                                    'update',
-                                    mar_file)
-        self.run_mock_command(c['mock_target'],
-                              cmd='perl %s %s' % (abs_unwrap_update_path,
-                                                  abs_mar_file),
-                              cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
-                              env=update_env,
-                              halt_on_failure=True)
-        # The mar file name will be the same from one day to the next,
-        # *except* when we do a version bump for a release. To cope with
-        # this, we get the name of the previous complete mar directly
-        # from staging. Version bumps can also often involve multiple mars
-        # living in the latest dir, so we grab the latest one.
-        self.info('getting previous mar filename...')
-        latest_mar_dir = c['latest_mar_dir'] % (self.branch,)
-        cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
-            c['stage_username'], c['stage_ssh_key'], c['stage_server'],
-            latest_mar_dir, c['platform_ftp_name']
-        )
-        previous_mar_file = self.get_output_from_command('bash -c ' + cmd)
-
-        if not re.search(r'\.mar$', previous_mar_file):
-            self.fatal('could not determine the previous complete mar file')
-        previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
-                                               latest_mar_dir,
-                                               previous_mar_file)
-        self.info('downloading previous mar...')
-        cmd = 'wget -O previous.mar --no-check-certificate %s' % (
-            previous_mar_url,)
-        self.retry(self.run_mock_command(c.get('mock_target'),
-                                         cmd=cmd,
-                                         cwd=os.path.join(dirs['abs_obj_dir'],
-                                                          'dist',
-                                                          'update'),
-                                         error_level=FATAL))
-        self.info('unpacking previous mar...')
-        cmd = 'perl %s %s' % (abs_unwrap_update_path,
-                              '../dist/update/previous.mar'),
-        self.run_mock_command(c['mock_target'],
-                              cmd=cmd,
-                              cwd=os.path.join(dirs['abs_obj_dir'],
-                                               'previous'),
-                              env=update_env,
-                              halt_on_failure=True)
-        # Extract the build ID from the unpacked previous complete mar.
-        self.info("finding previous mar's inipath...")
-        cmd = [
-            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
-            "application.ini"
-        ]
-        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
-        print_conf_path = os.path.join(dirs['abs_src_dir'],
-                                       'config',
-                                       'printconfigsetting.py')
-        previous_buildid = self.get_output_from_command([
-            'python', print_conf_path,
-            os.path.join(dirs['abs_obj_dir'], prev_ini_path), 'App', 'BuildID'
-        ])
-        self.set_buildbot_property("previous_buildid",
-                                   previous_buildid,
-                                   write_to_file=True)
-        self.info('removing pgc files from previous and current dirs')
-        for mars_dirs in ['current', 'previous']:
-            self.run_command(cmd=["find" "." "-name" "\*.pgc" "-print"
-                                  "-delete"],
-                             env=update_env,
-                             cwd=os.path.join(dirs['abs_obj_dir'],
-                                              mars_dirs))
-        self.info("removing existing partial mar...")
-        self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
-                         env=self.query_build_env,
-                         cwd=os.path.join(dirs['abs_obj_dir'],
-                                          'dist',
-                                          'update'),
-                         halt_on_failure=True)
-
-        self.info('generating partial patch from two unpacked complete mars...')
-        make_partial_env = {
-            'STAGE_DIR': '../../dist/update',
-            'SRC_BUILD': '../../previous',
-            'SRC_BUILD_ID': previous_buildid,
-            'DST_BUILD': '../../current',
-            'DST_BUILD_ID': self.query_buildid()
-        }
-        self.run_mock_command(c.get('mock_target'),
-                              cmd='make -C tools/update-packaging partial-patch',
-                              cwd=self.query_abs_dirs()['abs_obj_dir'],
-                              env=dict(chain(update_env.items(),
-                                             make_partial_env.items())))
-        # TODO XXX continue from here
-
     def make_upload(self):
         self._assert_cfg_valid_for_action(
             ['mock_target', 'upload_env', 'create_snippets',
@@ -876,11 +883,12 @@ or run without that action (ie: --no-{action})"
         upload_env['POST_UPLOAD_CMD'] = pst_up_cmd
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
-        self.run_mock_command(c.get('mock_target'),
-                              cmd='make upload',
-                              cwd=self.query_abs_dirs()['abs_obj_dir'],
-                              env=self.query_build_env(),
-                              output_parser=parser)
+        cwd = self.query_abs_dirs()['abs_obj_dir']
+        self.retry(self.run_mock_command(c.get('mock_target'),
+                                         cmd='make upload',
+                                         cwd=cwd,
+                                         env=self.query_build_env(),
+                                         output_parser=parser))
         self.info('Setting properties from make upload...')
         for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,
@@ -932,6 +940,9 @@ or run without that action (ie: --no-{action})"
                                   env=env)
 
     def check_test_complete(self):
+        if self.query_is_nightly():
+            self.info("Skipping action because this is a nightly run...")
+            return
         self._assert_cfg_valid_for_action(['check_test_env'],
                                           'check-test-complete')
         c = self.config

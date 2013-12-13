@@ -29,6 +29,7 @@ asan.manifest",
     'upload_symbols': False,
     "platform_supports_partial": False,
     "platform_supports_snippets": False,
+    'platform_supports_post_upload_to_latest': False,
 
     #### 64 bit build specific #####
     'env': {

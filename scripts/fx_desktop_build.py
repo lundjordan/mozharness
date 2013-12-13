@@ -146,8 +146,12 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 # create_snippets to true but if it's a linux asan platform,
                 # platform_supports_snippets will be False
                 "platform_supports_snippets": True,
-                "platform_supports_partial": True,
-                'complete_mar_filename': '*.complete.mar',
+                "platform_supports_partials": True,
+                'complete_mar_pattern': '*.complete.mar',
+                'partial_mar_pattern': '*.partial.*.mar',
+                # if nightly and our platform is not an ASAN or Stat Analysis
+                # variant, use --release-to-latest in post upload cmd
+                'platform_supports_post_upload_to_latest': True,
             }
         }
         # TODO epoch is only here to represent the start of the buildbot build

@@ -176,12 +176,17 @@ class ScriptMixin(object):
             """
         try:
             f = urllib2.urlopen(url, timeout=30)
+            f_length = int(f.info()['content-length'])
+            got_length = 0
             local_file = open(file_name, 'wb')
             while True:
                 block = f.read(1024 ** 2)
                 if not block:
+                    if got_length != f_length:
+                        raise urllib2.URLError("Download incomplete; content-length was %d, but only received %d" % (f_length, got_length))
                     break
                 local_file.write(block)
+                got_length += len(block)
             local_file.close()
             return file_name
         except urllib2.HTTPError, e:
@@ -838,6 +843,21 @@ class ScriptMixin(object):
             return (tmp_stdout_filename, tmp_stderr_filename)
         else:
             return output
+
+    def _touch_file(self, file_name, times=None):
+        """touch a file; If times is None, then the file's access and modified
+           times are set to the current time
+        """
+        self.info("Touching: %s" % file_name)
+        try:
+            os.utime(file_name, times)
+        except OSError:
+            try:
+                open(file_name, 'w').close()
+            except IOError as e:
+                self.fatal("I/O error({0}): {1}".format(e.errno, e.strerror))
+
+        os.utime(file_name, times)
 
     def unpack(self, filename, extract_to):
         '''

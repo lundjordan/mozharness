@@ -412,6 +412,7 @@ or run without that action (ie: --no-{action})"
                                        write_to_file=True)
 
     def _create_partial(self):
+        # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'complete_mar_pattern'],
             'make-update'
@@ -440,6 +441,7 @@ or run without that action (ie: --no-{action})"
                                   prop_type='completeMar')
 
     def _publish_updates(self):
+        # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'update_env', 'platform_ftp_name'],
             'make-upload'
@@ -456,17 +458,20 @@ or run without that action (ie: --no-{action})"
                                        'dist',
                                        'update')
         self.info('removing old unpacked dirs...')
+        # TODO use self.rmtree
         self.run_command(['rm', '-rf', 'current', 'current.work', 'previous'],
                          cwd=dirs['abs_obj_dir'],
                          env=update_env,
                          halt_on_failure=True)
         self.info('making unpacked dirs...')
+        # TODO use self.mkdir_p
         self.run_command(['mkdir', 'current', 'previous'],
                          cwd=dirs['abs_obj_dir'],
                          env=update_env,
                          halt_on_failure=True)
         self.info('unpacking current mar...')
         mar_file = self.query_buildbot_property('completeMarFilename')
+        # TODO use self.query_exe('perl')
         cmd = 'perl %s %s' % (abs_unwrap_update_path,
                               os.path.join(dist_update_dir, mar_file)),
         self.run_mock_command(c['mock_target'],
@@ -492,6 +497,7 @@ or run without that action (ie: --no-{action})"
                                                latest_mar_dir,
                                                previous_mar_file)
         self.info('downloading previous mar...')
+        # use self.download_file(self, url, file_name=None
         cmd = 'wget -O previous.mar --no-check-certificate %s' % (
             previous_mar_url,
         )
@@ -500,6 +506,7 @@ or run without that action (ie: --no-{action})"
                                          cwd=dist_update_dir,
                                          error_level=FATAL))
         self.info('unpacking previous mar...')
+        # TODO use self.query_exe('perl')
         cmd = 'perl %s %s' % (abs_unwrap_update_path,
                               os.path.join(dist_update_dir, 'previous.mar')),
         self.run_mock_command(c['mock_target'],
@@ -534,6 +541,7 @@ or run without that action (ie: --no-{action})"
                              cwd=os.path.join(dirs['abs_obj_dir'],
                                               mar_dirs))
         self.info("removing existing partial mar...")
+        # TODO use self.rmtree
         self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
                          env=self.query_build_env(),
                          cwd=dist_update_dir,
@@ -554,6 +562,7 @@ or run without that action (ie: --no-{action})"
                               env=dict(chain(update_env.items(),
                                              make_partial_env.items())),
                               halt_on_failure=True)
+        # TODO use self.rmtree
         self.run_command(cmd=['rm', '-rf', 'previous.mar'],
                          env=self.query_build_env(),
                          cwd=dist_update_dir,

@@ -1,17 +1,27 @@
 CLOBBERER_URL = 'http://clobberer.pvt.build.mozilla.org/index.php'
 STAGE_PRODUCT = 'firefox'
 # TODO move stage_server to a production/staging/etc sep config
-STAGE_SERVER = 'dev-stage01.srv.releng.scl3.mozilla.com'
 # /buildbot-configs/mozilla/preproduction_config.py
 # 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
 # /buildbot-configs/mozilla/production_config.py
 # 'stage_server': 'stage.mozilla.org',
 # /buildbot-configs/mozilla/staging_config.py
+STAGE_SERVER = 'dev-stage01.srv.releng.scl3.mozilla.com'
 # TODO Reminder, stage_username and stage_ssh_key differ on Try
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
 config = {
+    # TODO move download_base_url to a production/staging/etc sep config
+    # /buildbot-configs/mozilla/preproduction_config.py
+    # 'download_base_url': 'http://preproduction-stage.srv.releng.
+    # scl3.mozilla.com/pub/mozilla.org/firefox/nightly',
+    # /buildbot-configs/mozilla/production_config.py
+    # 'download_base_url':
+    # 'http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly',
+    # /buildbot-configs/mozilla/staging_config.py
+    'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla.com/pub/\
+mozilla.org/firefox/nightly',
     # if false, only clobber 'abs_work_dir'
     # if true: possibly clobber, clobberer, and purge_builds
     # see PurgeMixin for clobber() conditions

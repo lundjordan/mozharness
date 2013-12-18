@@ -29,7 +29,7 @@ from mozharness.base.log import OutputParser
 from mozharness.mozilla.buildbot import TBPL_RETRY
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
-from mozharness.base.log import FATAL
+from mozharness.base.log import FATAL, ERROR
 
 TBPL_UPLOAD_ERRORS = [
     {
@@ -45,6 +45,18 @@ TBPL_UPLOAD_ERRORS = [
         'level': TBPL_RETRY,
     }
 ]
+
+SNIPPET_TEMPLATE = """version=2
+type=%(type)s
+url=%(url)s
+hashFunction=sha512
+hashValue=%(sha512_hash)s
+size=%(size)d
+build=%(buildid)s
+displayVersion=%(version)s
+appVersion=%(version)s
+platformVersion=%(version)s
+"""
 
 MISSING_CFG_KEY_MSG = "The key '%s' could not be determined \
 Please add this to your config."
@@ -304,14 +316,6 @@ or run without that action (ie: --no-{action})"
         self.info("removing old packages...")
         self.run_command(cmd, cwd=self.query_abs_dirs()['abs_src_dir'])
 
-    def _rm_old_symbols(self):
-        cmd = [
-            "find", "20*", "-maxdepth", "2", "-mtime", "+7", "-exec", "rm",
-            "-rf", "{}", "';'"
-        ]
-        self.info("removing old symbols...")
-        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_work_dir'])
-
     def _get_mozconfig(self):
         """assign mozconfig."""
         c = self.config
@@ -411,7 +415,7 @@ or run without that action (ie: --no-{action})"
                                        testresults,
                                        write_to_file=True)
 
-    def _create_partial(self):
+    def _publish_mar_updates(self):
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'complete_mar_pattern'],
@@ -424,7 +428,8 @@ or run without that action (ie: --no-{action})"
                                        'dist',
                                        'update')
         self.info('removing existing mar...')
-        self.run_command(['bash', '-c', 'rm -rf *.mar'],
+        # TODO use glob and self.rmtree
+        self.run_command(['rm' '-rf' '*.mar'],
                          cwd=dist_update_dir,
                          env=env,
                          halt_on_failuer=True)
@@ -440,7 +445,7 @@ or run without that action (ie: --no-{action})"
                                   find_dir=dist_update_dir,
                                   prop_type='completeMar')
 
-    def _publish_updates(self):
+    def _create_partial_mar(self):
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'update_env', 'platform_ftp_name'],
@@ -490,7 +495,7 @@ or run without that action (ie: --no-{action})"
             c['stage_username'], c['stage_ssh_key'], c['stage_server'],
             latest_mar_dir, c['platform_ftp_name']
         )
-        previous_mar_file = self.get_output_from_command('bash -c ' + cmd)
+        previous_mar_file = self.get_output_from_command(cmd)
         if not re.search(r'\.mar$', previous_mar_file):
             self.fatal('could not determine the previous complete mar file')
         previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
@@ -541,9 +546,9 @@ or run without that action (ie: --no-{action})"
                              cwd=os.path.join(dirs['abs_obj_dir'],
                                               mar_dirs))
         self.info("removing existing partial mar...")
-        # TODO use self.rmtree
+        # TODO use glob and self.rmtree
         self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
-                         env=self.query_build_env(),
+                         env=generic_env,
                          cwd=dist_update_dir,
                          halt_on_failure=True)
 
@@ -564,7 +569,7 @@ or run without that action (ie: --no-{action})"
                               halt_on_failure=True)
         # TODO use self.rmtree
         self.run_command(cmd=['rm', '-rf', 'previous.mar'],
-                         env=self.query_build_env(),
+                         env=generic_env,
                          cwd=dist_update_dir,
                          halt_on_failure=True)
         self._set_file_properties(file_name=c['partial_mar_pattern'],
@@ -756,9 +761,6 @@ or run without that action (ie: --no-{action})"
             self.run_command(['rm', '-rf', dirs['abs_src_dir']],
                              cwd=dirs['abs_work_dir'],
                              env=self.query_build_env())
-            # TODO do we still need this? check if builds are producing '20*'
-            # files in basedir
-            # self._rm_old_symbols()
         else:
             # the old package should live in source dir so we don't need to do
             # this for nighties
@@ -779,7 +781,11 @@ or run without that action (ie: --no-{action})"
                               cwd=self.query_abs_dirs()['abs_src_dir'],
                               env=self.query_build_env())
 
-    def generate_build_properties(self):
+    def generate_build_info(self):
+        self._set_build_props()
+        self._set_build_stats()
+
+    def _set_build_props(self):
         """set buildid, sourcestamp, appVersion, and appName."""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
@@ -789,6 +795,14 @@ or run without that action (ie: --no-{action})"
                                             'dist',
                                             'bin',
                                             'application.ini')
+        if (not os.path.exists(print_conf_setting_path) or
+                not os.path.exists(application_ini_path)):
+            self.fatal("Can't set the following properties: "
+                       "buildid, sourcestamp, appVersion, and appName."
+                       "Required paths missing. Verify both %s and %s"
+                       "exist. These paths require the 'build' action to be "
+                       "run prior to this" % (print_conf_setting_path,
+                                              application_ini_path))
         base_cmd = [
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
@@ -808,7 +822,7 @@ or run without that action (ie: --no-{action})"
                                        prop_val,
                                        write_to_file=True)
 
-    def generate_build_stats(self):
+    def _set_build_stats(self):
         """grab build stats following a compile.
 
         this action handles all statitics from a build:
@@ -827,7 +841,7 @@ or run without that action (ie: --no-{action})"
             num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
             self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
 
-    def make_and_upload_symbols(self):
+    def symbols(self):
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
         self.run_mock_command(c.get('mock_target'),
@@ -843,7 +857,7 @@ or run without that action (ie: --no-{action})"
                                              cwd=cwd,
                                              env=self.query_build_env()))
 
-    def make_packages(self):
+    def packages(self):
         self._assert_cfg_valid_for_action(['mock_target', 'package_filename'],
                                           'make-packages')
         c = self.config
@@ -870,7 +884,7 @@ or run without that action (ie: --no-{action})"
                                   find_dir=find_dir,
                                   prop_type='package')
 
-    def make_upload(self):
+    def upload(self):
         self._assert_cfg_valid_for_action(
             ['mock_target', 'upload_env', 'create_snippets',
              'platform_supports_snippets', 'create_partial',
@@ -880,9 +894,9 @@ or run without that action (ie: --no-{action})"
         if self.query_is_nightly():
             # if branch supports snippets and platform supports snippets
             if c['create_snippets'] and c['platform_supports_snippets']:
-                self._publish_updates()
+                self._publish_mar_updates()
                 if c['create_partial'] and c['platform_supports_partials']:
-                    self._create_partial()
+                    self._create_partial_mar()
 
         upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
@@ -905,8 +919,10 @@ or run without that action (ie: --no-{action})"
                                        write_to_file=True)
         self._do_sendchanges()
 
-    def test_pretty_names(self):
-        # dependencies in config see _pre_config_lock
+    def pretty_names(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target'], 'prett-names'
+        )
         c = self.config
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
@@ -925,7 +941,7 @@ or run without that action (ie: --no-{action})"
         # if self.enableInstaller:
         #     pkg_targets.append('installer')
         for target in package_targets:
-            self.run_mock_command(c.get('mock_target'),
+            self.run_mock_command(c['mock_target'],
                                   cmd=base_cmd % (target,),
                                   cwd=dirs['abs_obj_dir'],
                                   env=env)
@@ -933,22 +949,34 @@ or run without that action (ie: --no-{action})"
                                                      'tools',
                                                      'update-packaging'),
                                         )
-        self.run_mock_command(c.get('mock_target'),
+        self.run_mock_command(c['mock_target'],
                               cmd=base_cmd % (update_package_cmd,),
                               cwd=dirs['abs_src_dir'],
                               env=env)
         if c.get('l10n_check_test'):
-            self.run_mock_command(c.get('mock_target'),
+            self.run_mock_command(c['mock_target'],
                                   cmd=base_cmd % ("l10n-check",),
                                   cwd=dirs['abs_obj_dir'],
                                   env=env)
-            # make l10n-check again without pretty names
-            self.run_mock_command(c.get('mock_target'),
-                                  cmd='make l10n-check',
-                                  cwd=dirs['abs_obj_dir'],
-                                  env=env)
 
-    def check_test_complete(self):
+    def check_l10n(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target'], 'check-l10n'
+        )
+        # TODO do we need l10n-check again if we do pretty names steps?
+        c = self.config
+        dirs = self.query_abs_dirs()
+        # we want the env without MOZ_SIGN_CMD
+        env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
+        self.run_mock_command(c['mock_target'],
+                              cmd='make l10n-check',
+                              cwd=dirs['abs_obj_dir'],
+                              env=env)
+
+    def check_test(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'check_test_env'], 'check-test'
+        )
         if self.query_is_nightly():
             self.info("Skipping action because this is a nightly run...")
             return
@@ -964,12 +992,64 @@ or run without that action (ie: --no-{action})"
         env.update(abs_check_test_env)
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-        self.run_mock_command(c.get('mock_target'),
+        self.run_mock_command(c['mock_target'],
                               cmd='make -k check',
                               cwd=dirs['abs_obj_dir'],
                               env=env,
                               output_parser=parser)
         parser.evaluate_parser()
+
+    def _get_snippet_values(snippet_type='complete'):
+        fatal_msg = "Can't determine '%s' property. This is needed for creating "
+                    "snippets. Either run the action 'upload' prior to this "
+                    "'update' action or add '%s' to your config."
+        url = (self.query_buildbot_property('completeMarUrl') or
+               c.get('complete_mar_url'))
+        hash_val = (self.query_buildbot_property('completeMarHash') or
+                    c.get('complete_mar_hash'))
+        size = (self.query_buildbot_property('completeMarSize') or
+                c.get('complete_mar_size'))
+        version = (self.query_buildbot_property('appVersion') or
+                   c.get('app_version'))
+        buildid = self.query_buildid()
+
+        if not url:
+            self.fatal(fatal_msg % ('completeMarUrl', 'complet_mar_url'))
+        if not hash_val:
+            self.fatal(fatal_msg % ('completeMarHash', 'complet_mar_hash'))
+        if not size:
+            self.fatal(fatal_msg % ('completeMarSize', 'complet_mar_size'))
+        if not version:
+            self.fatal(fatal_msg % ('appVersion', 'app_version'))
+        return {
+            'type': snippet_type,
+            'url': url,
+            'sha512_hash': hash_val,
+            'size': size,
+            'buildid': buildid,
+            'version': version,
+        }
+
+    def update(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target'], 'update'
+        )
+        c = self.config
+        dirs = self.query_abs_dirs()
+        snippet_dir = os.path.join(dirs['abs_obj_dir'],
+                                   'dist',
+                                   'update')
+        if not os.path.exists(snippet_dir):
+            self.error("The following path needs to exist for this action:'%s'"
+                       "Have you ran the 'build' action?" % (snippet_dir,))
+            return
+        snippet_path = os.path.join(snippet_dir,
+                                    '%s.update.snippet' % ('complete',))
+        content = SNIPPET_TEMPLATE % self._get_snippet_values("complete")
+        if self.write_to_file(snippet_path, content) is None:
+            self.log("Unable to write complete snippet to %s!" % snippet_path,
+                     level=ERROR)
+
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

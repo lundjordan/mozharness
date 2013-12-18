@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # ***** BEGIN LICENSE BLOCK *****
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -118,13 +117,14 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'pull',
                 'setup-mock',
                 'build',
-                'generate-build-properties',
-                'generate-build-stats',
-                'make-and-upload-symbols',
-                'make-packages',
-                'make-upload',
-                'test-pretty-names',
-                'check-test-complete',
+                'generate-build-info',
+                'symbols',
+                'packages',
+                'upload',
+                'pretty-names',
+                'check-l10n',
+                'check-test',
+                'update',
                 'enable-ccache',
             ],
             'require_config_file': require_config_file,

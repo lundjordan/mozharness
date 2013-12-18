@@ -29,7 +29,7 @@ from mozharness.base.log import OutputParser
 from mozharness.mozilla.buildbot import TBPL_RETRY
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
-from mozharness.base.log import FATAL, ERROR
+from mozharness.base.log import FATAL
 
 TBPL_UPLOAD_ERRORS = [
     {
@@ -415,7 +415,7 @@ or run without that action (ie: --no-{action})"
                                        testresults,
                                        write_to_file=True)
 
-    def _publish_mar_updates(self):
+    def _create_complete_mar(self):
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'complete_mar_pattern'],
@@ -449,7 +449,7 @@ or run without that action (ie: --no-{action})"
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
             ['mock_target', 'update_env', 'platform_ftp_name'],
-            'make-upload'
+            'upload'
         )
         c = self.config
         dirs = self.query_abs_dirs()
@@ -700,7 +700,7 @@ or run without that action (ie: --no-{action})"
         # TODO support more from postUploadCmdPrefix()
         # as needed
         # h.m.o/build/buildbotcustom/process/factory.py#l119
-        self._assert_cfg_valid_for_action(['stage_product'], 'make-upload')
+        self._assert_cfg_valid_for_action(['stage_product'], 'upload')
         c = self.config
         post_upload_cmd = ["post_upload.py"]
         buildid = self.query_buildbot_property('buildid')
@@ -888,13 +888,14 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['mock_target', 'upload_env', 'create_snippets',
              'platform_supports_snippets', 'create_partial',
-             'platform_supports_partials'], 'make-upload'
+             'platform_supports_partials'], 'upload'
         )
         c = self.config
         if self.query_is_nightly():
             # if branch supports snippets and platform supports snippets
+            # TODO find out why create_snippets decides whether we do mar stuff
             if c['create_snippets'] and c['platform_supports_snippets']:
-                self._publish_mar_updates()
+                self._create_complete_mar()
                 if c['create_partial'] and c['platform_supports_partials']:
                     self._create_partial_mar()
 
@@ -999,28 +1000,42 @@ or run without that action (ie: --no-{action})"
                               output_parser=parser)
         parser.evaluate_parser()
 
-    def _get_snippet_values(snippet_type='complete'):
-        fatal_msg = "Can't determine '%s' property. This is needed for creating "
-                    "snippets. Either run the action 'upload' prior to this "
-                    "'update' action or add '%s' to your config."
-        url = (self.query_buildbot_property('completeMarUrl') or
-               c.get('complete_mar_url'))
-        hash_val = (self.query_buildbot_property('completeMarHash') or
-                    c.get('complete_mar_hash'))
-        size = (self.query_buildbot_property('completeMarSize') or
-                c.get('complete_mar_size'))
-        version = (self.query_buildbot_property('appVersion') or
-                   c.get('app_version'))
+    def _grab_mar_props(self, snippet_type='complete'):
+        return (self.query_buildbot_property('%sMarUrl' % (snippet_type)),
+                self.query_buildbot_property('%sMarHash' % (snippet_type)),
+                self.query_buildbot_property('%sMarSize' % (snippet_type)))
+
+    def _get_snippet_values(self, snippet_dir, snippet_type='complete'):
+        fatal_msg = ("Can't determine the '%s' prop and it's needed for "
+                     "creating snippets. Please run the action 'upload' prior"
+                     "to this")
+        c = self.config
         buildid = self.query_buildid()
+        url, hash_val, size = self._grab_mar_props(snippet_type)
+        if not url or not hash_val or not size:
+            self._assert_cfg_valid_for_action(
+                ['%s_mar_pattern' % (snippet_type,)], 'update'
+            )
+            self._set_file_properties(
+                file_name=c['%s_mar_pattern' % (snippet_type,)],
+                find_dir=snippet_dir, prop_type='completeMar'
+            )
+            # now try, try again!
+            url, hash_val, size = self._grab_mar_props(snippet_type)
+        version = self.query_buildbot_property('appVersion')
+        if not version:
+            self._set_build_props()
+            # now try, try again!
+            version = self.query_buildbot_property('appVersion')
 
         if not url:
-            self.fatal(fatal_msg % ('completeMarUrl', 'complet_mar_url'))
+            self.fatal(fatal_msg % ('%sMarUrl' % (snippet_type,),))
         if not hash_val:
-            self.fatal(fatal_msg % ('completeMarHash', 'complet_mar_hash'))
+            self.fatal(fatal_msg % ('%sMarHash' % (snippet_type,),))
         if not size:
-            self.fatal(fatal_msg % ('completeMarSize', 'complet_mar_size'))
+            self.fatal(fatal_msg % ('%sMarSize' % (snippet_type,),))
         if not version:
-            self.fatal(fatal_msg % ('appVersion', 'app_version'))
+            self.fatal(fatal_msg % ('appVersion' % (snippet_type,),))
         return {
             'type': snippet_type,
             'url': url,
@@ -1030,26 +1045,48 @@ or run without that action (ie: --no-{action})"
             'version': version,
         }
 
-    def update(self):
+    def _create_snippet(self, snippet_type):
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'update'
         )
-        c = self.config
         dirs = self.query_abs_dirs()
         snippet_dir = os.path.join(dirs['abs_obj_dir'],
                                    'dist',
                                    'update')
         if not os.path.exists(snippet_dir):
-            self.error("The following path needs to exist for this action:'%s'"
+            self.fatal("The path: '%s' needs to exist for this action"
                        "Have you ran the 'build' action?" % (snippet_dir,))
-            return
-        snippet_path = os.path.join(snippet_dir,
-                                    '%s.update.snippet' % ('complete',))
-        content = SNIPPET_TEMPLATE % self._get_snippet_values("complete")
-        if self.write_to_file(snippet_path, content) is None:
-            self.log("Unable to write complete snippet to %s!" % snippet_path,
-                     level=ERROR)
+        abs_snippet_path = os.path.join(snippet_dir,
+                                        '%s.update.snippet' % (snippet_type,))
+        content = SNIPPET_TEMPLATE % self._get_snippet_values(snippet_dir,
+                                                              snippet_type)
+        self.info('saving snippet to file...')
+        if self.write_to_file(abs_snippet_path, content) is None:
+            self.error("Unable to write %s snippet to %s!" % (
+                snippet_type, abs_snippet_path)
+            )
+        self.info("displaying %s snippet file contents..." % (snippet_type,))
+        with open(abs_snippet_path) as f:
+            for line in f:
+                self.info(line)
 
+    def update(self):
+        self._assert_cfg_valid_for_action(
+            ['create_snippets',
+             'platform_supports_snippets', 'create_partial',
+             'platform_supports_partials'], 'update'
+        )
+        c = self.config
+        if not self.query_is_nightly():
+            self.info("Skipping action because this action is only done for "
+                      "nightlies...")
+            return
+        # if branch supports snippets and platform supports snippets
+        if c['create_snippets'] and c['platform_supports_snippets']:
+            self._create_snippet('complete')
+            if c['create_partial'] and c['platform_supports_partials']:
+                self._create_snippet('partial')
+        # TODO XXX start here
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

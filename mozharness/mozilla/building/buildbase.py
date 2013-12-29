@@ -211,8 +211,8 @@ or run without that action (ie: --no-{action})"
     def query_builduid(self):
         if self.builduid:
             return self.builduid
-        if self.buildbot_config['properties'].get('buildid'):
-            self.builduid = self.buildbot_config['properties']['buildid']
+        if self.buildbot_config['properties'].get('builduid'):
+            self.builduid = self.buildbot_config['properties']['builduid']
         else:
             self.builduid = uuid.uuid4().hex
             self.set_buildbot_property('builduid',
@@ -224,7 +224,7 @@ or run without that action (ie: --no-{action})"
         if self.buildid:
             return self.buildid
         if self.buildbot_config['properties'].get('buildid'):
-            self.buildid = self.buildbot_config['properties']['builduid']
+            self.buildid = self.buildbot_config['properties']['buildid']
         else:
             self.buildid = time.strftime("%Y%m%d%H%M%S",
                                          time.localtime(time.time()))
@@ -521,23 +521,7 @@ or run without that action (ie: --no-{action})"
                               env=update_env,
                               halt_on_failure=True)
         # Extract the build ID from the unpacked previous complete mar.
-        self.info("finding previous mar's inipath...")
-        cmd = [
-            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
-            "application.ini"
-        ]
-        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
-        print_conf_path = os.path.join(dirs['abs_src_dir'],
-                                       'config',
-                                       'printconfigsetting.py')
-        abs_prev_ini_path = os.path.join(dirs['abs_obj_dir'], prev_ini_path)
-        previous_buildid = self.get_output_from_command(['python',
-                                                         print_conf_path,
-                                                         abs_prev_ini_path,
-                                                         'App', 'BuildID'])
-        self.set_buildbot_property("previous_buildid",
-                                   previous_buildid,
-                                   write_to_file=True)
+        previous_buildid = self._query_previous_buildid()
         self.info('removing pgc files from previous and current dirs')
         for mar_dirs in ['current', 'previous']:
             self.run_command(cmd=["find" "." "-name" "\*.pgc" "-print"
@@ -653,6 +637,34 @@ or run without that action (ie: --no-{action})"
         self.set_buildbot_property(prop_type + 'Hash',
                                    hash_prop.strip().split(' ', 2)[1],
                                    write_to_file=True)
+
+    def _query_previous_buildid(self):
+        dirs = self.query_abs_dirs()
+        previous_buildid = self.query_buildbot_property('previous_buildid')
+        if previous_buildid:
+            return previous_buildid
+        cmd = [
+            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
+            "application.ini"
+        ]
+        self.info("finding previous mar's inipath...")
+        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
+        print_conf_path = os.path.join(dirs['abs_src_dir'],
+                                       'config',
+                                       'printconfigsetting.py')
+        abs_prev_ini_path = os.path.join(dirs['abs_obj_dir'], prev_ini_path)
+        previous_buildid = self.get_output_from_command(['python',
+                                                         print_conf_path,
+                                                         abs_prev_ini_path,
+                                                         'App', 'BuildID'])
+        if not previous_buildid:
+            self.fatal("Could not determine previous_buildid. This property"
+                       "requires the upload action creating a partial mar.")
+        self.set_buildbot_property("previous_buildid",
+                                   previous_buildid,
+                                   write_to_file=True)
+        return previous_buildid
+
 
     def _do_sendchanges(self):
         c = self.config
@@ -1072,21 +1084,55 @@ or run without that action (ie: --no-{action})"
 
     def update(self):
         self._assert_cfg_valid_for_action(
-            ['create_snippets',
-             'platform_supports_snippets', 'create_partial',
-             'platform_supports_partials'], 'update'
+            ['create_snippets', 'platform_supports_snippets',
+             'create_partial', 'platform_supports_partials',
+             'aus2_base_upload_dir', 'update_platform'], 'update'
         )
-        c = self.config
         if not self.query_is_nightly():
             self.info("Skipping action because this action is only done for "
                       "nightlies...")
             return
+        c = self.config
+        dirs = self.query_abs_dirs()
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
         # if branch supports snippets and platform supports snippets
         if c['create_snippets'] and c['platform_supports_snippets']:
             self._create_snippet('complete')
+            buildid = self.query_buildid()
+            # if branch supports partials and platform supports partials
             if c['create_partial'] and c['platform_supports_partials']:
                 self._create_snippet('partial')
-        # TODO XXX start here
+                buildid = self._query_previous_buildid()
+
+            self.info("Creating AUS previous upload dir")
+            aus_prev_upload_dir = "%s/%s/%s/%s/en-US" % (
+                c['aus2_base_upload_dir'], self.branch,
+                c['update_platform'], buildid,
+            )
+            cmd = 'ssh -l %s -i ~/.ssh/%s %s mkdir -p %s' % (
+                c['aus2_user'], c['aus2_ssh_key'], c['aus2_host'],
+                aus_prev_upload_dir
+            )
+            self.retry(self.run_command, args=(cmd,))
+
+            upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
+                          ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
+                              c['aus2_user'], c['aus2_ssh_key'],
+                              dist_update_dir, c['aus2_host'],
+                              aus_prev_upload_dir)
+                          )
+            self.info("uploading complete snippet")
+            self.retry(self.run_command,
+                       args=(upload_cmd % ('complete', 'complete'),))
+            # if branch supports partials and platform supports partials
+            if c['create_partial'] and c['platform_supports_partials']:
+                self.info("uploading partial snippet")
+                self.retry(self.run_command,
+                        args=(upload_cmd % ('partial', 'partial'),))
+            # TODO start by making a base ssh -l cmd and then continuing line
+            # 2394. Also, look at how massimo created a touch method and why!
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

@@ -208,5 +208,6 @@ releng.manifest",
         'MINIDUMP_SAVE_PATH': 'minidumps',
     },
     'base_name': 'Linux_x86-64_%(branch)s',
+    'update_platform': 'Linux_x86_64-gcc3',
     ##############################
 }

@@ -12,6 +12,30 @@ STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
 config = {
+    # TODO move aus2_user to a production/staging/etc sep config
+    # /buildbot-configs/mozilla/preproduction_config.py
+    # line 10 -- 'aus2_user': 'cltbld',
+    # /buildbot-configs/mozilla/production_config.py
+    # line 60 -- 'aus2_user': 'ffxbld',
+    # /buildbot-configs/mozilla/staging_config.py
+    # line 37 -- 'aus2_user': 'ffxbld',
+    'aus2_user': 'ffxbld',
+    # TODO move aus2_ssh_key to a production/staging/etc sep config
+    # /buildbot-configs/mozilla/preproduction_config.py
+    # line 11 -- 'aus2_ssh_key': 'cltbld_dsa',
+    # /buildbot-configs/mozilla/production_config.py
+    # line 61 -- 'aus2_ssh_key': 'auspush',
+    # /buildbot-configs/mozilla/staging_config.py
+    # line 38 -- 'aus2_ssh_key': 'ffxbld_dsa',
+    'aus2_ssh_key': 'ffxbld_dsa',
+    # TODO move aus2_host to a production/staging/etc sep config
+    # /buildbot-configs/mozilla/preproduction_config.py
+    # line 9 -- 'aus2_host': 'preproduction-stage.srv.releng.scl3.mozilla.com',
+    # /buildbot-configs/mozilla/production_config.py
+    # line 59 -- 'aus2_host': 'aus3-staging.mozilla.org',
+    # /buildbot-configs/mozilla/staging_config.py
+    # line 36 -- 'aus2_host': 'dev-stage01.srv.releng.scl3.mozilla.com',
+    'aus2_host': 'dev-stage01.srv.releng.scl3.mozilla.com',
     # TODO move download_base_url to a production/staging/etc sep config
     # /buildbot-configs/mozilla/preproduction_config.py
     # 'download_base_url': 'http://preproduction-stage.srv.releng.
@@ -234,5 +258,6 @@ releng.manifest",
         'MINIDUMP_SAVE_PATH': 'minidumps',
     },
     'base_name': 'Linux_%(branch)s',
+    'update_platform': 'Linux_x86-gcc3',
     ##############################
 }

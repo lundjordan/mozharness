@@ -152,6 +152,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 # if nightly and our platform is not an ASAN or Stat Analysis
                 # variant, use --release-to-latest in post upload cmd
                 'platform_supports_post_upload_to_latest': True,
+                'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
             }
         }
         # TODO epoch is only here to represent the start of the buildbot build

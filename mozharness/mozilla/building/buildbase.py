@@ -1130,7 +1130,7 @@ or run without that action (ie: --no-{action})"
             if c['create_partial'] and c['platform_supports_partials']:
                 self.info("uploading partial snippet")
                 self.retry(self.run_command,
-                        args=(upload_cmd % ('partial', 'partial'),))
+                           args=(upload_cmd % ('partial', 'partial'),))
             # TODO start by making a base ssh -l cmd and then continuing line
             # 2394. Also, look at how massimo created a touch method and why!
 

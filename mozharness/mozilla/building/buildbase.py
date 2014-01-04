@@ -1088,52 +1088,74 @@ or run without that action (ie: --no-{action})"
              'create_partial', 'platform_supports_partials',
              'aus2_base_upload_dir', 'update_platform'], 'update'
         )
-        if not self.query_is_nightly():
-            self.info("Skipping action because this action is only done for "
-                      "nightlies...")
-            return
         c = self.config
         dirs = self.query_abs_dirs()
+        if not self.query_is_nightly() and (
+                c['create_snippets'] and c['platform_supports_snippets']):
+            self.info("Skipping action because this action is only done for "
+                      "nightlies and that support/enable snippets...")
+            return
         dist_update_dir = os.path.join(dirs['abs_obj_dir'],
                                        'dist',
                                        'update')
-        # if branch supports snippets and platform supports snippets
-        if c['create_snippets'] and c['platform_supports_snippets']:
-            self._create_snippet('complete')
-            buildid = self.query_buildid()
-            # if branch supports partials and platform supports partials
-            if c['create_partial'] and c['platform_supports_partials']:
-                self._create_snippet('partial')
-                buildid = self._query_previous_buildid()
+        base_ssh_cmd = 'ssh -l %s -i ~/.ssh/%s %s ' % (c['aus2_user'],
+                                                       c['aus2_ssh_key'],
+                                                       c['aus2_host'])
+        root_aus_full_dir = "%s/%s/%s" % (c['aus2_base_upload_dir'],
+                                          self.branch,
+                                          c['update_platform'])
+        ##### Create snippet steps
+        # create a complete snippet
+        self._create_snippet('complete')
+        buildid = self.query_buildid()
+        # if branch supports partials and platform supports partials
+        if c['create_partial'] and c['platform_supports_partials']:
+            # now create a partial snippet
+            self._create_snippet('partial')
+            # let's change the buildid to be the previous buildid
+            # because that the previous upload dir uses that id
+            buildid = self._query_previous_buildid()
+        #####
 
-            self.info("Creating AUS previous upload dir")
-            aus_prev_upload_dir = "%s/%s/%s/%s/en-US" % (
-                c['aus2_base_upload_dir'], self.branch,
-                c['update_platform'], buildid,
-            )
-            cmd = 'ssh -l %s -i ~/.ssh/%s %s mkdir -p %s' % (
-                c['aus2_user'], c['aus2_ssh_key'], c['aus2_host'],
-                aus_prev_upload_dir
-            )
-            self.retry(self.run_command, args=(cmd,))
+        ##### Upload snippet steps
+        self.info("Creating AUS previous upload dir")
+        aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+                                               buildid)
+        cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
+        self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
-            upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
-                          ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
-                              c['aus2_user'], c['aus2_ssh_key'],
-                              dist_update_dir, c['aus2_host'],
-                              aus_prev_upload_dir)
-                          )
-            self.info("uploading complete snippet")
+        # make an upload command that supports complete and partial formatting
+        upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
+                      ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
+                          c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
+                          c['aus2_host'], aus_prev_upload_dir)
+                      )
+        self.info("uploading complete snippet")
+        self.retry(self.run_command,
+                   args=(upload_cmd % ('complete', 'complete'),))
+        # if branch supports partials and platform supports partials
+        if c['create_partial'] and c['platform_supports_partials']:
+            self.info("uploading partial snippet")
             self.retry(self.run_command,
-                       args=(upload_cmd % ('complete', 'complete'),))
-            # if branch supports partials and platform supports partials
-            if c['create_partial'] and c['platform_supports_partials']:
-                self.info("uploading partial snippet")
-                self.retry(self.run_command,
-                           args=(upload_cmd % ('partial', 'partial'),))
-            # TODO start by making a base ssh -l cmd and then continuing line
-            # 2394. Also, look at how massimo created a touch method and why!
+                       args=(upload_cmd % ('partial', 'partial'),))
+            self.info("creating aus current upload dir")
+            aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+                                                      self.query_buildid())
+            cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
+            self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+            # Create remote empty complete/partial snippets for current
+            # build.  Also touch the remote platform dir to defeat NFS
+            # caching on the AUS webheads.
+            self.info("creating empty snippets")
+            cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
+                aus_current_upload_dir, aus_current_upload_dir,
+                root_aus_full_dir
+            )
+            self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+        #####
 
+        ##### submit balrog update steps
+        #####
     def enable_ccache(self):
         dirs = self.query_abs_dirs()
         env = self.query_build_env()

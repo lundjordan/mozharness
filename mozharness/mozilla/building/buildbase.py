@@ -1086,7 +1086,7 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['create_snippets', 'platform_supports_snippets',
              'create_partial', 'platform_supports_partials',
-             'aus2_base_upload_dir', 'update_platform'], 'update'
+             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'], 'update'
         )
         c = self.config
         dirs = self.query_abs_dirs()
@@ -1155,6 +1155,7 @@ or run without that action (ie: --no-{action})"
         #####
 
         ##### submit balrog update steps
+        if c['balrog_api_root']:
         #####
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

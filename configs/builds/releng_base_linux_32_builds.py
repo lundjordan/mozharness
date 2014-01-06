@@ -46,6 +46,15 @@ config = {
     # /buildbot-configs/mozilla/staging_config.py
     'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla.com/pub/\
 mozilla.org/firefox/nightly',
+    # TODO move balrog_api_root to a production/staging/etc sep config
+    # /buildbot-configs/mozilla/preproduction_config.py
+    # XXX: should point at aus4-admin-dev once production is pointing elsewhere
+    # # 'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
+    # /buildbot-configs/mozilla/production_config.py
+    # 'balrog_api_root': 'https://aus4-admin.mozilla.org',
+    # /buildbot-configs/mozilla/staging_config.py
+    # XXX: should point at aus4-admin-dev once production is pointing elsewhere
+    # # 'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
     # if false, only clobber 'abs_work_dir'
     # if true: possibly clobber, clobberer, and purge_builds
     # see PurgeMixin for clobber() conditions

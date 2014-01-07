@@ -596,21 +596,18 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
                 self.run_command(["ls", "-l", item])
         if self.return_code not in [0]:
             # update the worst log level and tbpl status
+            log_level = ERROR
+            tbpl_level = TBPL_FAILURE
             if self.return_code == 1:
-                parser.worst_log_level = parser.worst_level(
-                    WARNING, parser.worst_log_level
-                )
-                parser.worst_tbpl_status = parser.worst_level(
-                    TBPL_WARNING, parser.worst_tbpl_status,
-                    levels=TBPL_WORST_LEVEL_TUPLE
-                )
-            else:
-                parser.worst_log_level = parser.worst_level(
-                    ERROR, parser.worst_log_level
-                )
-                parser.worst_tbpl_status = parser.worst_level(
-                    TBPL_FAILURE, parser.worst_tbpl_status,
-                    levels=TBPL_WORST_LEVEL_TUPLE
-                )
+                log_level = WARNING
+                tbpl_level = TBPL_WARNING
+
+            parser.worst_log_level = parser.worst_level(
+                log_level, parser.worst_log_level
+            )
+            parser.worst_tbpl_status = parser.worst_level(
+                tbpl_level, parser.worst_tbpl_status,
+                levels=TBPL_WORST_LEVEL_TUPLE
+            )
         self.buildbot_status(parser.worst_tbpl_status,
                              level=parser.worst_log_level)

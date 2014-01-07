@@ -585,6 +585,21 @@ or run without that action (ie: --no-{action})"
         gs_pythonpath = os.path.join(dirs['abs_tools_dir'],
                                      'lib',
                                      'python')
+        # graph server takes all our build properties we initially
+        # (buildbot_config) and what started with and what we updated to since
+        # the script ran (buildbot_properties)
+        # TODO it would be better to grab all the properties that were
+        # persisted to file rather than use whats in the buildbot_properties
+        # live object so we become less action dependant.
+        graph_props_path = os.path.join(c['base_work_dir'],
+                                        "properties",
+                                        "graph_props.json")
+        all_current_props = dict(
+            chain(self.buildbot_config.items(),
+                  self.buildbot_properties.items())
+        )
+        self.dump_buildbot_properties_to_json(all_current_props,
+                                              graph_props_path)
 
         gs_env = self.query_build_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})
@@ -599,6 +614,7 @@ or run without that action (ie: --no-{action})"
         cmd.extend(['--resultsname', resultsname])
         cmd.extend(['--testresults',
                     str(self.query_buildbot_property('testresults'))])
+        cmd.extend(['--properties-file', graph_props_path])
         cmd.extend(['--timestamp', str(self.epoch_timestamp)])
 
         self.info("Obtaining graph server post results")
@@ -1082,6 +1098,49 @@ or run without that action (ie: --no-{action})"
             for line in f:
                 self.info(line)
 
+    def _submit_balrog_updates(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        # first download buildprops_balrog.json this should be all the
+        # buildbot properties we got initially (buildbot_config) and what
+        # we have updated with since the script ran (buildbot_properties)
+        # TODO it would be better to grab all the properties that were
+        # persisted to file rather than use whats in the
+        # buildbot_properties live object. However, this should work for
+        # now and balrog may be removing the buildprops cli arg once we no
+        # longer use buildbot
+        balrog_props_path = os.path.join(c['base_work_dir'],
+                                         "properties",
+                                         "balrog_props.json")
+        balrog_submitter_path = os.path.join(dirs['abs_tools_dir'],
+                                             'scripts',
+                                             'updates',
+                                             'balrog-submitter.py')
+        all_current_props = dict(
+            chain(self.buildbot_config.items(),
+                  self.buildbot_properties.items())
+        )
+        self.dump_buildbot_properties_to_json(all_current_props,
+                                              balrog_props_path)
+        cmd = [
+            self.query_exe('python'),
+            balrog_submitter_path,
+            '--build-properties', balrog_props_path,
+            '--api-root', c['balrog_api_root'],
+            '--verbose',
+        ]
+        if c['balrog_credentials_file']:
+            self.info("Using Balrog credential file...")
+            abs_balrog_cred_file = os.path.join(
+                c['base_work_dir'], c['balrog_credentials_file']
+            )
+            if not abs_balrog_cred_file:
+                self.fatal("credential file given but doesn't exist!"
+                           " Path given: %s" % (abs_balrog_cred_file))
+            cmd.extend(['--credentials-file', abs_balrog_cred_file])
+        self.info("Submitting Balrog updates...")
+        self.retry(self.run_command, args=(cmd,))
+
     def update(self):
         self._assert_cfg_valid_for_action(
             ['create_snippets', 'platform_supports_snippets',
@@ -1155,8 +1214,26 @@ or run without that action (ie: --no-{action})"
         #####
 
         ##### submit balrog update steps
+        # we need this check here because in pre-prod and staging we don't have
+        # this set up yet
         if c['balrog_api_root']:
+            # TODO balrog_api_root will be False for every build until we get
+            # BuildSlaves.py downloaded to the slave
+            self._submit_balrog_updates()
         #####
+
+    # TODO trigger other schedulers (if any) I think this may be l10n nightly
+    # builders when we do nightly builds here. I reckon this will need to be
+    # done from the master
+
+    def cleanup(self):
+        if not self.query_is_nightly():
+            self.info("No clean up required for non nightlies.")
+            return
+        # TODO find out if we should blow away the whole abs_work_dir
+        self.rmtree(dirs['abs_src_dir'])
+
+
     def enable_ccache(self):
         dirs = self.query_abs_dirs()
         env = self.query_build_env()

@@ -153,6 +153,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 # variant, use --release-to-latest in post upload cmd
                 'platform_supports_post_upload_to_latest': True,
                 'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
+                'balrog_credentials_file': 'BuildSlaves.py',
             }
         }
         # TODO epoch is only here to represent the start of the buildbot build
@@ -223,6 +224,12 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         abs_dirs = super(FxDesktopBuild, self).query_abs_dirs()
 
         dirs = {
+            # BuildFactories in factory.py refer to a 'build' dir on the slave.
+            # This contains all the source code/objdir to compile.  However,
+            # there is already a build dir in mozharness for every mh run. The
+            # 'build' that factory refers to I named: 'source' so
+            # there is a seperation in mh.  for example, rather than having
+            # '{mozharness}/build/build/', I have '{mozharness}/build/source/'
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
                                         'source'),
             'abs_obj_dir': os.path.join(abs_dirs['abs_work_dir'],

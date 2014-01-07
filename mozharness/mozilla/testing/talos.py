@@ -411,7 +411,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
         if self._is_metro_mode():
             # Bug 956384 - Enable addons for talos runs when running metro
             options.extend(
-                ['--setPref', {'extensions.defaultProviders.enabled': True}]
+                ['--setPref', 'extensions.defaultProviders.enabled=True']
             )
         # extra arguments
         if args is None:

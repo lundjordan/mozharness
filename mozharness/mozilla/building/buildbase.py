@@ -17,6 +17,7 @@ import re
 import time
 import uuid
 import copy
+import glob
 from itertools import chain
 
 # import the power of mozharness ;)
@@ -428,11 +429,9 @@ or run without that action (ie: --no-{action})"
                                        'dist',
                                        'update')
         self.info('removing existing mar...')
-        # TODO use glob and self.rmtree
-        self.run_command(['rm' '-rf' '*.mar'],
-                         cwd=dist_update_dir,
-                         env=env,
-                         halt_on_failuer=True)
+        mar_file_results = glob.glob(os.path.join(dist_update_dir, '*.mar'))
+        for mar_file in mar_file_results:
+            self.rmtree(mar_file, error_level=FATAL)
         self.info('making a complete new mar...')
         update_pkging_path = os.path.join(dirs['abs_obj_dir'],
                                           'tools',
@@ -462,23 +461,19 @@ or run without that action (ie: --no-{action})"
         dist_update_dir = os.path.join(dirs['abs_obj_dir'],
                                        'dist',
                                        'update')
-        self.info('removing old unpacked dirs...')
-        # TODO use self.rmtree
-        self.run_command(['rm', '-rf', 'current', 'current.work', 'previous'],
-                         cwd=dirs['abs_obj_dir'],
-                         env=update_env,
-                         halt_on_failure=True)
+        self.info('removing nld unpacked dirs...')
+        for f in ['current', 'current.work', 'previous']:
+            self.rmtree(os.path.join(dirs['abs_obj_dir'], f),
+                        error_level=FATAL)
         self.info('making unpacked dirs...')
-        # TODO use self.mkdir_p
-        self.run_command(['mkdir', 'current', 'previous'],
-                         cwd=dirs['abs_obj_dir'],
-                         env=update_env,
-                         halt_on_failure=True)
+        for f in ['current', 'previous']:
+            self.mkdir_p(os.path.join(dirs['abs_obj_dir'], f),
+                        error_level=FATAL)
         self.info('unpacking current mar...')
         mar_file = self.query_buildbot_property('completeMarFilename')
-        # TODO use self.query_exe('perl')
-        cmd = 'perl %s %s' % (abs_unwrap_update_path,
-                              os.path.join(dist_update_dir, mar_file)),
+        cmd = '%s %s %s' % (self.query_exe('perl'),
+                            abs_unwrap_update_path,
+                            os.path.join(dist_update_dir, mar_file))
         self.run_mock_command(c['mock_target'],
                               cmd=cmd,
                               cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
@@ -503,17 +498,14 @@ or run without that action (ie: --no-{action})"
                                                previous_mar_file)
         self.info('downloading previous mar...')
         # use self.download_file(self, url, file_name=None
-        cmd = 'wget -O previous.mar --no-check-certificate %s' % (
-            previous_mar_url,
-        )
-        self.retry(self.run_mock_command(c.get('mock_target'),
-                                         cmd=cmd,
-                                         cwd=dist_update_dir,
-                                         error_level=FATAL))
+        self.download_file(previous_mar_url,
+                           file_name='previous.mar',
+                           parent_dir=dist_update_dir,
+                           error_level=FATAL)
         self.info('unpacking previous mar...')
-        # TODO use self.query_exe('perl')
-        cmd = 'perl %s %s' % (abs_unwrap_update_path,
-                              os.path.join(dist_update_dir, 'previous.mar')),
+        cmd = '%s %s %s' % (self.query_exe('perl'),
+                            abs_unwrap_update_path,
+                            os.path.join(dist_update_dir, 'previous.mar'))
         self.run_mock_command(c['mock_target'],
                               cmd=cmd,
                               cwd=os.path.join(dirs['abs_obj_dir'],
@@ -530,11 +522,15 @@ or run without that action (ie: --no-{action})"
                              cwd=os.path.join(dirs['abs_obj_dir'],
                                               mar_dirs))
         self.info("removing existing partial mar...")
-        # TODO use glob and self.rmtree
-        self.run_command(cmd=["rm" "-rf" "*.partial.*.mar"],
-                         env=generic_env,
-                         cwd=dist_update_dir,
-                         halt_on_failure=True)
+        mar_file_results = glob.glob(
+            os.path.join(dist_update_dir, '*.partial.*.mar')
+        )
+        if not mar_file_results:
+            self.warning("Could not determine existing partial mar from "
+                         "%s pattern in %s dir" % ('*.partial.*.mar',
+                                                   dist_update_dir))
+        for mar_file in mar_file_results:
+            self.rmtree(mar_file, error_level=FATAL)
 
         self.info('generating partial patch from two complete mars...')
         make_partial_env = {
@@ -551,11 +547,8 @@ or run without that action (ie: --no-{action})"
                               env=dict(chain(update_env.items(),
                                              make_partial_env.items())),
                               halt_on_failure=True)
-        # TODO use self.rmtree
-        self.run_command(cmd=['rm', '-rf', 'previous.mar'],
-                         env=generic_env,
-                         cwd=dist_update_dir,
-                         halt_on_failure=True)
+        self.rmtree(os.path.join(dist_update_dir, 'previous.mar'),
+                    error_level=FATAL)
         self._set_file_properties(file_name=c['partial_mar_pattern'],
                                   find_dir=dist_update_dir,
                                   prop_type='partialMar')

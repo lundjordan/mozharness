@@ -383,7 +383,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
         if self.config.get('python_webserver', True):
             options.append('--develop')
         # talos can't gather data if the process name ends with '.exe'
-        if binary_path.endswith('.exe'):
+        if binary_path.endswith('.exe') and not self._is_metro_mode():
             binary_path = binary_path[:-4]
         kw_options = {'output': 'talos.yml',  # options overwritten from **kw
                       'executablePath': binary_path,

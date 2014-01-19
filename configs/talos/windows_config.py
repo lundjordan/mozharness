@@ -50,5 +50,5 @@ config = {
     ],
     "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
     "metro_harness_path_frmt": "%(metro_base_path)s/metro/metrotestharness.exe",
-    "talos_json_url": "http://people.mozilla.org/~jlund/talos.json",
+    # "talos_json_url": "http://people.mozilla.org/~jlund/talos.json",
 }

@@ -468,7 +468,7 @@ or run without that action (ie: --no-{action})"
         self.info('making unpacked dirs...')
         for f in ['current', 'previous']:
             self.mkdir_p(os.path.join(dirs['abs_obj_dir'], f),
-                        error_level=FATAL)
+                         error_level=FATAL)
         self.info('unpacking current mar...')
         mar_file = self.query_buildbot_property('completeMarFilename')
         cmd = '%s %s %s' % (self.query_exe('perl'),
@@ -578,8 +578,8 @@ or run without that action (ie: --no-{action})"
         gs_pythonpath = os.path.join(dirs['abs_tools_dir'],
                                      'lib',
                                      'python')
-        # graph server takes all our build properties we initially
-        # (buildbot_config) and what started with and what we updated to since
+        # graph server takes all our build properties we had initially
+        # (buildbot_config) and what we updated to since
         # the script ran (buildbot_properties)
         # TODO it would be better to grab all the properties that were
         # persisted to file rather than use whats in the buildbot_properties
@@ -673,7 +673,6 @@ or run without that action (ie: --no-{action})"
                                    previous_buildid,
                                    write_to_file=True)
         return previous_buildid
-
 
     def _do_sendchanges(self):
         c = self.config
@@ -828,7 +827,7 @@ or run without that action (ie: --no-{action})"
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
         properties_needed = [
-            # TODO, do we need to set buildid twice like we already do in
+            # TODO, do we need to set buildid since we already do in
             # self.query_buildid() ?
             {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
@@ -854,7 +853,8 @@ or run without that action (ie: --no-{action})"
         # TODO in buildbot, we see if self.graphServer exists, but we know that
         # nightly does not use graph server so let's use that instead of adding
         # confusion to the configs. This may need to change once we
-        # port xul, valgrind, etc over
+        # port xul, valgrind, etc over and it turns out we need the
+        # graph_server condition
         # if self.config.get('graph_server'):
         if not self.query_is_nightly():
             self._graph_server_post()
@@ -898,7 +898,7 @@ or run without that action (ie: --no-{action})"
                               env=self.query_build_env())
 
         # TODO check for if 'rpm' not in self.platform_variation and
-        # self.productName not in ('xulrunner', 'b2g'):
+        # self.productName not 'xulrunner'
         find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
                                 'dist')
         self._set_file_properties(file_name=c['package_filename'],
@@ -985,7 +985,6 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'check-l10n'
         )
-        # TODO do we need l10n-check again if we do pretty names steps?
         c = self.config
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
@@ -1138,7 +1137,8 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['create_snippets', 'platform_supports_snippets',
              'create_partial', 'platform_supports_partials',
-             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'], 'update'
+             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'],
+            'update'
         )
         c = self.config
         dirs = self.query_abs_dirs()
@@ -1207,25 +1207,21 @@ or run without that action (ie: --no-{action})"
         #####
 
         ##### submit balrog update steps
-        # we need this check here because in pre-prod and staging we don't have
-        # this set up yet
         if c['balrog_api_root']:
-            # TODO balrog_api_root will be False for every build until we get
-            # BuildSlaves.py downloaded to the slave
             self._submit_balrog_updates()
         #####
 
     # TODO trigger other schedulers (if any) I think this may be l10n nightly
-    # builders when we do nightly builds here. I reckon this will need to be
-    # done from the master
+    # builders when we do nightly builds here. This will need to be
+    # done from the master in SigningScript/Script factory
 
     def cleanup(self):
+        dirs = self.query_abs_dirs()
         if not self.query_is_nightly():
             self.info("No clean up required for non nightlies.")
             return
         # TODO find out if we should blow away the whole abs_work_dir
         self.rmtree(dirs['abs_src_dir'])
-
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

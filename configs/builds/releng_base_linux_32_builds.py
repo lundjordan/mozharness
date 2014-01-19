@@ -1,60 +1,10 @@
 CLOBBERER_URL = 'http://clobberer.pvt.build.mozilla.org/index.php'
 STAGE_PRODUCT = 'firefox'
-# TODO move stage_server to a production/staging/etc sep config
-# /buildbot-configs/mozilla/preproduction_config.py
-# 'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
-# /buildbot-configs/mozilla/production_config.py
-# 'stage_server': 'stage.mozilla.org',
-# /buildbot-configs/mozilla/staging_config.py
-STAGE_SERVER = 'dev-stage01.srv.releng.scl3.mozilla.com'
 # TODO Reminder, stage_username and stage_ssh_key differ on Try
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
 config = {
-    # TODO move aus2_user to a production/staging/etc sep config
-    # /buildbot-configs/mozilla/preproduction_config.py
-    # line 10 -- 'aus2_user': 'cltbld',
-    # /buildbot-configs/mozilla/production_config.py
-    # line 60 -- 'aus2_user': 'ffxbld',
-    # /buildbot-configs/mozilla/staging_config.py
-    # line 37 -- 'aus2_user': 'ffxbld',
-    'aus2_user': 'ffxbld',
-    # TODO move aus2_ssh_key to a production/staging/etc sep config
-    # /buildbot-configs/mozilla/preproduction_config.py
-    # line 11 -- 'aus2_ssh_key': 'cltbld_dsa',
-    # /buildbot-configs/mozilla/production_config.py
-    # line 61 -- 'aus2_ssh_key': 'auspush',
-    # /buildbot-configs/mozilla/staging_config.py
-    # line 38 -- 'aus2_ssh_key': 'ffxbld_dsa',
-    'aus2_ssh_key': 'ffxbld_dsa',
-    # TODO move aus2_host to a production/staging/etc sep config
-    # /buildbot-configs/mozilla/preproduction_config.py
-    # line 9 -- 'aus2_host': 'preproduction-stage.srv.releng.scl3.mozilla.com',
-    # /buildbot-configs/mozilla/production_config.py
-    # line 59 -- 'aus2_host': 'aus3-staging.mozilla.org',
-    # /buildbot-configs/mozilla/staging_config.py
-    # line 36 -- 'aus2_host': 'dev-stage01.srv.releng.scl3.mozilla.com',
-    'aus2_host': 'dev-stage01.srv.releng.scl3.mozilla.com',
-    # TODO move download_base_url to a production/staging/etc sep config
-    # /buildbot-configs/mozilla/preproduction_config.py
-    # 'download_base_url': 'http://preproduction-stage.srv.releng.
-    # scl3.mozilla.com/pub/mozilla.org/firefox/nightly',
-    # /buildbot-configs/mozilla/production_config.py
-    # 'download_base_url':
-    # 'http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly',
-    # /buildbot-configs/mozilla/staging_config.py
-    'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla.com/pub/\
-mozilla.org/firefox/nightly',
-    # TODO move balrog_api_root to a production/staging/etc sep config
-    # /buildbot-configs/mozilla/preproduction_config.py
-    # XXX: should point at aus4-admin-dev once production is pointing elsewhere
-    # # 'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
-    # /buildbot-configs/mozilla/production_config.py
-    # 'balrog_api_root': 'https://aus4-admin.mozilla.org',
-    # /buildbot-configs/mozilla/staging_config.py
-    # XXX: should point at aus4-admin-dev once production is pointing elsewhere
-    # # 'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
     # if false, only clobber 'abs_work_dir'
     # if true: possibly clobber, clobberer, and purge_builds
     # see PurgeMixin for clobber() conditions

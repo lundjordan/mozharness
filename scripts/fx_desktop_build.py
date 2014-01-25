@@ -29,54 +29,65 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 class FxBuildOptionParser(object):
     platform = None
     bits = None
+    config_file_search_path = [
+        '.', os.path.join(sys.path[0], '..', 'configs'),
+        os.path.join(sys.path[0], '..', '..', 'configs')
+    ]
+
     build_variants = {
         'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
         'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
         'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
     }
+    build_pools = {
+        'staging': 'builds/build_pool_specifics.py',
+        'preproduction': 'builds/build_pool_specifics.py',
+        'production': 'builds/build_pool_specifics.py',
+    }
 
     @classmethod
     def _query_pltfrm_and_bits(cls, target_option, options):
-        # this method will inspect the config file path and determine the
-        # platform and bits being used. It is for releng configs only
-        # error_msg = (
-        #     Whoops! \nI noticed you requested a custom build variant but I can
-        #     not determine the appropriate filename. You can either pass an
-        #     existing relative path or else a valid 'short name'. If you use a short name, say 'asan', I will need to 
-        #     trying to find the appropriate config to use but I need to know
-        #     what platform and bits you want to run this with.\nThis is what I
-        #     was able to find: %s\nOne way I can determine this is through
-        #     parsing the main config file passed with --config.\nFor
-        #     platform, the config filename must contain mac, windows, or linux.
-        #     For bits, it needs 32 or 64. \neg:
-        #     builds/releng_base_linux_64_builds.py. \nAlternatively, you can pass
-        #     --platform and --bits with the appropriate values. Either way, for now you
-        #     must pass these before --custom-build-variant. Unfortunately,
-        #     order matters for now.
+        """ determine platform and bits
 
-        # let's discover what platform we are using
+        This can be from either from a supplied --platform and --bits
+        or parsed from given config file names.
+        """
+        error_msg = (
+            'Whoops!\nYou are trying to passed a valid shortname for '
+            '%s. \nHowever, I need to know the %s to find the appropriate '
+            'filename. You can tell me by passing:\n\t"%s" or a config '
+            'filename via "--config" with %s in it. \nIn either case, these '
+            'option arguments must come before --custom-build-variant.'
+        )
+        current_config_files = options.config_files or []
         if not cls.bits:
-            if '32' in options.config_files[0]:
-                cls.bits = '32'
-            elif '64' in options.config_files[0]:
-                cls.bits = '64'
+            # --bits has not been supplied
+            # lets parse given config file names for 32 or 64
+            for cfg_file_name in current_config_files:
+                if '32' in cfg_file_name:
+                    cls.bits = '32'
+                    break
+                if '64' in cfg_file_name:
+                    cls.bits = '64'
+                    break
             else:
-                sys.exit('Could not determine bits to use. '
-                         'Please ensure the "--config" has "32" or "64" in '
-                         'it and is specified prior to: %s' % (target_option,))
-        # now let's discover what platform we are using
+                sys.exit(error_msg % (target_option, 'bits', '--bits',
+                                      '"32" or "64"'))
+
         if not cls.platform:
-            if 'windows' in options.config_files[0]:
-                cls.platform = 'windows'
-            elif 'mac' in options.config_files[0]:
-                cls.platform = 'mac'
-            elif 'linux' in options.config_files[0]:
-                cls.platform = 'linux'
+            # --platform has not been supplied
+            # lets parse given config file names for platform
+            for cfg_file_name in current_config_files:
+                if 'windows' in cfg_file_name:
+                    cls.platform = 'windows'
+                if 'mac' in cfg_file_name:
+                    cls.platform = 'mac'
+                if 'linux' in cfg_file_name:
+                    cls.platform = 'linux'
             else:
-                sys.exit("Couldn't determine platform. Please ensure "
-                         'the "--config" has "windows", "mac", or "linux" in '
-                         'it and is specified prior to: %s' % (target_option,))
+                sys.exit(error_msg % (target_option, 'platform', '--platform',
+                                      '"linux", "windows", or "mac"'))
         return (cls.bits, cls.platform)
 
     @classmethod
@@ -87,43 +98,49 @@ class FxBuildOptionParser(object):
         shortname coupled with known platform/bits.
         """
 
-        build_variant_cfg_path = None
-        search_path = [
-            '.', os.path.join(sys.path[0], '..', 'configs'),
-            os.path.join(sys.path[0], '..', '..', 'configs')
-        ]
-        # first see if the value passed is a valid path
-        if os.path.exists(value):
-            build_variant_cfg_path = value
+        prospective_cfg_path = None
+        valid_variant_cfg_path = None
+        # first let's see if we were given a valid shortname
+        if cls.build_variants.get(value):
+            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
+            prospective_cfg_path = cls.build_variants[value] % (pltfrm, bits)
         else:
-            for path in search_path:
-                if os.path.exists(os.path.join(path, file_name)):
-                    build_variant_cfg_path = os.path.join(path, file_name)
-                    break
+            # now let's see if we were given a valid pathname
+            if os.path.exists(value):
+                # no need to search for it, this is a valid abs or relative
+                # pathname
+                valid_variant_cfg_path = value
             else:
-                if cls.build_variants.get(value):
-                    # TODO query platform and bits
-                    bits, pltfrm = cls._query_pltfrm_and_bits(opt,
-                                                              parser.values)
-                    config = cls.build_variants.get(value, '') % (pltfrm, bits)
-                    pass
-                    # TODO if not platform and bits exit with requirement msg
-        if not build_variant_cfg_path:
-            # either couldn't determine the file name or used an invalid
-            # short name
-            # TODO exit with requirement msg
-        # TODO save build_variant_cfg_path to dest and config_files
+                # this is either an incomplete path or an invalid key in
+                # build_variants
+                prospective_cfg_path = value
 
-        #     Whoops! \nI noticed you requested a custom build variant but I can
-        #     not determine the appropriate filename. You can either pass an
-        #     an existing file path 
-                ""
+        # last chance. let's search through some paths to see if we can
+        # determine a valid path
+        for path in cls.config_file_search_path:
+            if os.path.exists(os.path.join(path, prospective_cfg_path)):
+                # success! we found a config file
+                valid_variant_cfg_path = os.path.join(path,
+                                                      prospective_cfg_path)
+                break
+
+        if not valid_variant_cfg_path:
+            # either the value was an indeterminable path or an invalid short
+            # name
+            sys.exit("Whoops!\n--custom-build-variant was passed but it was "
+                     "either not:\n\ta valid shortname: %s \n\ta valid path "
+                     "in %s" % (str(cls.build_variants.keys()),
+                                str(cls.config_file_search_path)))
+        parser.values.config_files.append(valid_variant_cfg_path)
+        option.dest = valid_variant_cfg_path
+
+    @classmethod
+    def set_build_pool(cls, option, opt, value, parser):
 
 
-        bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
-        config = cls.build_variants.get(value, '') % (pltfrm, bits)
-        parser.values.config_files.append(config)
-        option.dest = value
+    @classmethod
+    def set_build_branch(cls, option, opt, value, parser):
+        # TODO
 
     @classmethod
     def set_platform(cls, option, opt, value, parser):
@@ -149,43 +166,50 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "callback": FxBuildOptionParser.set_platform,
             "type": "string",
             "dest": "platform",
-            "help": "Sets the platform we are running this against."}
+            "help": "Sets the platform we are running this against"
+                    "valid values: 'windows', 'mac', 'linux'"}
          ],
         [['--bits'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_bits,
             "type": "string",
             "dest": "bits",
-            "help": "Sets whether we want a 32 or 64 run of this."}
+            "help": "Sets which bits we are building this against"
+                    "valid values: '32', '64'"}
          ],
-        [['--custom-build-variant'], {
+        [['--variant-build-cfg'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_build_variant,
             "type": "string",
             "dest": "build_variant",
             "help": "Sets the build type and will determine appropriate "
-                    "additional config to use. Examples include: "
+                    "additional config to use. Either pass a config path "
+                    " or use a valid shortname from: "
                     "%s " % (FxBuildOptionParser.build_variants.keys(),)}
+         ],
+        [['--pool-build-cfg'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_build_pool,
+            "type": "string",
+            "dest": "build_pool",
+            "help": "This sets whether we want to use staging, preproduction, "
+                    "or production keys/values. The keys/values for this are "
+                    "in configs/building/pool_specifics.py"}
+         ],
+        [['--branch-build-cfg'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_build_branch,
+            "type": "string",
+            "dest": "branch",
+            "help": "Sets the repo branch being used and if there is a match "
+                    "in 'configs/building/branch_specifics.py', add that to "
+                    "the config."}
          ],
         [['--enable-pgo'], {
             "action": "store_true",
             "dest": "pgo_build",
             "default": False,
             "help": "Sets the build to run in PGO mode"}
-         ],
-        [['--build-pool-type'], {
-            "action": "store",
-            "dest": "build_pool",
-            "help": "This sets whether we want to use staging, preproduction, "
-                    "or production keys/values. The keys/values for this are "
-                    "in configs/building/pool_specifics.py"}
-         ],
-        [['--branch'], {
-            "action": "store",
-            "dest": "branch",
-            "help": "Sets the repo branch being used and if a match in "
-                    "configs/building/branch_specifics.py is found, use that"
-                    " config."}
          ],
     ]
 

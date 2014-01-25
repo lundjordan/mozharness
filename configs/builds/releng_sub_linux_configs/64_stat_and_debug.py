@@ -6,13 +6,16 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        'generate-build-properties',
-        # 'generate-build-stats', stat debug does not do this action
-        # 'make-and-upload-symbols', stat debug does not do this action
-        'make-packages',
-        'make-upload',
-        # 'test-pretty-names', stat debug does not do this action
-        # 'check-test-complete', stat debug does not do this action
+        'generate-build-props',
+        # 'generate-build-stats', stat debug skips this action
+        # 'symbols', stat debug skips this action
+        'packages',
+        'upload',
+        'sendchanges',
+        # 'pretty-names', stat debug skips this action
+        # 'check-l10n', stat debug skips this action
+        # 'check-test', stat debug skips this action
+        'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
     'platform': 'linux64-st-an-debug',

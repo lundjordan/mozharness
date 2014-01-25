@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # ***** BEGIN LICENSE BLOCK *****
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
@@ -28,7 +29,7 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 class FxBuildOptionParser(object):
     platform = None
     bits = None
-    build_types = {
+    build_variants = {
         'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
         'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
         'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
@@ -39,6 +40,20 @@ class FxBuildOptionParser(object):
     def _query_pltfrm_and_bits(cls, target_option, options):
         # this method will inspect the config file path and determine the
         # platform and bits being used. It is for releng configs only
+        # error_msg = (
+        #     Whoops! \nI noticed you requested a custom build variant but I can
+        #     not determine the appropriate filename. You can either pass an
+        #     existing relative path or else a valid 'short name'. If you use a short name, say 'asan', I will need to 
+        #     trying to find the appropriate config to use but I need to know
+        #     what platform and bits you want to run this with.\nThis is what I
+        #     was able to find: %s\nOne way I can determine this is through
+        #     parsing the main config file passed with --config.\nFor
+        #     platform, the config filename must contain mac, windows, or linux.
+        #     For bits, it needs 32 or 64. \neg:
+        #     builds/releng_base_linux_64_builds.py. \nAlternatively, you can pass
+        #     --platform and --bits with the appropriate values. Either way, for now you
+        #     must pass these before --custom-build-variant. Unfortunately,
+        #     order matters for now.
 
         # let's discover what platform we are using
         if not cls.bits:
@@ -65,11 +80,29 @@ class FxBuildOptionParser(object):
         return (cls.bits, cls.platform)
 
     @classmethod
-    def set_build_type(cls, option, opt, value, parser):
+    def set_build_variant(cls, option, opt, value, parser):
+        """ sets an extra config file.
+
+        This is done by either taking an existing filepath or by taking a valid
+        shortname coupled with known platform/bits.
+        """
+
+        # first see if value passed is a valid path
+        if os.path.exists(value):
+            pass
+
         bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
-        config = cls.build_types.get(value, '') % (pltfrm, bits)
+        config = cls.build_variants.get(value, '') % (pltfrm, bits)
         parser.values.config_files.append(config)
         option.dest = value
+
+    @classmethod
+    def set_platform(cls, option, opt, value, parser):
+        cls.platform = option.dest = value
+
+    @classmethod
+    def set_bits(cls, option, opt, value, parser):
+        cls.bits = option.dest = value
 
 
 class FxDesktopBuild(BuildingMixin, MercurialScript, object):
@@ -82,14 +115,28 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                     "infrastructure, use this option. It ignores actions"
                     "that are not needed and adds config checks."}
          ],
-        [['--custom-build-type'], {
+        [['--platform'], {
             "action": "callback",
-            "callback": FxBuildOptionParser.set_build_type,
+            "callback": FxBuildOptionParser.set_platform,
             "type": "string",
-            "dest": "build_type",
+            "dest": "platform",
+            "help": "Sets the platform we are running this against."}
+         ],
+        [['--bits'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_bits,
+            "type": "string",
+            "dest": "bits",
+            "help": "Sets whether we want a 32 or 64 run of this."}
+         ],
+        [['--custom-build-variant'], {
+            "action": "callback",
+            "callback": FxBuildOptionParser.set_build_variant,
+            "type": "string",
+            "dest": "build_variant",
             "help": "Sets the build type and will determine appropriate "
                     "additional config to use. Examples include: "
-                    "%s " % (FxBuildOptionParser.build_types.keys(),)}
+                    "%s " % (FxBuildOptionParser.build_variants.keys(),)}
          ],
         [['--enable-pgo'], {
             "action": "store_true",
@@ -97,15 +144,19 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "default": False,
             "help": "Sets the build to run in PGO mode"}
          ],
+        [['--build-pool-type'], {
+            "action": "store",
+            "dest": "build_pool",
+            "help": "This sets whether we want to use staging, preproduction, "
+                    "or production keys/values. The keys/values for this are "
+                    "in configs/building/pool_specifics.py"}
+         ],
         [['--branch'], {
             "action": "store",
             "dest": "branch",
-            "help": "Sets the repo branch being used"}
-         ],
-        [['--platform'], {
-            "action": "store",
-            "dest": "platform",
-            "help": "Sets the platform being used"}
+            "help": "Sets the repo branch being used and if a match in "
+                    "configs/building/branch_specifics.py is found, use that"
+                    " config."}
          ],
     ]
 
@@ -117,10 +168,12 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'pull',
                 'setup-mock',
                 'build',
-                'generate-build-info',
+                'generate-build-props',
+                'generate-build-stats',
                 'symbols',
                 'packages',
                 'upload',
+                'sendchanges',
                 'pretty-names',
                 'check-l10n',
                 'check-test',
@@ -156,55 +209,28 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                 'balrog_credentials_file': 'BuildSlaves.py',
             }
         }
+        super(FxDesktopBuild, self).__init__(**basescript_kwargs)
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
         # although it is about 4s off from the time this should be
         # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
-        self.repo_path = None
-        self.objdir = None
+        self.branch = self.config.get('branch')
+        self.bits = self.config.get('bits')
         self.buildid = None
         self.builduid = None
-        self.branch = None  # set in pre_config_lock
-        super(FxDesktopBuild, self).__init__(**basescript_kwargs)
+        self.repo_path = None
+        self.objdir = None
 
     def _pre_config_lock(self, rw_config):
-        """Validate cfg, parse buildbot props and load branch specifics.
-
-        First, if running through buildbot, add buildbot props to self.config
-        Then, if the branch specified is in branch_specifics, add the
-        keys/values to self.config for those.
-        Finally, validate that the appropriate configs are in
-        self.config for actions being run.
-
-        """
-        c = self.config
+        """grab buildbot props if we are running this in automation"""
         ### set the branch and platform
+        c = self.config
         if c['is_automation']:
             # parse buildbot config and add it to self.config
+            self.info("We are running this in buildbot, grab the build props")
             self.read_buildbot_config()
-            self.branch = self.buildbot_config['properties'].get('branch')
-            self.platform = self.buildbot_config['properties'].get('platform')
-            if not self.branch or not self.platform:
-                warn_msg_template = ("Could not determine %s in buildbot props"
-                                     ". Falling back to '%s' in self.config.")
-                if not self.branch:
-                    self.warning(warn_msg_template % ('branch', 'branch'))
-                    self.branch = c.get("branch")
-                if not self.platform:
-                    self.warning(warn_msg_template % ('platform', 'platform'))
-                    self.platform = c.get("platform")
-        else:  # --developer-run was specified
-            self.branch = c.get("branch")
-            self.platform = c.get("platform")
-        if not self.branch or not self.platform:
-            self.fatal("The branch or platorm could not be determined. If this"
-                       "is a developer run, you must specify them in your"
-                       "config. Branch: %s, Platform: %s" (
-                           self.branch or 'undetermined',
-                           self.platform or 'undetermined')
-                       )
         ###
 
         ### load branch specifics, if any
@@ -214,6 +240,19 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                       'Updating self.config with keys/values under '
                       'branch: "%s".' % (self.branch,))
             self.config.update(branch_configs[self.branch])
+        ###
+
+        ### load build pool specifics, if any
+        build_pool_configs = self.parse_config_file(
+            'builds/build_pool_specifics.py'
+        )
+        if build_pool_configs[c['build_pool']]:
+            self.info(
+                'Build pool found in file: "builds/build_pool_specifics.py". '
+                'Updating self.config with keys/values under build pool: '
+                '"%s".' % (c['build_pool'],)
+            )
+            self.config.update(build_pool_configs[c['build_pool']])
         ###
 
     # helpers

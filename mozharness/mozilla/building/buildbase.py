@@ -447,7 +447,7 @@ or run without that action (ie: --no-{action})"
     def _create_partial_mar(self):
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'update_env', 'platform_ftp_name'],
+            ['mock_target', 'update_env', 'platform_ftp_name', 'stage_server'],
             'upload'
         )
         c = self.config
@@ -674,7 +674,7 @@ or run without that action (ie: --no-{action})"
                                    write_to_file=True)
         return previous_buildid
 
-    def _do_sendchanges(self):
+    def sendchanges(self):
         c = self.config
 
         installer_url = self.query_buildbot_property('packageUrl')
@@ -801,11 +801,7 @@ or run without that action (ie: --no-{action})"
                               cwd=self.query_abs_dirs()['abs_src_dir'],
                               env=self.query_build_env())
 
-    def generate_build_info(self):
-        self._set_build_props()
-        self._set_build_stats()
-
-    def _set_build_props(self):
+    def generate_build_props(self):
         """set buildid, sourcestamp, appVersion, and appName."""
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
@@ -842,7 +838,7 @@ or run without that action (ie: --no-{action})"
                                        prop_val,
                                        write_to_file=True)
 
-    def _set_build_stats(self):
+    def generate_build_stats(self):
         """grab build stats following a compile.
 
         this action handles all statitics from a build:
@@ -909,7 +905,7 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['mock_target', 'upload_env', 'create_snippets',
              'platform_supports_snippets', 'create_partial',
-             'platform_supports_partials'], 'upload'
+             'platform_supports_partials', 'stage_server'], 'upload'
         )
         c = self.config
         if self.query_is_nightly():
@@ -922,6 +918,8 @@ or run without that action (ie: --no-{action})"
 
         upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
+        upload_env['UPLOAD_HOST'] = upload_env['UPLOAD_HOST'] % (
+            c['stage_server'],)
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
@@ -939,7 +937,6 @@ or run without that action (ie: --no-{action})"
             self.set_buildbot_property(prop,
                                        value,
                                        write_to_file=True)
-        self._do_sendchanges()
 
     def pretty_names(self):
         self._assert_cfg_valid_for_action(
@@ -975,7 +972,7 @@ or run without that action (ie: --no-{action})"
                               cmd=base_cmd % (update_package_cmd,),
                               cwd=dirs['abs_src_dir'],
                               env=env)
-        if c.get('l10n_check_test'):
+        if c.get('do_pretty_name_l10n_check'):
             self.run_mock_command(c['mock_target'],
                                   cmd=base_cmd % ("l10n-check",),
                                   cwd=dirs['abs_obj_dir'],

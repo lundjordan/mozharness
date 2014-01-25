@@ -5,6 +5,13 @@ STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
 config = {
+    #########################################################################
+    ######## LINUX GENERIC CONFIG KEYS/VAlUES
+    # if you are updating this with custom 32 bit keys/values please add them
+    # below under the '32 bit specific' code block otherwise, update in this
+    # code block and also make sure this is synced with
+    # releng_base_linux_64_builds.py
+
     # if false, only clobber 'abs_work_dir'
     # if true: possibly clobber, clobberer, and purge_builds
     # see PurgeMixin for clobber() conditions
@@ -22,13 +29,16 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        'generate-build-properties',
+        'generate-build-props',
         'generate-build-stats',
-        'make-and-upload-symbols',
-        'make-packages',
-        'make-upload',
-        'test-pretty-names',
-        'check-test-complete',
+        'symbols',
+        'packages',
+        'upload',
+        'sendchanges',
+        'pretty-names',
+        'check-l10n',
+        'check-test',
+        'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
     'exes': {
@@ -85,14 +95,14 @@ config = {
     'enable_package_tests': True,
     'stage_product': STAGE_PRODUCT,
     "enable_talos_sendchange": True,
-    "l10n_check_test": True,
+    "do_pretty_name_l10n_check": True,
     'upload_symbols': True,
 
-    'stage_server': STAGE_SERVER,
     'stage_username': STAGE_USERNAME,
     'stage_ssh_key': STAGE_SSH_KEY,
     'upload_env': {
-        'UPLOAD_HOST': STAGE_SERVER,
+        # stage_server is dictated from build_pool_specifics.py
+        'UPLOAD_HOST': "%(stage_server)s",
         'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
         'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
@@ -102,30 +112,11 @@ config = {
         'MBSDIFF': '../dist/host/bin/mbsdiff'
     },
     'latest_mar_dir': '/pub/mozilla.org/%s/nightly/latest-%%(branch)s' % (
-        STAGE_PRODUCT,)
-
-    # for testing, here is my master
-    "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
-    # production.py
-    # "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
-    # staging
-    # 'dev-master01.build.scl1.mozilla.com:9901'
-    # pre production
-    # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
-    # production.py
-    # "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
-    # staging
-    # 'dev-master01.build.scl1.mozilla.com:9901'
-    # pre production
-    # 'preproduction-master.srv.releng.scl3.mozilla.com:9008'
-    # if staging/preproduction we should have this key:
-    "graph_server_branch_name": "MozillaTest",
-    # else if production we let buildbot props decide in
-    # self._query_graph_server_branch_name()
-    ##############
+        STAGE_PRODUCT,),
+    #########################################################################
 
 
-
+    #########################################################################
     ###### 32 bit specific ######
     # TODO find out if we need all these platform keys
     # TODO port self.platform_variation self.complete_platform for RPM check
@@ -218,5 +209,5 @@ releng.manifest",
     },
     'base_name': 'Linux_%(branch)s',
     'update_platform': 'Linux_x86-gcc3',
-    ##############################
+    #########################################################################
 }

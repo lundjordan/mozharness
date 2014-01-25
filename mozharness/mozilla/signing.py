@@ -71,7 +71,7 @@ class SigningMixin(BaseSigningMixin):
                        " %s doesn't exist!" % binary_path)
             return False
         replace_dict = {
-            'type': snippet_type
+            'type': snippet_type,
             'version': version,
             'buildid': buildid,
             'url': url,

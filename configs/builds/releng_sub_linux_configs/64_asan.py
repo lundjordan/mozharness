@@ -6,13 +6,16 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        'generate-build-properties',
-        # 'generate-build-stats', asan does not do this action
-        'make-and-upload-symbols',
-        'make-packages',
-        'make-upload',
-        # 'test-pretty-names', asan does not do this action
-        'check-test-complete',
+        'generate-build-props',
+        # 'generate-build-stats', asan skips this action
+        'symbols',
+        'packages',
+        'upload',
+        'sendchanges',
+        # 'pretty-names', asan skips this action
+        # 'check-l10n', asan skips this action
+        'check-test',
+        'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
     'platform': 'linux64-asan',

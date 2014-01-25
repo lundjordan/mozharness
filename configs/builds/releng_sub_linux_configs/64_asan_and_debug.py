@@ -6,13 +6,16 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        'generate-build-properties',
-        # 'generate-build-stats', asan and debug does not do this action
-        'make-and-upload-symbols',
-        'make-packages',
-        'make-upload',
-        # 'test-pretty-names', asan and debug does not do this action
-        'check-test-complete',
+        'generate-build-props',
+        # 'generate-build-stats', asan_and_debug skips this action
+        'symbols',
+        'packages',
+        'upload',
+        'sendchanges',
+        # 'pretty-names', asan_and_debug skips this action
+        # 'check-l10n', asan_and_debug skips this action
+        'check-test',
+        'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
     'platform': 'linux64-asan-debug',

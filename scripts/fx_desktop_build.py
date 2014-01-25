@@ -87,9 +87,38 @@ class FxBuildOptionParser(object):
         shortname coupled with known platform/bits.
         """
 
-        # first see if value passed is a valid path
+        build_variant_cfg_path = None
+        search_path = [
+            '.', os.path.join(sys.path[0], '..', 'configs'),
+            os.path.join(sys.path[0], '..', '..', 'configs')
+        ]
+        # first see if the value passed is a valid path
         if os.path.exists(value):
-            pass
+            build_variant_cfg_path = value
+        else:
+            for path in search_path:
+                if os.path.exists(os.path.join(path, file_name)):
+                    build_variant_cfg_path = os.path.join(path, file_name)
+                    break
+            else:
+                if cls.build_variants.get(value):
+                    # TODO query platform and bits
+                    bits, pltfrm = cls._query_pltfrm_and_bits(opt,
+                                                              parser.values)
+                    config = cls.build_variants.get(value, '') % (pltfrm, bits)
+                    pass
+                    # TODO if not platform and bits exit with requirement msg
+        if not build_variant_cfg_path:
+            # either couldn't determine the file name or used an invalid
+            # short name
+            # TODO exit with requirement msg
+        # TODO save build_variant_cfg_path to dest and config_files
+
+        #     Whoops! \nI noticed you requested a custom build variant but I can
+        #     not determine the appropriate filename. You can either pass an
+        #     an existing file path 
+                ""
+
 
         bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
         config = cls.build_variants.get(value, '') % (pltfrm, bits)

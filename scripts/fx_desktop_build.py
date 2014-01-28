@@ -45,6 +45,7 @@ class FxBuildOptionParser(object):
         'preproduction': 'builds/build_pool_specifics.py',
         'production': 'builds/build_pool_specifics.py',
     }
+    branch_cfg_file = 'builds/branch_specifics.py'
 
     @classmethod
     def _query_pltfrm_and_bits(cls, target_option, options):
@@ -136,11 +137,44 @@ class FxBuildOptionParser(object):
 
     @classmethod
     def set_build_pool(cls, option, opt, value, parser):
+        prospective_cfg_path = None
+        valid_variant_cfg_path = None
+        # first let's see if we were given a valid shortname
+        if cls.build_pools.get(value):
+            for path in cls.config_file_search_path:
+                if os.path.exists(os.path.join(path, cls.build_pools[value])):
+                    # success! we found a config file
+                    valid_variant_cfg_path = os.path.join(
+                        path, cls.build_pools[value]
+                    )
+                    break
 
+            if not valid_variant_cfg_path:
+                # either the value was an indeterminable path or an invalid
+                # short name
+                sys.exit(
+                    "Whoops!\n--build-pool-type was passed with '%s' which "
+                    "depends on '%s' but I can not find that path in: %s"
+                    "Something is wrong. Did the script and/or config paths"
+                    "change?" % (
+                        value, cls.build_pools[value],
+                        str(cls.config_file_search_path)
+                    )
+                )
+            parser.values.config_files.append(valid_variant_cfg_path)
+            option.dest = valid_variant_cfg_path
+        else:
+            sys.exit(
+                "Whoops!\n--build-pool-type was passed with '%s' but only "
+                "'%s' are valid options" % (value, str(cls.build_pools.keys()))
+            )
 
     @classmethod
     def set_build_branch(cls, option, opt, value, parser):
-        # TODO
+        # first let's add the branch_specific file where there may be branch
+        # specific keys/values. Then let's store the branch name we are using
+        parser.values.config_files.append(branch_cfg_file)
+        option.dest = value  # the branch name
 
     @classmethod
     def set_platform(cls, option, opt, value, parser):
@@ -177,7 +211,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "help": "Sets which bits we are building this against"
                     "valid values: '32', '64'"}
          ],
-        [['--variant-build-cfg'], {
+        [['--custom-build-variant'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_build_variant,
             "type": "string",
@@ -187,23 +221,25 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                     " or use a valid shortname from: "
                     "%s " % (FxBuildOptionParser.build_variants.keys(),)}
          ],
-        [['--pool-build-cfg'], {
+        [['--build-pool-type'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_build_pool,
             "type": "string",
             "dest": "build_pool",
-            "help": "This sets whether we want to use staging, preproduction, "
-                    "or production keys/values. The keys/values for this are "
-                    "in configs/building/pool_specifics.py"}
+            "help": "This will update the config with specific pool "
+                    "environment keys/values. The dicts for this are "
+                    "in configs/building/pool_specifics.py\n"
+                    "Valid values: staging, preproduction, or production"}
          ],
-        [['--branch-build-cfg'], {
+        [['--branch'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_build_branch,
             "type": "string",
             "dest": "branch",
-            "help": "Sets the repo branch being used and if there is a match "
-                    "in 'configs/building/branch_specifics.py', add that to "
-                    "the config."}
+            "help": "This sets the branch we will be building this for. "
+                    "If this branch is in branch_specifics.py, update our "
+                    "config with specific keys/values from that. See "
+                    "configs/building/branch_specifics.py for possibilites"}
          ],
         [['--enable-pgo'], {
             "action": "store_true",

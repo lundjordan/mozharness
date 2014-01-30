@@ -139,30 +139,11 @@ class FxBuildOptionParser(object):
     def set_build_pool(cls, option, opt, value, parser):
         prospective_cfg_path = None
         valid_variant_cfg_path = None
-        # first let's see if we were given a valid shortname
         if cls.build_pools.get(value):
-            for path in cls.config_file_search_path:
-                if os.path.exists(os.path.join(path, cls.build_pools[value])):
-                    # success! we found a config file
-                    valid_variant_cfg_path = os.path.join(
-                        path, cls.build_pools[value]
-                    )
-                    break
-
-            if not valid_variant_cfg_path:
-                # either the value was an indeterminable path or an invalid
-                # short name
-                sys.exit(
-                    "Whoops!\n--build-pool-type was passed with '%s' which "
-                    "depends on '%s' but I can not find that path in: %s"
-                    "Something is wrong. Did the script and/or config paths"
-                    "change?" % (
-                        value, cls.build_pools[value],
-                        str(cls.config_file_search_path)
-                    )
-                )
-            parser.values.config_files.append(valid_variant_cfg_path)
-            option.dest = valid_variant_cfg_path
+            # first let's add the build pool file where there may be pool
+            # specific keys/values. Then let's store the pool name
+            parser.values.config_files.append(cls.build_pools[value])
+            option.dest = value  # the pool
         else:
             sys.exit(
                 "Whoops!\n--build-pool-type was passed with '%s' but only "
@@ -173,7 +154,7 @@ class FxBuildOptionParser(object):
     def set_build_branch(cls, option, opt, value, parser):
         # first let's add the branch_specific file where there may be branch
         # specific keys/values. Then let's store the branch name we are using
-        parser.values.config_files.append(branch_cfg_file)
+        parser.values.config_files.append(cls.branch_cfg_file)
         option.dest = value  # the branch name
 
     @classmethod
@@ -211,7 +192,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "help": "Sets which bits we are building this against"
                     "valid values: '32', '64'"}
          ],
-        [['--custom-build-variant'], {
+        [['--custom-build-variant-cfg'], {
             "action": "callback",
             "callback": FxBuildOptionParser.set_build_variant,
             "type": "string",
@@ -228,8 +209,8 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "dest": "build_pool",
             "help": "This will update the config with specific pool "
                     "environment keys/values. The dicts for this are "
-                    "in configs/building/pool_specifics.py\n"
-                    "Valid values: staging, preproduction, or production"}
+                    "in %s\nValid values: staging, preproduction, or "
+                    "production" % ('builds/build_pool_specifics.py',)}
          ],
         [['--branch'], {
             "action": "callback",
@@ -239,7 +220,9 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             "help": "This sets the branch we will be building this for. "
                     "If this branch is in branch_specifics.py, update our "
                     "config with specific keys/values from that. See "
-                    "configs/building/branch_specifics.py for possibilites"}
+                    "%s for possibilites" % (
+                        FxBuildOptionParser.branch_cfg_file,
+                    )}
          ],
         [['--enable-pgo'], {
             "action": "store_true",

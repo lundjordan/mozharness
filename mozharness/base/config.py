@@ -379,6 +379,36 @@ class BaseConfig(object):
             print "Default actions: " + ', '.join(self.default_actions)
         raise SystemExit(0)
 
+    def create_dict_from_config_files(self, all_config_files, parser):
+        """ returns a dict from a given list of config files.
+
+        this method can be overwritten in a script to add extra logic to the
+        way that self.config is made up. For eg:
+            Say you don't wish to update self.config with the entire contents
+            of a config file. You may have a config file that represents a dict
+            of branches.  These branches could be a series of dicts. You could
+            then look for the presence of such a known config file and take the
+            branch dict you desire from it.
+        """
+        config = {}
+        for cf in all_config_files:
+            try:
+                if '://' in cf:  # config file is an url
+                    file_name = os.path.basename(cf)
+                    file_path = os.path.join(os.getcwd(), file_name)
+                    download_config_file(cf, file_path)
+                    config.update(parse_config_file(file_path))
+                else:
+                    config.update(parse_config_file(cf))
+            except Exception:
+                if cf in parser.opt_config_files:
+                    print(
+                        "WARNING: optional config file not found %s" % cf
+                    )
+                else:
+                    raise
+        return config
+
     def parse_args(self, args=None):
         """Parse command line arguments in a generic way.
         Return the parser object after adding the basic options, so
@@ -398,24 +428,17 @@ class BaseConfig(object):
                 print("Required config file not set! (use --config-file option)")
                 raise SystemExit(-1)
         else:
-            config = {}
             # append opt_config to allow them to overwrite previous configs
             all_config_files = options.config_files + options.opt_config_files
-            for cf in all_config_files:
-                try:
-                    if '://' in cf: # config file is an url
-                        file_name = os.path.basename(cf)
-                        file_path = os.path.join(os.getcwd(), file_name)
-                        download_config_file(cf, file_path)
-                        config.update(parse_config_file(file_path))
-                    else:
-                        config.update(parse_config_file(cf))
-                except Exception:
-                    if cf in options.opt_config_files:
-                        print("WARNING: optional config file not found %s" % cf)
-                    else:
-                        raise
-            self.set_config(config)
+            # assign or update self._config depending on if it exists
+            #    *NOTE self._config will be passed to ReadOnlyConfig's init -- a
+            #    dict subclass with immutable locking capabilities -- and serve
+            #    as the keys/values that make up that instance. Ultimately,
+            #    this becomes self.config
+            self.set_config(
+                self.create_dict_from_config_files(all_config_files,
+                                                   parser=options)
+            )
         for key in defaults.keys():
             value = getattr(options, key)
             if value is None:

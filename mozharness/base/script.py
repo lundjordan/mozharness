@@ -1155,6 +1155,11 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 self.fatal("Aborting due to failure in pre-run listener.")
 
         self.dump_config()
+        if self.config.get("list_configs"):
+            # we only wish to dump and display what self.config is made up of,
+            # against the current script + args, without actually running any
+            # actions
+            raise SystemExit(0)
         try:
             for action in self.all_actions:
                 self.run_action(action)

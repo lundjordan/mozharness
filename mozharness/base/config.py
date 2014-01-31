@@ -267,6 +267,11 @@ class BaseConfig(object):
             dest="opt_config_files", type="string", default=[],
             help="Specify the optional config files"
         )
+        self.config_parser.add_option(
+            "--list-configs", action="store_true",
+            dest="list_configs",
+            help="Display only the config that would make up self.config"
+        )
 
         # Logging
         log_option_group = OptionGroup(self.config_parser, "Logging")
@@ -431,10 +436,10 @@ class BaseConfig(object):
             # append opt_config to allow them to overwrite previous configs
             all_config_files = options.config_files + options.opt_config_files
             # assign or update self._config depending on if it exists
-            #    *NOTE self._config will be passed to ReadOnlyConfig's init -- a
+            #    NOTE self._config will be passed to ReadOnlyConfig's init -- a
             #    dict subclass with immutable locking capabilities -- and serve
             #    as the keys/values that make up that instance. Ultimately,
-            #    this becomes self.config
+            #    this becomes self.config during BaseScript's init
             self.set_config(
                 self.create_dict_from_config_files(all_config_files,
                                                    parser=options)

@@ -24,6 +24,7 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 # import mozharness ;)
 from mozharness.mozilla.building.buildbase import BuildingMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.base.config import parse_config_file
 
 
 class FxBuildOptionParser(object):
@@ -106,24 +107,22 @@ class FxBuildOptionParser(object):
             bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
             prospective_cfg_path = cls.build_variants[value] % (pltfrm, bits)
         else:
-            # now let's see if we were given a valid pathname
-            if os.path.exists(value):
-                # no need to search for it, this is a valid abs or relative
-                # pathname
-                valid_variant_cfg_path = value
-            else:
-                # this is either an incomplete path or an invalid key in
-                # build_variants
-                prospective_cfg_path = value
+            # this is either an incomplete path or an invalid key in
+            # build_variants
+            prospective_cfg_path = value
 
-        # last chance. let's search through some paths to see if we can
-        # determine a valid path
-        for path in cls.config_file_search_path:
-            if os.path.exists(os.path.join(path, prospective_cfg_path)):
-                # success! we found a config file
-                valid_variant_cfg_path = os.path.join(path,
-                                                      prospective_cfg_path)
-                break
+        if os.path.exists(prospective_cfg_path):
+            # now let's see if we were given a valid pathname
+            valid_variant_cfg_path = value
+        else:
+            # let's take our prospective_cfg_path and see if we can
+            # determine an existing file
+            for path in cls.config_file_search_path:
+                if os.path.exists(os.path.join(path, prospective_cfg_path)):
+                    # success! we found a config file
+                    valid_variant_cfg_path = os.path.join(path,
+                                                          prospective_cfg_path)
+                    break
 
         if not valid_variant_cfg_path:
             # either the value was an indeterminable path or an invalid short
@@ -137,8 +136,6 @@ class FxBuildOptionParser(object):
 
     @classmethod
     def set_build_pool(cls, option, opt, value, parser):
-        prospective_cfg_path = None
-        valid_variant_cfg_path = None
         if cls.build_pools.get(value):
             # first let's add the build pool file where there may be pool
             # specific keys/values. Then let's store the pool name
@@ -295,36 +292,93 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         self.repo_path = None
         self.objdir = None
 
+    def create_dict_from_config_files(self, all_config_files, parser):
+        """ create a config based upon config files passed
+
+        This is class specific. It recognizes certain config files
+        by knowing how to combine them in an organized hierarchy
+        """
+        # overrided from BaseConfig
+        # *NOTE the base class of this method supports configs from urls. For
+        # the purpose of this script, which does not have to be generic, I am
+        # not adding that functionality.
+
+        config = {}
+        # important config files
+        build_variant_cfg_file = branch_cfg_file = build_pool_cfg_file = ''
+
+        # we want to make the order in which the options were given
+        # not matter. ie: you can supply --branch before --build-pool
+        # or vice versa and the hierarchy will not be different
+
+        #### The order from highest presedence to lowest is:
+        ## There can only be one of these...
+        # 1) build_pool: this can be either staging, preprod, and prod cfgs
+        # 2) branch: eg: mozilla-central, cedar, cypress, etc
+        # 3) build_variant: these could be known like asan and debug
+        #                   or a custom config
+        ##
+        ## There can be many of these
+        # 4) all other configs: these are any configs that are passed with
+        #                       --cfg and --opt-cfg. There order is kept in
+        #                       which they were passed on the cmd line. This
+        #                       behaviour is maintains what happens by default
+        #                       in mozharness
+        ##
+        ####
+
+        # so, let's first pop out the configs that hold a known position of
+        # importance (1 through 3)
+        for i, cf in enumerate(all_config_files):
+            if parser.build_pool:
+                if cf == FxBuildOptionParser.build_pools[parser.build_pool]:
+                    build_pool_cfg_file = all_config_files.pop(i)
+
+            if cf == FxBuildOptionParser.branch_cfg_file:
+                branch_cfg_file = all_config_files.pop(i)
+
+            if cf == parser.build_variant:
+                build_variant_cfg_file = all_config_files.pop(i)
+
+        # now let's update config with the remaining config files in their
+        # order
+        for cf in all_config_files:
+            config.update(parse_config_file(cf))
+
+        # now stack variant, branch, and pool cfg files on top of that,
+        # if they are present, in that order
+        if build_variant_cfg_file:
+            # take the whole config
+            config.update(parse_config_file(build_variant_cfg_file))
+        if branch_cfg_file:
+            # take only the specific branch, if present
+            branch_configs = parse_config_file(branch_cfg_file)
+            if branch_configs.get(parser.branch or ""):
+                print(
+                    'Branch found in file: "builds/branch_specifics.py". '
+                    'Updating self.config with keys/values under '
+                    'branch: "%s".' % (parser.branch,)
+                )
+                config.update(branch_configs[parser.branch])
+        if build_pool_cfg_file:
+            # take only the specific pool. If we are here, the pool
+            # must be present
+            build_pool_configs = self.parse_config_file(build_pool_cfg_file)
+            print(
+                'Build pool config found in file: '
+                '"builds/build_pool_specifics.py". Updating self.config'
+                ' with keys/values under build pool: '
+                '"%s".' % (parser.build_pool,)
+            )
+            config.update(build_pool_configs[parser.build_pool])
+
     def _pre_config_lock(self, rw_config):
         """grab buildbot props if we are running this in automation"""
-        ### set the branch and platform
         c = self.config
         if c['is_automation']:
             # parse buildbot config and add it to self.config
             self.info("We are running this in buildbot, grab the build props")
             self.read_buildbot_config()
-        ###
-
-        ### load branch specifics, if any
-        branch_configs = self.parse_config_file('builds/branch_specifics.py')
-        if branch_configs[self.branch]:
-            self.info('Branch found in file: "builds/branch_specifics.py". '
-                      'Updating self.config with keys/values under '
-                      'branch: "%s".' % (self.branch,))
-            self.config.update(branch_configs[self.branch])
-        ###
-
-        ### load build pool specifics, if any
-        build_pool_configs = self.parse_config_file(
-            'builds/build_pool_specifics.py'
-        )
-        if build_pool_configs[c['build_pool']]:
-            self.info(
-                'Build pool found in file: "builds/build_pool_specifics.py". '
-                'Updating self.config with keys/values under build pool: '
-                '"%s".' % (c['build_pool'],)
-            )
-            self.config.update(build_pool_configs[c['build_pool']])
         ###
 
     # helpers

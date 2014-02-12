@@ -213,6 +213,8 @@ class BaseConfig(object):
                  volatile_config=None,
                  require_config_file=False, usage="usage: %prog [options]"):
         self._config = {}
+        # XXX START HERE
+        self._all_config_files_and_dicts = []
         self.actions = []
         self.config_lock = False
         self.require_config_file = require_config_file
@@ -268,9 +270,10 @@ class BaseConfig(object):
             help="Specify the optional config files"
         )
         self.config_parser.add_option(
-            "--list-configs", action="store_true",
-            dest="list_configs",
-            help="Display only the config that would make up self.config"
+            "--list-config-hiearchy", action="store_true",
+            dest="list_config_hiearchy",
+            help="Displays how self.config is made up against script"
+                 "options given."
         )
 
         # Logging
@@ -384,7 +387,7 @@ class BaseConfig(object):
             print "Default actions: " + ', '.join(self.default_actions)
         raise SystemExit(0)
 
-    def create_dict_from_config_files(self, all_config_files, parser):
+    def create_dicts_from_config_files(self, all_config_files, parser):
         """ returns a dict from a given list of config files.
 
         this method can be overwritten in a script to add extra logic to the
@@ -395,16 +398,21 @@ class BaseConfig(object):
             then look for the presence of such a known config file and take the
             branch dict you desire from it.
         """
-        config = {}
+        # this is what we will return. It will represent each config
+        # file name and its assoctiated dict
+        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+        all_config_dicts = []
         for cf in all_config_files:
             try:
                 if '://' in cf:  # config file is an url
                     file_name = os.path.basename(cf)
                     file_path = os.path.join(os.getcwd(), file_name)
                     download_config_file(cf, file_path)
-                    config.update(parse_config_file(file_path))
+                    all_config_dicts.append(
+                        (file_path, parse_config_file(file_path))
+                    )
                 else:
-                    config.update(parse_config_file(cf))
+                    all_config_dicts.append((cf, parse_config_file(cf)))
             except Exception:
                 if cf in parser.opt_config_files:
                     print(
@@ -412,7 +420,7 @@ class BaseConfig(object):
                     )
                 else:
                     raise
-        return config
+        return all_config_dicts
 
     def parse_args(self, args=None):
         """Parse command line arguments in a generic way.
@@ -435,14 +443,18 @@ class BaseConfig(object):
         else:
             # append opt_config to allow them to overwrite previous configs
             all_config_files = options.config_files + options.opt_config_files
+            all_config_dicts = self.create_dicts_from_config_files(
+                all_config_files, parser=options
+            )
+
             # assign or update self._config depending on if it exists
             #    NOTE self._config will be passed to ReadOnlyConfig's init -- a
             #    dict subclass with immutable locking capabilities -- and serve
             #    as the keys/values that make up that instance. Ultimately,
             #    this becomes self.config during BaseScript's init
             self.set_config(
-                self.create_dict_from_config_files(all_config_files,
-                                                   parser=options)
+                self.create_dicts_from_config_files(all_config_files,
+                                                    parser=options)
             )
         for key in defaults.keys():
             value = getattr(options, key)

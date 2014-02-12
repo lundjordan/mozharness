@@ -169,7 +169,7 @@ class BuildbotMixin(object):
             if self.buildbot_config['sourcestamp']['changes'][0].get('who'):
                 sendchange += ['--username', self.buildbot_config['sourcestamp']['changes'][0]['who']]
             if self.buildbot_config['sourcestamp']['changes'][0].get('comments'):
-                sendchange += ['--comments', self.buildbot_config['sourcestamp']['changes'][0]['comments']]
+                sendchange += ['--comments', self.buildbot_config['sourcestamp']['changes'][0]['comments'].encode('ascii', 'ignore')]
         if sendchange_props:
             for key, value in sendchange_props.iteritems():
                 sendchange.extend(['--property', '%s:%s' % (key, value)])

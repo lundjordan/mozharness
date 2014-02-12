@@ -303,9 +303,12 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         # the purpose of this script, which does not have to be generic, I am
         # not adding that functionality.
 
-        config = {}
+        # this is what we will return. It will represent each config
+        # file name and its assoctiated dict
+        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+        all_config_dicts = []
         # important config files
-        build_variant_cfg_file = branch_cfg_file = build_pool_cfg_file = ''
+        variant_cfg_file = branch_cfg_file = pool_cfg_file = ''
 
         # we want to make the order in which the options were given
         # not matter. ie: you can supply --branch before --build-pool
@@ -332,24 +335,25 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         for i, cf in enumerate(all_config_files):
             if parser.build_pool:
                 if cf == FxBuildOptionParser.build_pools[parser.build_pool]:
-                    build_pool_cfg_file = all_config_files.pop(i)
+                    pool_cfg_file = all_config_files.pop(i)
 
             if cf == FxBuildOptionParser.branch_cfg_file:
                 branch_cfg_file = all_config_files.pop(i)
 
             if cf == parser.build_variant:
-                build_variant_cfg_file = all_config_files.pop(i)
+                variant_cfg_file = all_config_files.pop(i)
 
-        # now let's update config with the remaining config files in their
-        # order
+        # now let's update config with the remaining config files
         for cf in all_config_files:
-            config.update(parse_config_file(cf))
+            all_config_dicts.append((cf, parse_config_file(cf)))
 
-        # now stack variant, branch, and pool cfg files on top of that,
+        # stack variant, branch, and pool cfg files on top of that,
         # if they are present, in that order
-        if build_variant_cfg_file:
+        if variant_cfg_file:
             # take the whole config
-            config.update(parse_config_file(build_variant_cfg_file))
+            all_config_dicts.append(
+                (variant_cfg_file, parse_config_file(variant_cfg_file))
+            )
         if branch_cfg_file:
             # take only the specific branch, if present
             branch_configs = parse_config_file(branch_cfg_file)
@@ -359,18 +363,23 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
                     'Updating self.config with keys/values under '
                     'branch: "%s".' % (parser.branch,)
                 )
-                config.update(branch_configs[parser.branch])
-        if build_pool_cfg_file:
+                all_config_dicts.append(
+                    (branch_cfg_file, branch_configs[parser.branch])
+                )
+        if pool_cfg_file:
             # take only the specific pool. If we are here, the pool
             # must be present
-            build_pool_configs = self.parse_config_file(build_pool_cfg_file)
+            build_pool_configs = self.parse_config_file(pool_cfg_file)
             print(
                 'Build pool config found in file: '
                 '"builds/build_pool_specifics.py". Updating self.config'
                 ' with keys/values under build pool: '
                 '"%s".' % (parser.build_pool,)
             )
-            config.update(build_pool_configs[parser.build_pool])
+            all_config_dicts.append(
+                (pool_cfg_file, build_pool_configs[parser.build_pool])
+            )
+        return all_config_dicts
 
     def _pre_config_lock(self, rw_config):
         """grab buildbot props if we are running this in automation"""

@@ -961,7 +961,7 @@ def PostScriptAction(action=None):
 
 # BaseScript {{{1
 class BaseScript(ScriptMixin, LogMixin, object):
-    def __init__(self, config_options=None, get_cfgs_from_files_func=None,
+    def __init__(self, config_options=None, config_class=BaseConfig,
                  default_log_level="info", **kwargs):
         super(BaseScript, self).__init__()
 
@@ -1004,10 +1004,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
             config_options = []
         self.summary_list = []
         self.failures = []
-        rw_config = BaseConfig(
-            config_options=config_options,
-            get_cfgs_from_files_func=self._get_cfgs_from_files, **kwargs
-        )
+        rw_config = config_class(config_options=config_options, **kwargs)
         self.config = rw_config.get_read_only_config()
         self.actions = tuple(rw_config.actions)
         self.all_actions = tuple(rw_config.all_actions)

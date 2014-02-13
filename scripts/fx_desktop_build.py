@@ -22,6 +22,7 @@ from datetime import datetime
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 # import mozharness ;)
+from mozharness.base.config import BaseConfig
 from mozharness.mozilla.building.buildbase import BuildingMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.base.config import parse_config_file
@@ -147,7 +148,7 @@ class FxBuildOptionParser(object):
             # first let's add the build pool file where there may be pool
             # specific keys/values. Then let's store the pool name
             parser.values.config_files.append(cls.build_pools[value])
-            option.dest = value  # the pool
+            setattr(parser.values, option.dest, value)  # the pool
         else:
             sys.exit(
                 "Whoops!\n--build-pool-type was passed with '%s' but only "
@@ -159,104 +160,116 @@ class FxBuildOptionParser(object):
         # first let's add the branch_specific file where there may be branch
         # specific keys/values. Then let's store the branch name we are using
         parser.values.config_files.append(cls.branch_cfg_file)
-        option.dest = value  # the branch name
+        setattr(parser.values, option.dest, value)  # the branch name
 
     @classmethod
     def set_platform(cls, option, opt, value, parser):
-        cls.platform = option.dest = value
+        cls.platform = value
+        setattr(parser.values, option.dest, value)
 
     @classmethod
     def set_bits(cls, option, opt, value, parser):
-        cls.bits = option.dest = value
+        cls.bits = value
+        setattr(parser.values, option.dest, value)
 
-def get_cfgs_from_files(all_config_files, parser):
-    """ create a config based upon config files passed
 
-    This is class specific. It recognizes certain config files
-    by knowing how to combine them in an organized hierarchy
-    """
-    # overrided from BaseConfig
-    # *NOTE the base class of this method supports configs from urls. For
-    # the purpose of this script, which does not have to be generic, I am
-    # not adding that functionality.
+class FxBuildConfig(BaseConfig):
 
-    # this is what we will return. It will represent each config
-    # file name and its assoctiated dict
-    # eg ('builds/branch_specifics.py', {'foo': 'bar'})
-    all_config_dicts = []
-    # important config files
-    variant_cfg_file = branch_cfg_file = pool_cfg_file = ''
+    def get_cfgs_from_files(self, all_config_files, parser):
+        """ create a config based upon config files passed
 
-    # we want to make the order in which the options were given
-    # not matter. ie: you can supply --branch before --build-pool
-    # or vice versa and the hierarchy will not be different
+        This is class specific. It recognizes certain config files
+        by knowing how to combine them in an organized hierarchy
+        """
+        # overrided from BaseConfig
+        # *NOTE the base class of this method supports configs from urls. For
+        # the purpose of this script, which does not have to be generic, I am
+        # not adding that functionality.
 
-    #### The order from highest presedence to lowest is:
-    ## There can only be one of these...
-    # 1) build_pool: this can be either staging, preprod, and prod cfgs
-    # 2) branch: eg: mozilla-central, cedar, cypress, etc
-    # 3) build_variant: these could be known like asan and debug
-    #                   or a custom config
-    ##
-    ## There can be many of these
-    # 4) all other configs: these are any configs that are passed with
-    #                       --cfg and --opt-cfg. There order is kept in
-    #                       which they were passed on the cmd line. This
-    #                       behaviour is maintains what happens by default
-    #                       in mozharness
-    ##
-    ####
+        # this is what we will return. It will represent each config
+        # file name and its assoctiated dict
+        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+        all_config_dicts = []
+        # important config files
+        variant_cfg_file = branch_cfg_file = pool_cfg_file = ''
 
-    # so, let's first pop out the configs that hold a known position of
-    # importance (1 through 3)
-    for i, cf in enumerate(all_config_files):
-        if parser.build_pool:
-            if cf == FxBuildOptionParser.build_pools[parser.build_pool]:
-                pool_cfg_file = all_config_files.pop(i)
+        # we want to make the order in which the options were given
+        # not matter. ie: you can supply --branch before --build-pool
+        # or vice versa and the hierarchy will not be different
 
-        if cf == FxBuildOptionParser.branch_cfg_file:
-            branch_cfg_file = all_config_files.pop(i)
+        #### The order from highest presedence to lowest is:
+        ## There can only be one of these...
+        # 1) build_pool: this can be either staging, preprod, and prod cfgs
+        # 2) branch: eg: mozilla-central, cedar, cypress, etc
+        # 3) build_variant: these could be known like asan and debug
+        #                   or a custom config
+        ##
+        ## There can be many of these
+        # 4) all other configs: these are any configs that are passed with
+        #                       --cfg and --opt-cfg. There order is kept in
+        #                       which they were passed on the cmd line. This
+        #                       behaviour is maintains what happens by default
+        #                       in mozharness
+        ##
+        ####
 
-        if cf == parser.build_variant:
-            variant_cfg_file = all_config_files.pop(i)
+        # so, let's first assign the configs that hold a known position of
+        # importance (1 through 3)
+        for i, cf in enumerate(all_config_files):
+            if parser.build_pool:
+                if cf == FxBuildOptionParser.build_pools[parser.build_pool]:
+                    pool_cfg_file = all_config_files[i]
 
-    # now let's update config with the remaining config files
-    for cf in all_config_files:
-        all_config_dicts.append((cf, parse_config_file(cf)))
+            if cf == FxBuildOptionParser.branch_cfg_file:
+                branch_cfg_file = all_config_files[i]
 
-    # stack variant, branch, and pool cfg files on top of that,
-    # if they are present, in that order
-    if variant_cfg_file:
-        # take the whole config
-        all_config_dicts.append(
-            (variant_cfg_file, parse_config_file(variant_cfg_file))
-        )
-    if branch_cfg_file:
-        # take only the specific branch, if present
-        branch_configs = parse_config_file(branch_cfg_file)
-        if branch_configs.get(parser.branch or ""):
+            if cf == parser.build_variant:
+                variant_cfg_file = all_config_files[i]
+
+        # now remove these from the list if there was any
+        # we couldn't pop() these in the above loop as mutating a list while
+        # iterating through it causes spurious results :)
+        for cf in [pool_cfg_file, branch_cfg_file, variant_cfg_file]:
+            if cf:
+                all_config_files.remove(cf)
+
+        # now let's update config with the remaining config files
+        for cf in all_config_files:
+            all_config_dicts.append((cf, parse_config_file(cf)))
+
+        # stack variant, branch, and pool cfg files on top of that,
+        # if they are present, in that order
+        if variant_cfg_file:
+            # take the whole config
+            all_config_dicts.append(
+                (variant_cfg_file, parse_config_file(variant_cfg_file))
+            )
+        if branch_cfg_file:
+            # take only the specific branch, if present
+            branch_configs = parse_config_file(branch_cfg_file)
+            if branch_configs.get(parser.branch or ""):
+                print(
+                    'Branch found in file: "builds/branch_specifics.py". '
+                    'Updating self.config with keys/values under '
+                    'branch: "%s".' % (parser.branch,)
+                )
+                all_config_dicts.append(
+                    (branch_cfg_file, branch_configs[parser.branch])
+                )
+        if pool_cfg_file:
+            # take only the specific pool. If we are here, the pool
+            # must be present
+            build_pool_configs = parse_config_file(pool_cfg_file)
             print(
-                'Branch found in file: "builds/branch_specifics.py". '
-                'Updating self.config with keys/values under '
-                'branch: "%s".' % (parser.branch,)
+                'Build pool config found in file: '
+                '"builds/build_pool_specifics.py". Updating self.config'
+                ' with keys/values under build pool: '
+                '"%s".' % (parser.build_pool,)
             )
             all_config_dicts.append(
-                (branch_cfg_file, branch_configs[parser.branch])
+                (pool_cfg_file, build_pool_configs[parser.build_pool])
             )
-    if pool_cfg_file:
-        # take only the specific pool. If we are here, the pool
-        # must be present
-        build_pool_configs = parse_config_file(pool_cfg_file)
-        print(
-            'Build pool config found in file: '
-            '"builds/build_pool_specifics.py". Updating self.config'
-            ' with keys/values under build pool: '
-            '"%s".' % (parser.build_pool,)
-        )
-        all_config_dicts.append(
-            (pool_cfg_file, build_pool_configs[parser.build_pool])
-        )
-    return all_config_dicts
+        return all_config_dicts
 
 
 class FxDesktopBuild(BuildingMixin, MercurialScript, object):
@@ -375,7 +388,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             }
         }
         super(FxDesktopBuild, self).__init__(
-            get_cfgs_from_files_func=get_cfgs_from_files, **basescript_kwargs
+            config_class=FxBuildConfig, **basescript_kwargs
         )
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's

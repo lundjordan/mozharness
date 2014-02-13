@@ -25,7 +25,6 @@ TODO:
 """
 
 from copy import deepcopy
-from pprint import pprint
 from optparse import OptionParser, Option, OptionGroup
 import os
 import sys
@@ -205,42 +204,6 @@ def download_config_file(url, file_name):
         raise SystemError(-1)
 
 
-def create_dicts_from_config_files(all_config_files, parser):
-    """ returns a dict from a given list of config files.
-
-    this method can be overwritten in a script to add extra logic to the
-    way that self.config is made up. For eg:
-        Say you don't wish to update self.config with the entire contents
-        of a config file. You may have a config file that represents a dict
-        of branches.  These branches could be a series of dicts. You could
-        then look for the presence of such a known config file and take the
-        branch dict you desire from it.
-    """
-    # this is what we will return. It will represent each config
-    # file name and its assoctiated dict
-    # eg ('builds/branch_specifics.py', {'foo': 'bar'})
-    all_cfg_files_and_dicts = []
-    for cf in all_config_files:
-        try:
-            if '://' in cf:  # config file is an url
-                file_name = os.path.basename(cf)
-                file_path = os.path.join(os.getcwd(), file_name)
-                download_config_file(cf, file_path)
-                all_cfg_files_and_dicts.append(
-                    (file_path, parse_config_file(file_path))
-                )
-            else:
-                all_cfg_files_and_dicts.append((cf, parse_config_file(cf)))
-        except Exception:
-            if cf in parser.opt_config_files:
-                print(
-                    "WARNING: optional config file not found %s" % cf
-                )
-            else:
-                raise
-    return all_cfg_files_and_dicts
-
-
 # BaseConfig {{{1
 class BaseConfig(object):
     """Basic config setting/getting.
@@ -248,8 +211,7 @@ class BaseConfig(object):
     def __init__(self, config=None, initial_config_file=None, config_options=None,
                  all_actions=None, default_actions=None,
                  volatile_config=None,
-                 require_config_file=False, usage="usage: %prog [options]",
-                 get_cfgs_from_files_func=None):
+                 require_config_file=False, usage="usage: %prog [options]"):
         self._config = {}
         self.actions = []
         self.config_lock = False
@@ -279,7 +241,7 @@ class BaseConfig(object):
         if config_options is None:
             config_options = []
         self._create_config_parser(config_options, usage)
-        self.parse_args(get_cfgs_from_files_func=get_cfgs_from_files_func)
+        self.parse_args()
 
     def get_read_only_config(self):
         return ReadOnlyDict(self._config)
@@ -309,7 +271,7 @@ class BaseConfig(object):
             "--list-config-files", action="store_true",
             dest="list_config_files",
             help="Displays what config files are used and how their "
-                 "heirarchy makes up self.config."
+                 "heirarchy dictates self.config."
         )
 
         # Logging
@@ -435,7 +397,9 @@ class BaseConfig(object):
         # keys/values are present in a config file with a higher precedence,
         # ignore those.
         print "Total config files: %d" % (len(cfgs))
-        print "Config files being used from lowest precedence to highest:"
+        if len(cfgs):
+            print "Config files being used from lowest precedence to highest:"
+            print "====================================================="
         for i, (lower_file, lower_dict) in enumerate(cfgs):
             unique_keys = set(lower_dict.keys())
             unique_dict = {}
@@ -459,7 +423,43 @@ class BaseConfig(object):
         # finally exit since we only wish to see how the configs are layed out
         raise SystemExit(0)
 
-    def parse_args(self, args=None, get_cfgs_from_files_func=None):
+    def get_cfgs_from_files(self, all_config_files, parser):
+        """ returns a dict from a given list of config files.
+
+        this method can be overwritten in a subclassed BaseConfig to add extra
+        logic to the way that self.config is made up.
+        For eg:
+            Say you don't wish to update self.config with the entire contents
+            of a config file. You may have a config file that represents a dict
+            of branches.  These branches could be a series of dicts. You could
+            then look for the presence of such a known config file and take the
+            branch dict you desire from it.
+        """
+        # this is what we will return. It will represent each config
+        # file name and its assoctiated dict
+        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+        all_cfg_files_and_dicts = []
+        for cf in all_config_files:
+            try:
+                if '://' in cf:  # config file is an url
+                    file_name = os.path.basename(cf)
+                    file_path = os.path.join(os.getcwd(), file_name)
+                    download_config_file(cf, file_path)
+                    all_cfg_files_and_dicts.append(
+                        (file_path, parse_config_file(file_path))
+                    )
+                else:
+                    all_cfg_files_and_dicts.append((cf, parse_config_file(cf)))
+            except Exception:
+                if cf in parser.opt_config_files:
+                    print(
+                        "WARNING: optional config file not found %s" % cf
+                    )
+                else:
+                    raise
+        return all_cfg_files_and_dicts
+
+    def parse_args(self, args=None):
         """Parse command line arguments in a generic way.
         Return the parser object after adding the basic options, so
         child objects can manipulate it.
@@ -480,9 +480,7 @@ class BaseConfig(object):
         else:
             # append opt_config to allow them to overwrite previous configs
             all_config_files = options.config_files + options.opt_config_files
-            if not get_cfgs_from_files_func:
-                get_cfgs_from_files_func = create_dicts_from_config_files
-            all_cfg_files_and_dicts = get_cfgs_from_files_func(
+            all_cfg_files_and_dicts = self.get_cfgs_from_files(
                 all_config_files, parser=options
             )
             config = {}

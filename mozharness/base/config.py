@@ -385,7 +385,7 @@ class BaseConfig(object):
             print "Default actions: " + ', '.join(self.default_actions)
         raise SystemExit(0)
 
-    def list_config_files(self, cfgs):
+    def list_config_files(self, cfgs=None):
         """ list out each config file and print out the keys/values.
 
         The keys/values for each config file will represent what is being
@@ -396,6 +396,8 @@ class BaseConfig(object):
         # its keys/values that are being used in self.config. If any
         # keys/values are present in a config file with a higher precedence,
         # ignore those.
+        if not cfgs:
+            cfgs = []
         print "Total config files: %d" % (len(cfgs))
         if len(cfgs):
             print "Config files being used from lowest precedence to highest:"
@@ -472,6 +474,8 @@ class BaseConfig(object):
         defaults = self.config_parser.defaults.copy()
 
         if not options.config_files:
+            if options.list_config_files:
+                self.list_config_files()  # and exit
             if self.require_config_file:
                 if options.list_actions:
                     self.list_actions()

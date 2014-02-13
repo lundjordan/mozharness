@@ -1134,83 +1134,91 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['create_snippets', 'platform_supports_snippets',
              'create_partial', 'platform_supports_partials',
+             'aus2_user', 'aus2_ssh_key', 'aus2_host',
              'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'],
             'update'
         )
         c = self.config
-        dirs = self.query_abs_dirs()
-        if not self.query_is_nightly() and (
-                c['create_snippets'] and c['platform_supports_snippets']):
-            self.info("Skipping action because this action is only done for "
-                      "nightlies and that support/enable snippets...")
-            return
-        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
-                                       'dist',
-                                       'update')
-        base_ssh_cmd = 'ssh -l %s -i ~/.ssh/%s %s ' % (c['aus2_user'],
-                                                       c['aus2_ssh_key'],
-                                                       c['aus2_host'])
-        root_aus_full_dir = "%s/%s/%s" % (c['aus2_base_upload_dir'],
-                                          self.branch,
-                                          c['update_platform'])
-        ##### Create snippet steps
-        # create a complete snippet
-        self._create_snippet('complete')
-        buildid = self.query_buildid()
-        # if branch supports partials and platform supports partials
-        if c['create_partial'] and c['platform_supports_partials']:
-            # now create a partial snippet
-            self._create_snippet('partial')
-            # let's change the buildid to be the previous buildid
-            # because that the previous upload dir uses that id
-            buildid = self._query_previous_buildid()
-        #####
+        # dirs = self.query_abs_dirs()
+        for val in ['create_snippets', 'platform_supports_snippets',
+                    'create_partial', 'platform_supports_partials',
+                    'aus2_user', 'aus2_ssh_key', 'aus2_host',
+                    'aus2_base_upload_dir', 'update_platform',
+                    'balrog_api_root']:
 
-        ##### Upload snippet steps
-        self.info("Creating AUS previous upload dir")
-        aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
-                                               buildid)
-        cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
-        self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+            self.info(val, c[val])
+    #     if not self.query_is_nightly() and (
+    #             c['create_snippets'] and c['platform_supports_snippets']):
+    #         self.info("Skipping action because this action is only done for "
+    #                   "nightlies and that support/enable snippets...")
+    #         return
+    #     dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+    #                                    'dist',
+    #                                    'update')
+    #     base_ssh_cmd = 'ssh -l %s -i ~/.ssh/%s %s ' % (c['aus2_user'],
+    #                                                    c['aus2_ssh_key'],
+    #                                                    c['aus2_host'])
+    #     root_aus_full_dir = "%s/%s/%s" % (c['aus2_base_upload_dir'],
+    #                                       self.branch,
+    #                                       c['update_platform'])
+    #     ##### Create snippet steps
+    #     # create a complete snippet
+    #     self._create_snippet('complete')
+    #     buildid = self.query_buildid()
+    #     # if branch supports partials and platform supports partials
+    #     if c['create_partial'] and c['platform_supports_partials']:
+    #         # now create a partial snippet
+    #         self._create_snippet('partial')
+    #         # let's change the buildid to be the previous buildid
+    #         # because that the previous upload dir uses that id
+    #         buildid = self._query_previous_buildid()
+    #     #####
 
-        # make an upload command that supports complete and partial formatting
-        upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
-                      ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
-                          c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
-                          c['aus2_host'], aus_prev_upload_dir)
-                      )
-        self.info("uploading complete snippet")
-        self.retry(self.run_command,
-                   args=(upload_cmd % ('complete', 'complete'),))
-        # if branch supports partials and platform supports partials
-        if c['create_partial'] and c['platform_supports_partials']:
-            self.info("uploading partial snippet")
-            self.retry(self.run_command,
-                       args=(upload_cmd % ('partial', 'partial'),))
-            self.info("creating aus current upload dir")
-            aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
-                                                      self.query_buildid())
-            cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
-            self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
-            # Create remote empty complete/partial snippets for current
-            # build.  Also touch the remote platform dir to defeat NFS
-            # caching on the AUS webheads.
-            self.info("creating empty snippets")
-            cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
-                aus_current_upload_dir, aus_current_upload_dir,
-                root_aus_full_dir
-            )
-            self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
-        #####
+    #     ##### Upload snippet steps
+    #     self.info("Creating AUS previous upload dir")
+    #     aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+    #                                            buildid)
+    #     cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
+    #     self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
-        ##### submit balrog update steps
-        if c['balrog_api_root']:
-            self._submit_balrog_updates()
-        #####
+    #     # make an upload command that supports complete and partial formatting
+    #     upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
+    #                   ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
+    #                       c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
+    #                       c['aus2_host'], aus_prev_upload_dir)
+    #                   )
+    #     self.info("uploading complete snippet")
+    #     self.retry(self.run_command,
+    #                args=(upload_cmd % ('complete', 'complete'),))
+    #     # if branch supports partials and platform supports partials
+    #     if c['create_partial'] and c['platform_supports_partials']:
+    #         self.info("uploading partial snippet")
+    #         self.retry(self.run_command,
+    #                    args=(upload_cmd % ('partial', 'partial'),))
+    #         self.info("creating aus current upload dir")
+    #         aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+    #                                                   self.query_buildid())
+    #         cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
+    #         self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+    #         # Create remote empty complete/partial snippets for current
+    #         # build.  Also touch the remote platform dir to defeat NFS
+    #         # caching on the AUS webheads.
+    #         self.info("creating empty snippets")
+    #         cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
+    #             aus_current_upload_dir, aus_current_upload_dir,
+    #             root_aus_full_dir
+    #         )
+    #         self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+    #     #####
 
-    # TODO trigger other schedulers (if any) I think this may be l10n nightly
-    # builders when we do nightly builds here. This will need to be
-    # done from the master in SigningScript/Script factory
+    #     ##### submit balrog update steps
+    #     if c['balrog_api_root']:
+    #         self._submit_balrog_updates()
+    #     #####
+
+    # # TODO trigger other schedulers (if any) I think this may be l10n nightly
+    # # builders when we do nightly builds here. This will need to be
+    # # done from the master in SigningScript/Script factory
 
     def cleanup(self):
         dirs = self.query_abs_dirs()

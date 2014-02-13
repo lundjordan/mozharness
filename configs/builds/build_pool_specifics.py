@@ -4,7 +4,7 @@
 config = {
     "staging": {
         # for testing, here is my master
-        "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:8038"],
+        "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:8038"],
         # XXX TODO: use this dev sendchange master when we go live
         # "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:9901"],
         # XXX: should point at aus4-admin-dev once production is pointing

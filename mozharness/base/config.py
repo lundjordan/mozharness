@@ -268,10 +268,9 @@ class BaseConfig(object):
             help="Specify the optional config files"
         )
         self.config_parser.add_option(
-            "--list-config-files", action="store_true",
+            "--list-config-hierarchy", action="store_true",
             dest="list_config_files",
-            help="Displays what config files are used and how their "
-                 "heirarchy dictates self.config."
+            help="Specify the cfg files and their items used in self.config"
         )
 
         # Logging

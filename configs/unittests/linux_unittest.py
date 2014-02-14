@@ -35,7 +35,8 @@ config = {
         "reftest": "runreftest.py",
         "xpcshell": "runxpcshelltests.py",
         "cppunittest": "runcppunittests.py",
-        "jittest": "jit_test.py"
+        "jittest": "jit_test.py",
+        "mozbase": "test.py"
     },
     "minimum_tests_zip_dirs": ["bin/*", "certs/*", "modules/*", "mozbase/*", "config/*"],
     "specific_tests_zip_dirs": {
@@ -43,7 +44,8 @@ config = {
         "reftest": ["reftest/*", "jsreftest/*"],
         "xpcshell": ["xpcshell/*"],
         "cppunittest": ["cppunittests/*"],
-        "jittest": ["jit-test/*"]
+        "jittest": ["jit-test/*"],
+        "mozbase": ["mozbase/*"]
     },
     "reftest_options": [
         "--appname=%(binary_path)s", "--utility-path=tests/bin",
@@ -65,8 +67,12 @@ config = {
     ],
     "jittest_options": [
         "tests/bin/js",
+        "--no-slow",
+        "--no-progress",
         "--tinderbox",
         "--tbpl"
+    ],
+    "mozbase_options": [
     ],
     #local mochi suites
     "all_mochitest_suites": {
@@ -93,6 +99,7 @@ config = {
         "reftest-ipc": {'env': {'MOZ_OMTC_ENABLED': '1',
                                 'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
                         'options': ['--setpref=browser.tabs.remote=true',
+                                    '--setpref=browser.tabs.remote.autostart=true',
                                     '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
                                     'tests/reftest/tests/layout/reftests/reftest-sanity/reftest.list']},
         "reftest-no-accel": ['--setpref=layers.acceleration.force-enabled=disabled',
@@ -100,6 +107,7 @@ config = {
         "crashtest-ipc": {'env': {'MOZ_OMTC_ENABLED': '1',
                                   'MOZ_DISABLE_CONTEXT_SHARING_GLX': '1'},
                           'options': ['--setpref=browser.tabs.remote=true',
+                                      '--setpref=browser.tabs.remote.autostart=true',
                                       '--setpref=layers.offmainthreadcomposition.testing.enabled=true',
                                       'tests/reftest/tests/testing/crashtest/crashtests.list']},
     },
@@ -112,6 +120,9 @@ config = {
     },
     "all_jittest_suites": {
         "jittest": []
+    },
+    "all_mozbase_suites": {
+        "mozbase": []
     },
     "run_cmd_checks_enabled": True,
     "preflight_run_cmd_suites": [
@@ -130,20 +141,20 @@ config = {
                 # for windows.
                 "python", "../scripts/external_tools/mouse_and_screen_resolution.py",
                 "--configuration-url",
-                "http://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" +
+                "https://hg.mozilla.org/%(branch)s/raw-file/%(revision)s/" +
                     "testing/machine-configuration.json"],
             "architectures": ["32bit"],
             "halt_on_failure": True,
             "enabled": ADJUST_MOUSE_AND_SCREEN
         },
     ],
-    "repos": [{"repo": "http://hg.mozilla.org/build/tools"}],
+    "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
     "vcs_output_timeout": 1000,
     "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
     "minidump_save_path": "%(abs_work_dir)s/../minidumps",
     "buildbot_max_log_size": 52428800,
     "default_blob_upload_servers": [
-         "https://blobupload.elasticbeanstalk.com",
+        "https://blobupload.elasticbeanstalk.com",
     ],
-    "blob_uploader_auth_file" : os.path.join(os.getcwd(), "oauth.txt"),
+    "blob_uploader_auth_file": os.path.join(os.getcwd(), "oauth.txt"),
 }

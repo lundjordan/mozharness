@@ -398,6 +398,9 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.branch = self.config.get('branch')
         self.bits = self.config.get('bits')
+        self.platform = self.config.get('platform')
+        if self.bits == '64' and not self.platform.endswith('64'):
+            self.platform += '64'
         self.buildid = None
         self.builduid = None
         self.repo_path = None

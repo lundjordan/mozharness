@@ -20,8 +20,10 @@ config = {
 
     # hg tool stuff
     'default_vcs': 'hgtool',
+    # XXX REMOVE
+    'enable_signing': False,
     # decides whether we want to use moz_sign_cmd in env
-    'enable_signing': True,
+    # 'enable_signing': True,
     "repos": [{"repo": "http://hg.mozilla.org/users/jlund_mozilla.com/tools"}],
     "buildbot_json_path": "buildprops.json",
     'default_actions': [

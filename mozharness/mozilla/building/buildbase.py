@@ -758,7 +758,6 @@ or run without that action (ie: --no-{action})"
             return
         self._assert_cfg_valid_for_action(['mock_target'], 'setup-mock')
         c = self.config
-        self.reset_mock(c['mock_target'])
         self.init_mock(c['mock_target'])
         if c.get('mock_pre_package_copy_files'):
             self.copy_mock_files(c['mock_target'],

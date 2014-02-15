@@ -172,6 +172,11 @@ class DesktopUnittestOutputParser(OutputParser):
         return (self.tbpl_status, self.worst_log_level)
 
     def append_tinderboxprint_line(self, suite_name):
+        # We are duplicating a condition (fail_count) from evaluate_parser and
+        # parse parse_single_line but at little cost since we are not parsing
+        # the log more then once.  I figured this method should stay isolated as
+        # it is only here for tbpl highlighted summaries and is not part of
+        # buildbot evaluation or result status IIUC.
         summary = tbox_print_summary(self.pass_count,
                                      self.fail_count,
                                      self.known_fail_count,

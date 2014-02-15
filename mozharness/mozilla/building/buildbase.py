@@ -766,7 +766,7 @@ or run without that action (ie: --no-{action})"
             self.run_mock_command(c['mock_target'], cmd, '/')
         if c.get('mock_packages'):
             self.install_mock_packages(c['mock_target'],
-                                       c.get('mock_packages'))
+                                       list(c.get('mock_packages')))
         self.done_mock_setup = True
 
     def preflight_build(self):

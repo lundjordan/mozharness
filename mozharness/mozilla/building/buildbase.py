@@ -301,9 +301,10 @@ or run without that action (ie: --no-{action})"
         ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
         env.update(c['ccache_env'])
-        self.run_command(command=['ccache', '-z'],
-                         cwd=dirs['abs_src_dir'],
-                         env=env)
+        if dirs['abs_src_dir']:
+            self.run_command(command=['ccache', '-z'],
+                             cwd=dirs['abs_src_dir'],
+                             env=env)
 
     def _rm_old_package(self):
         """rm the old package."""
@@ -315,7 +316,8 @@ or run without that action (ie: --no-{action})"
         for product in old_packages:
             cmd.append(product % {"objdir": dirs['abs_obj_dir']})
         self.info("removing old packages...")
-        self.run_command(cmd, cwd=self.query_abs_dirs()['abs_src_dir'])
+        if dirs['abs_src_dir']:
+            self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
     def _get_mozconfig(self):
         """assign mozconfig."""

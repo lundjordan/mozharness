@@ -164,7 +164,7 @@ config = {
         'gcc45_0moz3', 'gcc454_0moz1', 'gcc472_0moz1', 'gcc473_0moz1',
         'yasm', 'ccache',
         ###
-        'valgrind',
+        'valgrind', 'dbus-x11',
         ######## 64 bit specific ###########
         'glibc-static', 'libstdc++-static',
         'gtk2-devel', 'libnotify-devel',

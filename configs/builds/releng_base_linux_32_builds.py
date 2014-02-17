@@ -168,7 +168,7 @@ config = {
         'alsa-lib-devel.i686', 'libcurl-devel.i686',
         'wireless-tools-devel.i686', 'libX11-devel.i686',
         'libXt-devel.i686', 'mesa-libGL-devel.i686',
-        'gnome-vfs2-devel.i686', 'GConf2-devel.i686'
+        'gnome-vfs2-devel.i686', 'GConf2-devel.i686',
         'pulseaudio-libs-devel.i686',
         'gstreamer-devel.i686', 'gstreamer-plugins-base-devel.i686',
         # Packages already installed in the mock environment, as x86_64

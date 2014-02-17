@@ -815,8 +815,8 @@ or run without that action (ie: --no-{action})"
         if (not os.path.exists(print_conf_setting_path) or
                 not os.path.exists(application_ini_path)):
             self.fatal("Can't set the following properties: "
-                       "buildid, sourcestamp, appVersion, and appName."
-                       "Required paths missing. Verify both %s and %s"
+                       "buildid, sourcestamp, appVersion, and appName. "
+                       "Required paths missing. Verify both %s and %s "
                        "exist. These paths require the 'build' action to be "
                        "run prior to this" % (print_conf_setting_path,
                                               application_ini_path))

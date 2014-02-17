@@ -1007,6 +1007,49 @@ class BaseScript(ScriptMixin, LogMixin, object):
         self._config_lock()
 
         self.info("Run as %s" % rw_config.command_line)
+        if self.config.get("interpret_config_files"):
+            # we only wish to dump and display what self.config is made up of,
+            # against the current script + args, without actually running any
+            # actions
+            self._interpret_config_files(rw_config.all_cfg_files_and_dicts)
+
+    def _interpret_config_files(self, cfg_files_and_dicts):
+        """ dump self.config to JSON and interpret each config file used.
+
+        Along with dumping out all of self.config, this will show which
+        keys/values are being added or overridden by other config files
+        depending on their hierarchy
+        """
+        # first let's dump the config
+        self.dump_config()
+
+        # now go through each config_file. We will start with the lowest and
+        # print its keys/values that are being used in self.config. If any
+        # keys/values are present in a config file with a higher precedence,
+        # ignore those.
+        cfgs = cfg_files_and_dicts  # for convenience
+        if not cfgs:
+            cfgs = []
+        self.info("Total config files: %d" % (len(cfgs)))
+        if len(cfgs):
+            self.info("cfg files used from lowest precedence to highest:")
+        for i, (lower_file, lower_dict) in enumerate(cfgs):
+            unique_keys = set(lower_dict.keys())
+            unique_dict = {}
+            # iterate through the lower_dicts remaining 'higher' cfgs
+            remaining_cfgs = cfgs[slice(i + 1, len(cfgs))]
+            for ii, (higher_file, higher_dict) in enumerate(remaining_cfgs):
+                # now only keep keys/values that are not overwritten by a
+                # higher config
+                unique_keys = unique_keys.difference(set(higher_dict.keys()))
+            # unique_dict we know now has only keys/values that are unique to
+            # this config file.
+            unique_dict = {k: lower_dict[k] for k in unique_keys}
+            self.action_message("Config File %d: %s" % (i + 1, lower_file))
+            self.info(pprint.pformat(unique_dict))
+
+        # finally let's exit early without running any actual actions
+        sys.exit()
 
     def _pre_config_lock(self, rw_config):
         """This empty method can allow for config checking and manipulation
@@ -1139,11 +1182,6 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 self.fatal("Aborting due to failure in pre-run listener.")
 
         self.dump_config()
-        if self.config.get("list_configs"):
-            # we only wish to dump and display what self.config is made up of,
-            # against the current script + args, without actually running any
-            # actions
-            raise SystemExit(0)
         try:
             for action in self.all_actions:
                 self.run_action(action)
@@ -1214,7 +1252,9 @@ class BaseScript(ScriptMixin, LogMixin, object):
         fh = codecs.open(file_path, encoding='utf-8', mode='w+')
         fh.write(json_config)
         fh.close()
-        self.info(pprint.pformat(config))
+        if not self.config.get("interpret_config_files"):
+            # we don't need to print this config if we are intrepreting it too
+            self.info(pprint.pformat(config))
 
     # logging {{{2
     def new_log_obj(self, default_log_level="info"):

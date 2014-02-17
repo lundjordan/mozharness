@@ -213,6 +213,7 @@ class BaseConfig(object):
                  volatile_config=None,
                  require_config_file=False, usage="usage: %prog [options]"):
         self._config = {}
+        self.all_cfg_files_and_dicts = []
         self.actions = []
         self.config_lock = False
         self.require_config_file = require_config_file
@@ -268,9 +269,11 @@ class BaseConfig(object):
             help="Specify the optional config files"
         )
         self.config_parser.add_option(
-            "--list-config-hierarchy", action="store_true",
-            dest="list_config_files",
-            help="Specify the cfg files and their items used in self.config"
+            "--interpret-config-files", action="store_true",
+            dest="interpret_config_files",
+            help="Dump the config that is created by the given options to a "
+                 "JSON file, specify which config files were used, and "
+                 "their keys/values that made it to the config"
         )
 
         # Logging
@@ -384,7 +387,7 @@ class BaseConfig(object):
             print "Default actions: " + ', '.join(self.default_actions)
         raise SystemExit(0)
 
-    def list_config_files(self, cfgs=None):
+    def interpret_config_files(self, cfgs=None):
         """ list out each config file and print out the keys/values.
 
         The keys/values for each config file will represent what is being
@@ -421,8 +424,6 @@ class BaseConfig(object):
                 cfg_format = " %%s%%%ds %%s" % (max_key_len - len(key) + 2,)
                 print cfg_format % (key, '=', value)
             print "====================================================="
-        # finally exit since we only wish to see how the configs are layed out
-        raise SystemExit(0)
 
     def get_cfgs_from_files(self, all_config_files, parser):
         """ returns a dict from a given list of config files.
@@ -436,9 +437,6 @@ class BaseConfig(object):
             then look for the presence of such a known config file and take the
             branch dict you desire from it.
         """
-        # this is what we will return. It will represent each config
-        # file name and its assoctiated dict
-        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
         all_cfg_files_and_dicts = []
         for cf in all_config_files:
             try:
@@ -473,25 +471,23 @@ class BaseConfig(object):
         defaults = self.config_parser.defaults.copy()
 
         if not options.config_files:
-            if options.list_config_files:
-                self.list_config_files()  # and exit
             if self.require_config_file:
                 if options.list_actions:
                     self.list_actions()
                 print("Required config file not set! (use --config-file option)")
                 raise SystemExit(-1)
         else:
-            # append opt_config to allow them to overwrite previous configs
-            all_config_files = options.config_files + options.opt_config_files
-            all_cfg_files_and_dicts = self.get_cfgs_from_files(
-                all_config_files, parser=options
+            # this is what get_cfgs_from_files returns. It will represent each
+            # config file name and its assoctiated dict
+            # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+            # let's store this to self for things like --interpret-config-files
+            self.all_cfg_files_and_dicts = self.get_cfgs_from_files(
+                # append opt_config to allow them to overwrite previous configs
+                options.config_files + options.opt_config_files, parser=options
             )
             config = {}
-            if options.list_config_files:
-                self.list_config_files(all_cfg_files_and_dicts)  # and exit
-            for c in all_cfg_files_and_dicts:
-                config.update(c[1])  # where c[0] is file_name and c[1] is dict
-
+            for i, (c_file, c_dict) in enumerate(self.all_cfg_files_and_dicts):
+                config.update(c_dict)
             # assign or update self._config depending on if it exists or not
             #    NOTE self._config will be passed to ReadOnlyConfig's init -- a
             #    dict subclass with immutable locking capabilities -- and serve

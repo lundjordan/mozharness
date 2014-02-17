@@ -920,7 +920,7 @@ or run without that action (ie: --no-{action})"
         upload_env = self.query_build_env()
         upload_env.update(c['upload_env'])
         upload_env['UPLOAD_HOST'] = upload_env['UPLOAD_HOST'] % {
-            stage_server: c['stage_server']}
+            "stage_server": c['stage_server']}
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])

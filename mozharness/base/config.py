@@ -387,44 +387,6 @@ class BaseConfig(object):
             print "Default actions: " + ', '.join(self.default_actions)
         raise SystemExit(0)
 
-    def interpret_config_files(self, cfgs=None):
-        """ list out each config file and print out the keys/values.
-
-        The keys/values for each config file will represent what is being
-        used in self.config. This will show which keys/values are being added
-        or overridden by other config files
-        """
-        # go through each config_file. We will start with the lowest and print
-        # its keys/values that are being used in self.config. If any
-        # keys/values are present in a config file with a higher precedence,
-        # ignore those.
-        if not cfgs:
-            cfgs = []
-        print "Total config files: %d" % (len(cfgs))
-        if len(cfgs):
-            print "Config files being used from lowest precedence to highest:"
-            print "====================================================="
-        for i, (lower_file, lower_dict) in enumerate(cfgs):
-            unique_keys = set(lower_dict.keys())
-            unique_dict = {}
-            # iterate through the lower_dicts remaining 'higher' cfgs
-            remaining_cfgs = cfgs[slice(i + 1, len(cfgs))]
-            for ii, (higher_file, higher_dict) in enumerate(remaining_cfgs):
-                # now only keep keys/values that are not overwritten by a
-                # higher config
-                unique_keys = unique_keys.difference(set(higher_dict.keys()))
-            # unique_dict we know now has only keys/values that are unique to
-            # this config file.
-            unique_dict = {k: lower_dict[k] for k in unique_keys}
-            print "Config File %d: %s" % (i + 1, lower_file)
-            # let's do some sorting and formating so the dicts are parsable
-            max_key_len = max(len(key) for key in unique_dict.keys())
-            for key, value in sorted(unique_dict.iteritems()):
-                # pretty print format for dict
-                cfg_format = " %%s%%%ds %%s" % (max_key_len - len(key) + 2,)
-                print cfg_format % (key, '=', value)
-            print "====================================================="
-
     def get_cfgs_from_files(self, all_config_files, parser):
         """ returns a dict from a given list of config files.
 

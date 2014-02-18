@@ -233,9 +233,12 @@ class FxBuildConfig(BaseConfig):
             if cf:
                 all_config_files.remove(cf)
 
-        # now let's update config with the remaining config files
-        for cf in all_config_files:
-            all_config_dicts.append((cf, parse_config_file(cf)))
+        # now let's update config with the remaining config files.
+        # this functionality is the same as the base class
+        all_config_dicts.extend(
+            super(FxBuildConfig, self).get_cfgs_from_files(all_config_files,
+                                                           parser)
+        )
 
         # stack variant, branch, and pool cfg files on top of that,
         # if they are present, in that order

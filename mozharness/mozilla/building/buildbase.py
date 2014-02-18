@@ -742,6 +742,7 @@ or run without that action (ie: --no-{action})"
             post_upload_cmd.append('--release-to-dated')
             if c['platform_supports_post_upload_to_latest']:
                 post_upload_cmd.append('--release-to-latest')
+        return post_upload_cmd
 
     def read_buildbot_config(self):
         c = self.config

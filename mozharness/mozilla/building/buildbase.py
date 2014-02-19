@@ -872,10 +872,13 @@ or run without that action (ie: --no-{action})"
         # variants are added
         # not all nightly platforms upload symbols!
         if self.query_is_nightly() and c.get('upload_symbols'):
-            self.retry(self.run_mock_command, args=((c.get('mock_target'),
-                                                    command='make uploadsymbols',
-                                                    cwd=cwd,
-                                                    env=env)))
+            self.retry(
+                self.run_mock_command,
+                kwargs={'mock_target': c.get('mock_target'),
+                        'command': 'make uploadsymbols',
+                        'cwd': cwd,
+                        'env': env}
+            )
 
     def packages(self):
         self._assert_cfg_valid_for_action(['mock_target', 'package_filename'],
@@ -930,11 +933,13 @@ or run without that action (ie: --no-{action})"
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
         cwd = self.query_abs_dirs()['abs_obj_dir']
-        self.retry(self.run_mock_command, args=(c.get('mock_target'),
-                                                command='make upload',
-                                                cwd=cwd,
-                                                env=self.query_build_env(),
-                                                output_parser=parser))
+        self.retry(
+            self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
+                                           'command': 'make upload',
+                                           'cwd': cwd,
+                                           'env': self.query_build_env(),
+                                           'output_parser': parser}
+        )
         self.info('Setting properties from make upload...')
         for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,

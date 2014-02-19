@@ -364,7 +364,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             'require_config_file': require_config_file,
             # Default configuration
             'config': {
-                "branch_specific_config_file": "builds/branch_specifics.py",
                 "pgo_build": False,
                 'is_automation': True,
                 # create_snippets will be decided by
@@ -391,7 +390,7 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
             }
         }
         super(FxDesktopBuild, self).__init__(
-            config_class=FxBuildConfig, **basescript_kwargs
+            ConfigClass=FxBuildConfig, **basescript_kwargs
         )
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's

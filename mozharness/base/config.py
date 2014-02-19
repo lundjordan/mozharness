@@ -210,7 +210,7 @@ class BaseConfig(object):
     """
     def __init__(self, config=None, initial_config_file=None, config_options=None,
                  all_actions=None, default_actions=None,
-                 volatile_config=None,
+                 volatile_config=None, option_args=None,
                  require_config_file=False, usage="usage: %prog [options]"):
         self._config = {}
         self.all_cfg_files_and_dicts = []
@@ -238,11 +238,16 @@ class BaseConfig(object):
         if config:
             self.set_config(config)
         if initial_config_file:
-            self.set_config(parse_config_file(initial_config_file))
+            initial_config = parse_config_file(initial_config_file)
+            self.all_cfg_files_and_dicts.append(
+                (initial_config_file, initial_config)
+            )
+            self.set_config(initial_config)
         if config_options is None:
             config_options = []
         self._create_config_parser(config_options, usage)
-        self.parse_args()
+        # we allow manually passing of option args for things like nosetests
+        self.parse_args(args=option_args)
 
     def get_read_only_config(self):
         return ReadOnlyDict(self._config)
@@ -269,11 +274,18 @@ class BaseConfig(object):
             help="Specify the optional config files"
         )
         self.config_parser.add_option(
-            "--interpret-config-files", action="store_true",
-            dest="interpret_config_files",
-            help="Dump the config that is created by the given options to a "
-                 "JSON file, specify which config files were used, and "
-                 "their keys/values that made it to the config"
+            "--dump-config", action="store_true",
+            dest="dump_config",
+            help="List and dump the config generated from this run to "
+                 "a JSON file."
+        )
+        self.config_parser.add_option(
+            "--dump-config-hierarchy", action="store_true",
+            dest="dump_config_hierarchy",
+            help="Like dump config but will list and dump which config "
+                 "files were used making up the config and specify their own "
+                 "keys/values that were not overwritten by one another -- "
+                 "held the highest hierarchy."
         )
 
         # Logging
@@ -443,10 +455,10 @@ class BaseConfig(object):
             # config file name and its assoctiated dict
             # eg ('builds/branch_specifics.py', {'foo': 'bar'})
             # let's store this to self for things like --interpret-config-files
-            self.all_cfg_files_and_dicts = self.get_cfgs_from_files(
+            self.all_cfg_files_and_dicts.extend(self.get_cfgs_from_files(
                 # append opt_config to allow them to overwrite previous configs
                 options.config_files + options.opt_config_files, parser=options
-            )
+            ))
             config = {}
             for i, (c_file, c_dict) in enumerate(self.all_cfg_files_and_dicts):
                 config.update(c_dict)

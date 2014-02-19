@@ -171,6 +171,13 @@ class TestHelperFunctions(unittest.TestCase):
         fh.write(contents)
         fh.close
 
+    def test_interpret_config_files_valid(self):
+        self.s = script.BaseScript(
+            initial_config_file='test/test.json',
+            option_args=['--cfg', 'test/test_override.py,test/test_override2.py'],
+            config={'interpret_config_files': True}
+        )
+
     def test_mkdir_p(self):
         self.s = script.BaseScript(initial_config_file='test/test.json')
         self.s.mkdir_p('test_dir')

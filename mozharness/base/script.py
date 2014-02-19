@@ -942,7 +942,7 @@ def PostScriptAction(action=None):
 
 # BaseScript {{{1
 class BaseScript(ScriptMixin, LogMixin, object):
-    def __init__(self, config_options=None, config_class=BaseConfig,
+    def __init__(self, config_options=None, ConfigClass=BaseConfig,
                  default_log_level="info", **kwargs):
         super(BaseScript, self).__init__()
 
@@ -985,7 +985,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
             config_options = []
         self.summary_list = []
         self.failures = []
-        rw_config = config_class(config_options=config_options, **kwargs)
+        rw_config = ConfigClass(config_options=config_options, **kwargs)
         self.config = rw_config.get_read_only_config()
         self.actions = tuple(rw_config.actions)
         self.all_actions = tuple(rw_config.all_actions)
@@ -1007,49 +1007,65 @@ class BaseScript(ScriptMixin, LogMixin, object):
         self._config_lock()
 
         self.info("Run as %s" % rw_config.command_line)
-        if self.config.get("interpret_config_files"):
+        if self.config.get("dump_config_hierarchy"):
             # we only wish to dump and display what self.config is made up of,
             # against the current script + args, without actually running any
             # actions
-            self._interpret_config_files(rw_config.all_cfg_files_and_dicts)
+            self._dump_config_hierarchy(rw_config.all_cfg_files_and_dicts)
+        if self.config.get("dump_config"):
+            self.dump_config(exit_on_finish=True)
 
-    def _interpret_config_files(self, cfg_files_and_dicts):
-        """ dump self.config to JSON and interpret each config file used.
+    def _dump_config_hierarchy(self, cfg_files):
+        """ interpret each config file used.
 
-        Along with dumping out all of self.config, this will show which
-        keys/values are being added or overridden by other config files
-        depending on their hierarchy
+        This will show which keys/values are being added or overwritten by
+        other config files depending on their hierarchy (when they were added).
         """
-        # first let's dump the config
-        self.dump_config()
-
-        # now go through each config_file. We will start with the lowest and
+        # go through each config_file. We will start with the lowest and
         # print its keys/values that are being used in self.config. If any
         # keys/values are present in a config file with a higher precedence,
         # ignore those.
-        cfgs = cfg_files_and_dicts  # for convenience
-        if not cfgs:
-            cfgs = []
-        self.info("Total config files: %d" % (len(cfgs)))
-        if len(cfgs):
+        dirs = self.query_abs_dirs()
+        cfg_files_dump_config = {} # we will dump this to file
+        # keep track of keys that did not come from a config file
+        keys_not_from_file = set(self.config.keys())
+        if not cfg_files:
+            cfg_files = []
+        self.info("Total config files: %d" % (len(cfg_files)))
+        if len(cfg_files):
             self.info("cfg files used from lowest precedence to highest:")
-        for i, (lower_file, lower_dict) in enumerate(cfgs):
-            unique_keys = set(lower_dict.keys())
+        for i, (target_file, target_dict) in enumerate(cfg_files):
+            unique_keys = set(target_dict.keys())
             unique_dict = {}
-            # iterate through the lower_dicts remaining 'higher' cfgs
-            remaining_cfgs = cfgs[slice(i + 1, len(cfgs))]
+            # iterate through the target_dicts remaining 'higher' cfg_files
+            remaining_cfgs = cfg_files[slice(i + 1, len(cfg_files))]
+            # where higher == more precedent
             for ii, (higher_file, higher_dict) in enumerate(remaining_cfgs):
                 # now only keep keys/values that are not overwritten by a
                 # higher config
                 unique_keys = unique_keys.difference(set(higher_dict.keys()))
             # unique_dict we know now has only keys/values that are unique to
             # this config file.
-            unique_dict = {k: lower_dict[k] for k in unique_keys}
-            self.action_message("Config File %d: %s" % (i + 1, lower_file))
+            unique_dict = {k: target_dict[k] for k in unique_keys}
+            cfg_files_dump_config[target_file] = unique_dict
+            self.action_message("Config File %d: %s" % (i + 1, target_file))
             self.info(pprint.pformat(unique_dict))
+            # let's also find out which keys/values from self.config are not
+            # from each target config file dict
+            keys_not_from_file = keys_not_from_file.difference(
+                set(target_dict.keys())
+            )
+        not_from_file_dict = {k: self.config[k] for k in keys_not_from_file}
+        cfg_files_dump_config["not_from_cfg_file"] = not_from_file_dict
+        self.action_message("Not from any config file (default_config, "
+                            "cmd line options, etc)")
+        self.info(pprint.pformat(not_from_file_dict))
 
-        # finally let's exit early without running any actual actions
-        sys.exit()
+        # finally, let's dump this output as JSON and exit early
+        self.dump_config(
+            os.path.join(dirs['abs_log_dir'], "localconfigfiles.json"),
+            cfg_files_dump_config, console_output=False, exit_on_finish=True
+        )
 
     def _pre_config_lock(self, rw_config):
         """This empty method can allow for config checking and manipulation
@@ -1239,7 +1255,8 @@ class BaseScript(ScriptMixin, LogMixin, object):
         self.abs_dirs = dirs
         return self.abs_dirs
 
-    def dump_config(self, file_path=None, config=None):
+    def dump_config(self, file_path=None, config=None,
+                    console_output=True, exit_on_finish=False):
         """Dump self.config to localconfig.json
         """
         config = config or self.config
@@ -1252,9 +1269,10 @@ class BaseScript(ScriptMixin, LogMixin, object):
         fh = codecs.open(file_path, encoding='utf-8', mode='w+')
         fh.write(json_config)
         fh.close()
-        if not self.config.get("interpret_config_files"):
-            # we don't need to print this config if we are intrepreting it too
+        if console_output:
             self.info(pprint.pformat(config))
+        if exit_on_finish:
+            sys.exit()
 
     # logging {{{2
     def new_log_obj(self, default_log_level="info"):

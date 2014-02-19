@@ -1154,7 +1154,7 @@ or run without that action (ie: --no-{action})"
                     'aus2_base_upload_dir', 'update_platform',
                     'balrog_api_root']:
 
-            self.info(val, c[val])
+            self.info(val + ": " + c[val])
     #     if not self.query_is_nightly() and (
     #             c['create_snippets'] and c['platform_supports_snippets']):
     #         self.info("Skipping action because this action is only done for "

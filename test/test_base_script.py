@@ -130,7 +130,7 @@ class TestScript(unittest.TestCase):
             self.assertEqual(
                 target_cfg, temp_cfg,
                 msg="all of the items (combined) in each cfg file dumped via "
-                    "--dump-config-hierarchy do not equal self.config "
+                    "--dump-config-hierarchy does not equal self.config "
             )
 
     # test _dump_config() when --dump-config is passed
@@ -160,7 +160,7 @@ class TestScript(unittest.TestCase):
             self.assertEqual(
                 target_cfg, temp_cfg,
                 msg="all of the items (combined) in each cfg file dumped via "
-                    "--dump-config-hierarchy do not equal self.config "
+                    "--dump-config does not equal self.config "
             )
 
     def test_nonexistent_mkdir_p(self):

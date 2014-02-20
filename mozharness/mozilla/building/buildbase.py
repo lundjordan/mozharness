@@ -933,7 +933,6 @@ or run without that action (ie: --no-{action})"
         upload_env['UPLOAD_HOST'] = upload_env['UPLOAD_HOST'] % {
             "stage_server": c['stage_server']}
 
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])

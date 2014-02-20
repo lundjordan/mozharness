@@ -284,7 +284,7 @@ class BaseConfig(object):
             dest="dump_config_hierarchy",
             help="Like dump config but will list and dump which config "
                  "files were used making up the config and specify their own "
-                 "keys/values that were not overwritten by one another -- "
+                 "keys/values that were not overwritten by another cfg -- "
                  "held the highest hierarchy."
         )
 

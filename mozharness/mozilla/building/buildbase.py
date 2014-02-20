@@ -301,7 +301,7 @@ or run without that action (ie: --no-{action})"
         ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(
             'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
         env.update(c['ccache_env'])
-        if dirs['abs_src_dir']:
+        if os.path.exists(dirs['abs_src_dir']):
             self.run_command(command=['ccache', '-z'],
                              cwd=dirs['abs_src_dir'],
                              env=env)
@@ -909,9 +909,9 @@ or run without that action (ie: --no-{action})"
         # MOZ_PKG_PRETTYNAMES=1 and on windows, there is more than one package
         # name. for now, let's use the package_filename pattern to search for
         # it manually with 'find' cmd
-        self._set_file_properties(file_name=c['package_filename'],
-                                  find_dir=find_dir,
-                                  prop_type='package')
+        # self._set_file_properties(file_name=c['package_filename'],
+        #                           find_dir=find_dir,
+        #                           prop_type='package')
 
     def upload(self):
         self._assert_cfg_valid_for_action(

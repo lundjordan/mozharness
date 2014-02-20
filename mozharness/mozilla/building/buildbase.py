@@ -200,7 +200,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 and is needed for the action '%s'. Please add this to your config \
 or run without that action (ie: --no-{action})"
         for dep in dependencies:
-            if not c.get(dep):
+            if not c.has_key(dep):
                 undetermined_keys.append(dep)
         if undetermined_keys:
             fatal_msgs = [err_template % (key, action)
@@ -903,6 +903,12 @@ or run without that action (ie: --no-{action})"
         # self.productName not 'xulrunner'
         find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
                                 'dist')
+        # NOTE package_filename can be obtained by build sys: eg `make
+        # echo-variable-PACKAGE` However, this env var is not always correct and
+        # may be influenced by things like: MOZ_OFFICIAL=1,
+        # MOZ_PKG_PRETTYNAMES=1 and on windows, there is more than one package
+        # name. for now, let's use the package_filename pattern to search for
+        # it manually with 'find' cmd
         self._set_file_properties(file_name=c['package_filename'],
                                   find_dir=find_dir,
                                   prop_type='package')
@@ -926,6 +932,8 @@ or run without that action (ie: --no-{action})"
         upload_env.update(c['upload_env'])
         upload_env['UPLOAD_HOST'] = upload_env['UPLOAD_HOST'] % {
             "stage_server": c['stage_server']}
+
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
@@ -937,7 +945,7 @@ or run without that action (ie: --no-{action})"
             self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
                                            'command': 'make upload',
                                            'cwd': cwd,
-                                           'env': self.query_build_env(),
+                                           'env': upload_env,
                                            'output_parser': parser}
         )
         self.info('Setting properties from make upload...')
@@ -1154,7 +1162,7 @@ or run without that action (ie: --no-{action})"
                     'aus2_base_upload_dir', 'update_platform',
                     'balrog_api_root']:
 
-            self.info(val + ": " + c[val])
+            self.info(val + ": " + str(c[val]))
     #     if not self.query_is_nightly() and (
     #             c['create_snippets'] and c['platform_supports_snippets']):
     #         self.info("Skipping action because this action is only done for "

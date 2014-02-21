@@ -637,14 +637,6 @@ class ScriptMixin(object):
             self.info("Running command: %s" % command)
         if isinstance(command, list) or isinstance(command, tuple):
             self.info("Copy/paste: %s" % subprocess.list2cmdline(command))
-        # if env is supplied print var/value pairs
-        if env:
-            self.info("With Environment:")
-            max_env_key_len = max(len(key) for key in env.keys())
-            for key, value in sorted(env.iteritems()):
-                # pretty print format string
-                env_format = " %%s%%%ds %%s" % (max_env_key_len - len(key) + 2,)
-                self.info(env_format % (key, '=', value))
         shell = True
         if isinstance(command, list) or isinstance(command, tuple):
             shell = False
@@ -1046,7 +1038,9 @@ class BaseScript(ScriptMixin, LogMixin, object):
                 unique_keys = unique_keys.difference(set(higher_dict.keys()))
             # unique_dict we know now has only keys/values that are unique to
             # this config file.
-            unique_dict = {k: target_dict[k] for k in unique_keys}
+            unique_dict = dict(
+                (key, target_dict.get(key)) for key in unique_keys
+            )
             cfg_files_dump_config[target_file] = unique_dict
             self.action_message("Config File %d: %s" % (i + 1, target_file))
             self.info(pprint.pformat(unique_dict))
@@ -1055,7 +1049,9 @@ class BaseScript(ScriptMixin, LogMixin, object):
             keys_not_from_file = keys_not_from_file.difference(
                 set(target_dict.keys())
             )
-        not_from_file_dict = {k: self.config[k] for k in keys_not_from_file}
+        not_from_file_dict = dict(
+            (key, self.config.get(key)) for key in keys_not_from_file
+        )
         cfg_files_dump_config["not_from_cfg_file"] = not_from_file_dict
         self.action_message("Not from any config file (default_config, "
                             "cmd line options, etc)")

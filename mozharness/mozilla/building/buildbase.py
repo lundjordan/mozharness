@@ -901,8 +901,8 @@ or run without that action (ie: --no-{action})"
 
         # TODO check for if 'rpm' not in self.platform_variation and
         # self.productName not 'xulrunner'
-        find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
-                                'dist')
+        # find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
+        #                         'dist')
         # NOTE package_filename can be obtained by build sys: eg `make
         # echo-variable-PACKAGE` However, this env var is not always correct and
         # may be influenced by things like: MOZ_OFFICIAL=1,

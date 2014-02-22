@@ -396,7 +396,6 @@ class FxDesktopBuild(BuildingMixin, MercurialScript, object):
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
         # although it is about 4s off from the time this should be
-        # (seems unnecessary as a script arg: --build-starttime)
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.branch = self.config.get('branch')
         self.bits = self.config.get('bits')

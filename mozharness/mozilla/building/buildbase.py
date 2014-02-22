@@ -87,6 +87,7 @@ class MakeUploadOutputParser(OutputParser):
     # rather than a long if/else with duplicate code
     property_conditions = {
         # key: property name, value: condition
+        # TODO I think we can rm these RPM conditions
         'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
         'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
         'packageRpmUrl': "m.endswith('.rpm')",
@@ -342,7 +343,7 @@ or run without that action (ie: --no-{action})"
                                dirs['abs_src_dir'])
         self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src_dir'])
 
-    # TODO add this / or merge with ToolToolMixin
+    # TODO add this or merge to ToolToolMixin
     def _run_tooltool(self):
         self._assert_cfg_valid_for_action(
             ['tooltool_script', 'tooltool_bootstrap', 'tooltool_url_list'],
@@ -381,8 +382,6 @@ or run without that action (ie: --no-{action})"
                                            write_to_file=True)
             else:
                 self.warning(ERROR_MSGS['comments_undetermined'])
-            # TODO is rev not in buildbot_config (possibly multiple
-            # times) as 'revision'?
             self.set_buildbot_property('got_revision',
                                        rev[:12],
                                        write_to_file=True)
@@ -590,7 +589,7 @@ or run without that action (ie: --no-{action})"
                                         "properties",
                                         "graph_props.json")
         all_current_props = dict(
-            chain(self.buildbot_config.items(),
+            chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
         self.dump_buildbot_properties_to_json(all_current_props,
@@ -676,51 +675,9 @@ or run without that action (ie: --no-{action})"
                                    write_to_file=True)
         return previous_buildid
 
-    def sendchanges(self):
-        c = self.config
-
-        installer_url = self.query_buildbot_property('packageUrl')
-        tests_url = self.query_buildbot_property('testsUrl')
-        sendchange_props = {
-            'buildid': self.query_buildid(),
-            'builduid': self.query_builduid(),
-            'nightly_build': self.query_is_nightly(),
-            'pgo_build': c.get('pgo_build', False),
-        }
-        # TODO insert check for uploadMulti factory 2526
-        # if not self.uploadMulti
-
-        if c.get('enable_talos_sendchange'):  # do talos sendchange
-            if c.get('pgo_build'):
-                build_type = 'pgo-'
-            else:  # we don't do talos sendchange for debug so no need to check
-                build_type = ''  # leave 'opt' out of branch for talos
-            talos_branch = "%s-%s-%s%s" % (self.branch,
-                                           self.platform,
-                                           build_type,
-                                           'talos')
-            self.sendchange(downloadables=[installer_url],
-                            branch=talos_branch,
-                            username='sendchange',
-                            sendchange_props=sendchange_props)
-        if c.get('enable_package_tests'):  # do unittest sendchange
-            if c.get('pgo_build'):
-                build_type = 'pgo'
-            if c.get('debug_build'):
-                build_type = 'debug'
-            else:  # generic opt build
-                build_type = 'opt'
-            unittest_branch = "%s-%s-%s-%s" % (self.branch,
-                                               self.platform,
-                                               build_type,
-                                               'unittest')
-            self.sendchange(downloadables=[installer_url, tests_url],
-                            branch=unittest_branch,
-                            sendchange_props=sendchange_props)
-
     def _query_post_upload_cmd(self):
         # TODO support more from postUploadCmdPrefix()
-        # as needed
+        # as needed (as we introduce builds that use it)
         # h.m.o/build/buildbotcustom/process/factory.py#l119
         self._assert_cfg_valid_for_action(['stage_product'], 'upload')
         c = self.config
@@ -778,14 +735,9 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         if c.get('enable_ccache'):
             self._ccache_z()
-        if self.query_is_nightly():
-            # TODO should we nuke the source dir during clobber?
-            self.run_command(['rm', '-rf', dirs['abs_src_dir']],
-                             cwd=dirs['abs_work_dir'],
-                             env=self.query_build_env())
-        else:
+        if not self.query_is_nightly():
             # the old package should live in source dir so we don't need to do
-            # this for nighties
+            # this for nighties since we clobber the whole work_dir in clobber()
             self._rm_old_package()
         self._checkout_source()
         self._get_mozconfig()
@@ -827,7 +779,7 @@ or run without that action (ie: --no-{action})"
         properties_needed = [
             # TODO, do we need to set buildid since we already do in
             # self.query_buildid() ?
-            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
+            # {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
             {'ini_name': 'Version', 'prop_name': 'appVersion'},
             {'ini_name': 'Name', 'prop_name': 'appName'}
@@ -899,8 +851,9 @@ or run without that action (ie: --no-{action})"
                               cwd=cwd,
                               env=self.query_build_env())
 
-        # TODO check for if 'rpm' not in self.platform_variation and
-        # self.productName not 'xulrunner'
+        # TODO check not 'xulrunner' (when we do xulrunner builds)
+        # I don't think we actually need package_filename, size, hash, etc. but
+        # it may turn out that we will. commenting out for now
         # find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
         #                         'dist')
         # NOTE package_filename can be obtained by build sys: eg `make
@@ -922,7 +875,6 @@ or run without that action (ie: --no-{action})"
         c = self.config
         if self.query_is_nightly():
             # if branch supports snippets and platform supports snippets
-            # TODO find out why create_snippets decides whether we do mar stuff
             if c['create_snippets'] and c['platform_supports_snippets']:
                 self._create_complete_mar()
                 if c['create_partial'] and c['platform_supports_partials']:
@@ -953,6 +905,49 @@ or run without that action (ie: --no-{action})"
                                        value,
                                        write_to_file=True)
 
+    def sendchanges(self):
+        c = self.config
+
+        installer_url = self.query_buildbot_property('packageUrl')
+        tests_url = self.query_buildbot_property('testsUrl')
+        sendchange_props = {
+            'buildid': self.query_buildid(),
+            'builduid': self.query_builduid(),
+            'nightly_build': self.query_is_nightly(),
+            'pgo_build': c.get('pgo_build', False),
+        }
+        # TODO insert check for uploadMulti factory 2526
+        # if not self.uploadMulti when we introduce a platform/build that uses
+        # uploadMulti
+
+        if c.get('enable_talos_sendchange'):  # do talos sendchange
+            if c.get('pgo_build'):
+                build_type = 'pgo-'
+            else:  # we don't do talos sendchange for debug so no need to check
+                build_type = ''  # leave 'opt' out of branch for talos
+            talos_branch = "%s-%s-%s%s" % (self.branch,
+                                           self.platform,
+                                           build_type,
+                                           'talos')
+            self.sendchange(downloadables=[installer_url],
+                            branch=talos_branch,
+                            username='sendchange',
+                            sendchange_props=sendchange_props)
+        if c.get('enable_package_tests'):  # do unittest sendchange
+            if c.get('pgo_build'):
+                build_type = 'pgo'
+            if c.get('debug_build'):
+                build_type = 'debug'
+            else:  # generic opt build
+                build_type = 'opt'
+            unittest_branch = "%s-%s-%s-%s" % (self.branch,
+                                               self.platform,
+                                               build_type,
+                                               'unittest')
+            self.sendchange(downloadables=[installer_url, tests_url],
+                            branch=unittest_branch,
+                            sendchange_props=sendchange_props)
+
     def pretty_names(self):
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'prett-names'
@@ -963,7 +958,9 @@ or run without that action (ie: --no-{action})"
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
         base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
 
-        # TODO  port below from process/factory.py line 1526
+        # TODO  port below from process/factory.py line 1526 if we end up
+        # porting mac before x-compiling
+        # MAC OS X IMPLEMENTATION
         # if 'mac' in self.platform:
         #     self.addStep(ShellCommand(
         #                  name='postflight_all',
@@ -971,7 +968,8 @@ or run without that action (ie: --no-{action})"
         #                  '-f', 'client.mk', 'postflight_all'],
 
         package_targets = ['package']
-        # TODO  port below from process/factory.py line 1539
+        # TODO  port below from process/factory.py line 1543
+        # WINDOWS IMPLEMENTATION
         # if self.enableInstaller:
         #     pkg_targets.append('installer')
         for target in package_targets:
@@ -1121,7 +1119,7 @@ or run without that action (ie: --no-{action})"
                                              'updates',
                                              'balrog-submitter.py')
         all_current_props = dict(
-            chain(self.buildbot_config.items(),
+            chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
         self.dump_buildbot_properties_to_json(all_current_props,
@@ -1143,7 +1141,9 @@ or run without that action (ie: --no-{action})"
                            " Path given: %s" % (abs_balrog_cred_file))
             cmd.extend(['--credentials-file', abs_balrog_cred_file])
         self.info("Submitting Balrog updates...")
-        self.retry(self.run_command, args=(cmd,))
+        self.info("debug, normally would run: %s" % (str(cmd)))
+        # XXX
+        # self.retry(self.run_command, args=(cmd,))
 
     def update(self):
         self._assert_cfg_valid_for_action(
@@ -1155,6 +1155,7 @@ or run without that action (ie: --no-{action})"
         )
         c = self.config
         # dirs = self.query_abs_dirs()
+        # XXX FOR DEBUGGING
         for val in ['create_snippets', 'platform_supports_snippets',
                     'create_partial', 'platform_supports_partials',
                     'aus2_user', 'aus2_ssh_key', 'aus2_host',
@@ -1162,86 +1163,99 @@ or run without that action (ie: --no-{action})"
                     'balrog_api_root']:
 
             self.info(val + ": " + str(c[val]))
-    #     if not self.query_is_nightly() and (
-    #             c['create_snippets'] and c['platform_supports_snippets']):
-    #         self.info("Skipping action because this action is only done for "
-    #                   "nightlies and that support/enable snippets...")
-    #         return
-    #     dist_update_dir = os.path.join(dirs['abs_obj_dir'],
-    #                                    'dist',
-    #                                    'update')
-    #     base_ssh_cmd = 'ssh -l %s -i ~/.ssh/%s %s ' % (c['aus2_user'],
-    #                                                    c['aus2_ssh_key'],
-    #                                                    c['aus2_host'])
-    #     root_aus_full_dir = "%s/%s/%s" % (c['aus2_base_upload_dir'],
-    #                                       self.branch,
-    #                                       c['update_platform'])
-    #     ##### Create snippet steps
-    #     # create a complete snippet
-    #     self._create_snippet('complete')
-    #     buildid = self.query_buildid()
-    #     # if branch supports partials and platform supports partials
-    #     if c['create_partial'] and c['platform_supports_partials']:
-    #         # now create a partial snippet
-    #         self._create_snippet('partial')
-    #         # let's change the buildid to be the previous buildid
-    #         # because that the previous upload dir uses that id
-    #         buildid = self._query_previous_buildid()
-    #     #####
+        if not self.query_is_nightly() and (
+                c['create_snippets'] and c['platform_supports_snippets']):
+            self.info("Skipping action because this action is only done for "
+                      "nightlies and that support/enable snippets...")
+            return
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
+        base_ssh_cmd = 'ssh -l %s -i ~/.ssh/%s %s ' % (c['aus2_user'],
+                                                       c['aus2_ssh_key'],
+                                                       c['aus2_host'])
+        root_aus_full_dir = "%s/%s/%s" % (c['aus2_base_upload_dir'],
+                                          self.branch,
+                                          c['update_platform'])
+        ##### Create snippet steps
+        # create a complete snippet
+        self._create_snippet('complete')
+        buildid = self.query_buildid()
+        # if branch supports partials and platform supports partials
+        if c['create_partial'] and c['platform_supports_partials']:
+            # now create a partial snippet
+            self._create_snippet('partial')
+            # let's change the buildid to be the previous buildid
+            # because that the previous upload dir uses that id
+            buildid = self._query_previous_buildid()
+        #####
 
-    #     ##### Upload snippet steps
-    #     self.info("Creating AUS previous upload dir")
-    #     aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
-    #                                            buildid)
-    #     cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
-    #     self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+        ##### Upload snippet steps
+        self.info("Creating AUS previous upload dir")
+        aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+                                               buildid)
+        cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
+        self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
+        # XXX
+        # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
-    #     # make an upload command that supports complete and partial formatting
-    #     upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
-    #                   ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
-    #                       c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
-    #                       c['aus2_host'], aus_prev_upload_dir)
-    #                   )
-    #     self.info("uploading complete snippet")
-    #     self.retry(self.run_command,
-    #                args=(upload_cmd % ('complete', 'complete'),))
-    #     # if branch supports partials and platform supports partials
-    #     if c['create_partial'] and c['platform_supports_partials']:
-    #         self.info("uploading partial snippet")
-    #         self.retry(self.run_command,
-    #                    args=(upload_cmd % ('partial', 'partial'),))
-    #         self.info("creating aus current upload dir")
-    #         aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
-    #                                                   self.query_buildid())
-    #         cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
-    #         self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
-    #         # Create remote empty complete/partial snippets for current
-    #         # build.  Also touch the remote platform dir to defeat NFS
-    #         # caching on the AUS webheads.
-    #         self.info("creating empty snippets")
-    #         cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
-    #             aus_current_upload_dir, aus_current_upload_dir,
-    #             root_aus_full_dir
-    #         )
-    #         self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
-    #     #####
+        # make an upload command that supports complete and partial formatting
+        upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
+                      ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
+                          c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
+                          c['aus2_host'], aus_prev_upload_dir)
+                      )
+        self.info("uploading complete snippet")
+        self.info("debug, normally would run: %s" % (str(upload_cmd % ('complete', 'complete'),)))
+        # XXX
+        # self.retry(self.run_command,
+        #            args=(upload_cmd % ('complete', 'complete'),))
+        # if branch supports partials and platform supports partials
+        if c['create_partial'] and c['platform_supports_partials']:
+            self.info("uploading partial snippet")
+            self.info("debug, normally would run: %s" % (str(upload_cmd % ('partial', 'partial'),)))
+            # XXX
+            # self.retry(self.run_command,
+            #            args=(upload_cmd % ('partial', 'partial'),))
+            self.info("creating aus current upload dir")
+            aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+                                                      self.query_buildid())
+            cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
+            self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
+            # XXX
+            # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+            # Create remote empty complete/partial snippets for current
+            # build.  Also touch the remote platform dir to defeat NFS
+            # caching on the AUS webheads.
+            self.info("creating empty snippets")
+            cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
+                aus_current_upload_dir, aus_current_upload_dir,
+                root_aus_full_dir
+            )
+            self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
+            # XXX
+            # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+        #####
 
-    #     ##### submit balrog update steps
-    #     if c['balrog_api_root']:
-    #         self._submit_balrog_updates()
-    #     #####
+        ##### submit balrog update steps
+        if c['balrog_api_root']:
+            self._submit_balrog_updates()
+        #####
 
     # # TODO trigger other schedulers (if any) I think this may be l10n nightly
     # # builders when we do nightly builds here. This will need to be
     # # done from the master in SigningScript/Script factory
 
-    def cleanup(self):
-        dirs = self.query_abs_dirs()
-        if not self.query_is_nightly():
-            self.info("No clean up required for non nightlies.")
-            return
-        # TODO find out if we should blow away the whole abs_work_dir
-        self.rmtree(dirs['abs_src_dir'])
+    # TODO find out if we need to do this. For nightlies we always start by
+    # clobbering the whole work dir anyway so why bother here? Also, it seems
+    # weird to ccache -s after rm the build dir anyway?
+    # def cleanup(self):
+    #     dirs = self.query_abs_dirs()
+    #     if not self.query_is_nightly():
+    #         self.info("No clean up required for non nightlies.")
+    #         return
+    #     # TODO find out if we should blow away the whole abs_work_dir
+    #     self.rmtree(dirs['abs_src_dir'])
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

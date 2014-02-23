@@ -431,8 +431,12 @@ or run without that action (ie: --no-{action})"
                                        'update')
         self.info('removing existing mar...')
         mar_file_results = glob.glob(os.path.join(dist_update_dir, '*.mar'))
-        for mar_file in mar_file_results:
-            self.rmtree(mar_file, error_level=FATAL)
+        if mar_file_results:
+            for mar_file in mar_file_results:
+                self.rmtree(mar_file, error_level=FATAL)
+        else:
+            self.info('no existing mar found with pattern: %s' % (
+                os.path.join(dist_update_dir, '*.mar'),))
         self.info('making a complete new mar...')
         update_pkging_path = os.path.join(dirs['abs_obj_dir'],
                                           'tools',
@@ -455,14 +459,13 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         generic_env = self.query_build_env()
         update_env = dict(chain(generic_env.items(), c['update_env'].items()))
-        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
-                                              'tools',
-                                              'update-pacakaging',
+        abs_unwrap_update_path = os.path.join(dirs['abs_tools_dir'],
+                                              'update-packaging',
                                               'unwrap_full_update.pl')
         dist_update_dir = os.path.join(dirs['abs_obj_dir'],
                                        'dist',
                                        'update')
-        self.info('removing nld unpacked dirs...')
+        self.info('removing old unpacked dirs...')
         for f in ['current', 'current.work', 'previous']:
             self.rmtree(os.path.join(dirs['abs_obj_dir'], f),
                         error_level=FATAL)
@@ -700,6 +703,121 @@ or run without that action (ie: --no-{action})"
             if c['platform_supports_post_upload_to_latest']:
                 post_upload_cmd.append('--release-to-latest')
         return post_upload_cmd
+
+    def _grab_mar_props(self, snippet_type='complete'):
+        return (self.query_buildbot_property('%sMarUrl' % (snippet_type)),
+                self.query_buildbot_property('%sMarHash' % (snippet_type)),
+                self.query_buildbot_property('%sMarSize' % (snippet_type)))
+
+    def _get_snippet_values(self, snippet_dir, snippet_type='complete'):
+        fatal_msg = ("Can't determine the '%s' prop and it's needed for "
+                     "creating snippets. Please run the action 'upload' prior"
+                     "to this")
+        c = self.config
+        buildid = self.query_buildid()
+        url, hash_val, size = self._grab_mar_props(snippet_type)
+        if not url or not hash_val or not size:
+            self._assert_cfg_valid_for_action(
+                ['%s_mar_pattern' % (snippet_type,)], 'update'
+            )
+            self._set_file_properties(
+                file_name=c['%s_mar_pattern' % (snippet_type,)],
+                find_dir=snippet_dir, prop_type='completeMar'
+            )
+            # now try, try again!
+            url, hash_val, size = self._grab_mar_props(snippet_type)
+        version = self.query_buildbot_property('appVersion')
+        if not version:
+            self._set_build_props()
+            # now try, try again!
+            version = self.query_buildbot_property('appVersion')
+
+        if not url:
+            self.fatal(fatal_msg % ('%sMarUrl' % (snippet_type,),))
+        if not hash_val:
+            self.fatal(fatal_msg % ('%sMarHash' % (snippet_type,),))
+        if not size:
+            self.fatal(fatal_msg % ('%sMarSize' % (snippet_type,),))
+        if not version:
+            self.fatal(fatal_msg % ('appVersion',))
+        return {
+            'type': snippet_type,
+            'url': url,
+            'sha512_hash': hash_val,
+            'size': size,
+            'buildid': buildid,
+            'version': version,
+        }
+
+    def _create_snippet(self, snippet_type):
+        self._assert_cfg_valid_for_action(
+            ['mock_target'], 'update'
+        )
+        dirs = self.query_abs_dirs()
+        snippet_dir = os.path.join(dirs['abs_obj_dir'],
+                                   'dist',
+                                   'update')
+        if not os.path.exists(snippet_dir):
+            self.fatal("The path: '%s' needs to exist for this action"
+                       "Have you ran the 'build' action?" % (snippet_dir,))
+        abs_snippet_path = os.path.join(snippet_dir,
+                                        '%s.update.snippet' % (snippet_type,))
+        content = SNIPPET_TEMPLATE % self._get_snippet_values(snippet_dir,
+                                                              snippet_type)
+        self.info('saving snippet to file...')
+        if self.write_to_file(abs_snippet_path, content) is None:
+            self.error("Unable to write %s snippet to %s!" % (
+                snippet_type, abs_snippet_path)
+            )
+        self.info("displaying %s snippet file contents..." % (snippet_type,))
+        with open(abs_snippet_path) as f:
+            for line in f:
+                self.info(line)
+
+    def _submit_balrog_updates(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        # first download buildprops_balrog.json this should be all the
+        # buildbot properties we got initially (buildbot_config) and what
+        # we have updated with since the script ran (buildbot_properties)
+        # TODO it would be better to grab all the properties that were
+        # persisted to file rather than use whats in the
+        # buildbot_properties live object. However, this should work for
+        # now and balrog may be removing the buildprops cli arg once we no
+        # longer use buildbot
+        balrog_props_path = os.path.join(c['base_work_dir'],
+                                         "properties",
+                                         "balrog_props.json")
+        balrog_submitter_path = os.path.join(dirs['abs_tools_dir'],
+                                             'scripts',
+                                             'updates',
+                                             'balrog-submitter.py')
+        all_current_props = dict(
+            chain(self.buildbot_config['properties'].items(),
+                  self.buildbot_properties.items())
+        )
+        self.dump_buildbot_properties_to_json(all_current_props,
+                                              balrog_props_path)
+        cmd = [
+            self.query_exe('python'),
+            balrog_submitter_path,
+            '--build-properties', balrog_props_path,
+            '--api-root', c['balrog_api_root'],
+            '--verbose',
+        ]
+        if c['balrog_credentials_file']:
+            self.info("Using Balrog credential file...")
+            abs_balrog_cred_file = os.path.join(
+                c['base_work_dir'], c['balrog_credentials_file']
+            )
+            if not abs_balrog_cred_file:
+                self.fatal("credential file given but doesn't exist!"
+                           " Path given: %s" % (abs_balrog_cred_file))
+            cmd.extend(['--credentials-file', abs_balrog_cred_file])
+        self.info("Submitting Balrog updates...")
+        self.info("debug, normally would run: %s" % (str(cmd)))
+        # XXX
+        # self.retry(self.run_command, args=(cmd,))
 
     def read_buildbot_config(self):
         c = self.config
@@ -1029,121 +1147,6 @@ or run without that action (ie: --no-{action})"
                               env=env,
                               output_parser=parser)
         parser.evaluate_parser()
-
-    def _grab_mar_props(self, snippet_type='complete'):
-        return (self.query_buildbot_property('%sMarUrl' % (snippet_type)),
-                self.query_buildbot_property('%sMarHash' % (snippet_type)),
-                self.query_buildbot_property('%sMarSize' % (snippet_type)))
-
-    def _get_snippet_values(self, snippet_dir, snippet_type='complete'):
-        fatal_msg = ("Can't determine the '%s' prop and it's needed for "
-                     "creating snippets. Please run the action 'upload' prior"
-                     "to this")
-        c = self.config
-        buildid = self.query_buildid()
-        url, hash_val, size = self._grab_mar_props(snippet_type)
-        if not url or not hash_val or not size:
-            self._assert_cfg_valid_for_action(
-                ['%s_mar_pattern' % (snippet_type,)], 'update'
-            )
-            self._set_file_properties(
-                file_name=c['%s_mar_pattern' % (snippet_type,)],
-                find_dir=snippet_dir, prop_type='completeMar'
-            )
-            # now try, try again!
-            url, hash_val, size = self._grab_mar_props(snippet_type)
-        version = self.query_buildbot_property('appVersion')
-        if not version:
-            self._set_build_props()
-            # now try, try again!
-            version = self.query_buildbot_property('appVersion')
-
-        if not url:
-            self.fatal(fatal_msg % ('%sMarUrl' % (snippet_type,),))
-        if not hash_val:
-            self.fatal(fatal_msg % ('%sMarHash' % (snippet_type,),))
-        if not size:
-            self.fatal(fatal_msg % ('%sMarSize' % (snippet_type,),))
-        if not version:
-            self.fatal(fatal_msg % ('appVersion',))
-        return {
-            'type': snippet_type,
-            'url': url,
-            'sha512_hash': hash_val,
-            'size': size,
-            'buildid': buildid,
-            'version': version,
-        }
-
-    def _create_snippet(self, snippet_type):
-        self._assert_cfg_valid_for_action(
-            ['mock_target'], 'update'
-        )
-        dirs = self.query_abs_dirs()
-        snippet_dir = os.path.join(dirs['abs_obj_dir'],
-                                   'dist',
-                                   'update')
-        if not os.path.exists(snippet_dir):
-            self.fatal("The path: '%s' needs to exist for this action"
-                       "Have you ran the 'build' action?" % (snippet_dir,))
-        abs_snippet_path = os.path.join(snippet_dir,
-                                        '%s.update.snippet' % (snippet_type,))
-        content = SNIPPET_TEMPLATE % self._get_snippet_values(snippet_dir,
-                                                              snippet_type)
-        self.info('saving snippet to file...')
-        if self.write_to_file(abs_snippet_path, content) is None:
-            self.error("Unable to write %s snippet to %s!" % (
-                snippet_type, abs_snippet_path)
-            )
-        self.info("displaying %s snippet file contents..." % (snippet_type,))
-        with open(abs_snippet_path) as f:
-            for line in f:
-                self.info(line)
-
-    def _submit_balrog_updates(self):
-        c = self.config
-        dirs = self.query_abs_dirs()
-        # first download buildprops_balrog.json this should be all the
-        # buildbot properties we got initially (buildbot_config) and what
-        # we have updated with since the script ran (buildbot_properties)
-        # TODO it would be better to grab all the properties that were
-        # persisted to file rather than use whats in the
-        # buildbot_properties live object. However, this should work for
-        # now and balrog may be removing the buildprops cli arg once we no
-        # longer use buildbot
-        balrog_props_path = os.path.join(c['base_work_dir'],
-                                         "properties",
-                                         "balrog_props.json")
-        balrog_submitter_path = os.path.join(dirs['abs_tools_dir'],
-                                             'scripts',
-                                             'updates',
-                                             'balrog-submitter.py')
-        all_current_props = dict(
-            chain(self.buildbot_config['properties'].items(),
-                  self.buildbot_properties.items())
-        )
-        self.dump_buildbot_properties_to_json(all_current_props,
-                                              balrog_props_path)
-        cmd = [
-            self.query_exe('python'),
-            balrog_submitter_path,
-            '--build-properties', balrog_props_path,
-            '--api-root', c['balrog_api_root'],
-            '--verbose',
-        ]
-        if c['balrog_credentials_file']:
-            self.info("Using Balrog credential file...")
-            abs_balrog_cred_file = os.path.join(
-                c['base_work_dir'], c['balrog_credentials_file']
-            )
-            if not abs_balrog_cred_file:
-                self.fatal("credential file given but doesn't exist!"
-                           " Path given: %s" % (abs_balrog_cred_file))
-            cmd.extend(['--credentials-file', abs_balrog_cred_file])
-        self.info("Submitting Balrog updates...")
-        self.info("debug, normally would run: %s" % (str(cmd)))
-        # XXX
-        # self.retry(self.run_command, args=(cmd,))
 
     def update(self):
         self._assert_cfg_valid_for_action(

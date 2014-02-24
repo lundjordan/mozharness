@@ -423,6 +423,7 @@ or run without that action (ie: --no-{action})"
             ['mock_target', 'complete_mar_pattern'],
             'make-update'
         )
+        self.info('Creating a complete mar:')
         c = self.config
         env = self.query_build_env()
         dirs = self.query_abs_dirs()
@@ -455,11 +456,13 @@ or run without that action (ie: --no-{action})"
             ['mock_target', 'update_env', 'platform_ftp_name', 'stage_server'],
             'upload'
         )
+        self.info('Creating a partial mar:')
         c = self.config
         dirs = self.query_abs_dirs()
         generic_env = self.query_build_env()
         update_env = dict(chain(generic_env.items(), c['update_env'].items()))
-        abs_unwrap_update_path = os.path.join(dirs['abs_tools_dir'],
+        abs_unwrap_update_path = os.path.join(dirs['abs_source_dir'],
+                                              'tools',
                                               'update-packaging',
                                               'unwrap_full_update.pl')
         dist_update_dir = os.path.join(dirs['abs_obj_dir'],

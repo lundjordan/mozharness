@@ -201,7 +201,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
 and is needed for the action '%s'. Please add this to your config \
 or run without that action (ie: --no-{action})"
         for dep in dependencies:
-            if not c.has_key(dep):
+            if dep not in c:
                 undetermined_keys.append(dep)
         if undetermined_keys:
             fatal_msgs = [err_template % (key, action)
@@ -853,12 +853,12 @@ or run without that action (ie: --no-{action})"
     def preflight_build(self):
         """set up machine state for a complete build."""
         c = self.config
-        dirs = self.query_abs_dirs()
         if c.get('enable_ccache'):
             self._ccache_z()
         if not self.query_is_nightly():
             # the old package should live in source dir so we don't need to do
-            # this for nighties since we clobber the whole work_dir in clobber()
+            # this for nighties since we clobber the whole work_dir in
+            # clobber()
             self._rm_old_package()
         self._checkout_source()
         self._get_mozconfig()
@@ -978,8 +978,8 @@ or run without that action (ie: --no-{action})"
         # find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
         #                         'dist')
         # NOTE package_filename can be obtained by build sys: eg `make
-        # echo-variable-PACKAGE` However, this env var is not always correct and
-        # may be influenced by things like: MOZ_OFFICIAL=1,
+        # echo-variable-PACKAGE` However, this env var is not always correct
+        # and may be influenced by things like: MOZ_OFFICIAL=1,
         # MOZ_PKG_PRETTYNAMES=1 and on windows, there is more than one package
         # name. for now, let's use the package_filename pattern to search for
         # it manually with 'find' cmd
@@ -1160,7 +1160,7 @@ or run without that action (ie: --no-{action})"
             'update'
         )
         c = self.config
-        # dirs = self.query_abs_dirs()
+        dirs = self.query_abs_dirs()
         # XXX FOR DEBUGGING
         for val in ['create_snippets', 'platform_supports_snippets',
                     'create_partial', 'platform_supports_partials',
@@ -1212,14 +1212,16 @@ or run without that action (ie: --no-{action})"
                           c['aus2_host'], aus_prev_upload_dir)
                       )
         self.info("uploading complete snippet")
-        self.info("debug, normally would run: %s" % (str(upload_cmd % ('complete', 'complete'),)))
+        self.info("debug, normally would run: %s" % (
+            str(upload_cmd % ('complete', 'complete'),)))
         # XXX
         # self.retry(self.run_command,
         #            args=(upload_cmd % ('complete', 'complete'),))
         # if branch supports partials and platform supports partials
         if c['create_partial'] and c['platform_supports_partials']:
             self.info("uploading partial snippet")
-            self.info("debug, normally would run: %s" % (str(upload_cmd % ('partial', 'partial'),)))
+            self.info("debug, normally would run: %s" % (
+                str(upload_cmd % ('partial', 'partial'),)))
             # XXX
             # self.retry(self.run_command,
             #            args=(upload_cmd % ('partial', 'partial'),))
@@ -1227,7 +1229,8 @@ or run without that action (ie: --no-{action})"
             aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
                                                       self.query_buildid())
             cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
-            self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
+            self.info("debug, normally would run: %s" % (
+                str(base_ssh_cmd + cmd)))
             # XXX
             # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
             # Create remote empty complete/partial snippets for current
@@ -1238,7 +1241,8 @@ or run without that action (ie: --no-{action})"
                 aus_current_upload_dir, aus_current_upload_dir,
                 root_aus_full_dir
             )
-            self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
+            self.info("debug, normally would run: %s" % (
+                str(base_ssh_cmd + cmd)))
             # XXX
             # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
         #####

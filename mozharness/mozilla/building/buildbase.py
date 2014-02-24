@@ -535,8 +535,7 @@ or run without that action (ie: --no-{action})"
         previous_buildid = self._query_previous_buildid()
         self.info('removing pgc files from previous and current dirs')
         for mar_dirs in ['current', 'previous']:
-            self.run_command(cmd=["find" "." "-name" "\*.pgc" "-print"
-                                  "-delete"],
+            self.run_command(["find" "." "-name" "\*.pgc" "-print" "-delete"],
                              env=update_env,
                              cwd=os.path.join(dirs['abs_obj_dir'],
                                               mar_dirs))

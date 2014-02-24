@@ -461,7 +461,7 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         generic_env = self.query_build_env()
         update_env = dict(chain(generic_env.items(), c['update_env'].items()))
-        abs_unwrap_update_path = os.path.join(dirs['abs_source_dir'],
+        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
                                               'tools',
                                               'update-packaging',
                                               'unwrap_full_update.pl')

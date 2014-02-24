@@ -289,6 +289,13 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
 
+        # now let's grab the right host based off staging/production
+        # symbol_server_host is defined in build_pool_specifics.py
+        env['SYMBOL_SERVER_HOST'] = env['SYMBOL_SERVER_HOST'] % {
+            "symbol_server_host": c['symbol_server_host']}
+
+        # we can't make env an attribute of self because env can change on
+        # every call to this method (like say if we passed partial_env)
         return env
 
     def _ccache_z(self):
@@ -664,7 +671,9 @@ or run without that action (ie: --no-{action})"
             "application.ini"
         ]
         self.info("finding previous mar's inipath...")
-        prev_ini_path = self.get_output_from_command(cmd, halt_on_failure=True)
+        prev_ini_path = self.get_output_from_command(cmd,
+                                                     cwd=dirs['abs_obj_dir'],
+                                                     halt_on_failure=True)
         print_conf_path = os.path.join(dirs['abs_src_dir'],
                                        'config',
                                        'printconfigsetting.py')

@@ -16,6 +16,7 @@ pub/mozilla.org/firefox/nightly',
         'aus2_user': 'ffxbld',
         'aus2_host': 'dev-stage01.srv.releng.scl3.mozilla.com',
         'stage_server': 'dev-stage01.srv.releng.scl3.mozilla.com',
+        'symbol_server_host': "dev-stage01.srv.releng.scl3.mozilla.com",
         # staging/preproduction we should use MozillaTest
         # but in production we let the self.branch decide via
         # self._query_graph_server_branch_name()
@@ -34,6 +35,7 @@ mozilla.com/pub/mozilla.org/firefox/nightly',
         'aus2_ssh_key': 'cltbld_dsa',
         'aus2_user': 'cltbld',
         'stage_server': 'preproduction-stage.srv.releng.scl3.mozilla.com',
+        'symbol_server_host': "preproduction-stage.srv.releng.scl3.mozilla.com",
         # staging/preproduction we should use MozillaTest
         # but in production we let the self.branch decide via
         # self._query_graph_server_branch_name()
@@ -48,5 +50,6 @@ nightly',
         'aus2_ssh_key': 'auspush',
         'aus2_user': 'ffxbld',
         'stage_server': 'stage.mozilla.org',
+        'symbol_server_host': "symbolpush.mozilla.org",
     },
 }

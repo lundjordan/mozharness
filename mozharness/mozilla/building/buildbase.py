@@ -492,7 +492,7 @@ or run without that action (ie: --no-{action})"
         # from staging. Version bumps can also often involve multiple mars
         # living in the latest dir, so we grab the latest one.
         self.info('getting previous mar filename...')
-        latest_mar_dir = c['latest_mar_dir'] % (self.branch,)
+        latest_mar_dir = c['latest_mar_dir'] % {'branch': self.branch}
         cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
             c['stage_username'], c['stage_ssh_key'], c['stage_server'],
             latest_mar_dir, c['platform_ftp_name']

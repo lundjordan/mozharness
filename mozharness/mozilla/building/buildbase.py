@@ -534,11 +534,14 @@ or run without that action (ie: --no-{action})"
         # Extract the build ID from the unpacked previous complete mar.
         previous_buildid = self._query_previous_buildid()
         self.info('removing pgc files from previous and current dirs')
-        for mar_dirs in ['current', 'previous']:
-            self.run_command(["find" "." "-name" "\*.pgc" "-print" "-delete"],
-                             env=update_env,
-                             cwd=os.path.join(dirs['abs_obj_dir'],
-                                              mar_dirs))
+        for mar_dir in ['current', 'previous']:
+            target_path = os.path.join(dirs['abs_obj_dir'], mar_dir)
+            if os.path.exists(target_path):
+                for root, dirs, file_names in os.walk(target_path):
+                    for file_name in file_names:
+                        if file_name.endswith('.pgc'):
+                            self.info('removing file: %s' % (file_name,))
+                            os.remove(file_name)
         self.info("removing existing partial mar...")
         mar_file_results = glob.glob(
             os.path.join(dist_update_dir, '*.partial.*.mar')

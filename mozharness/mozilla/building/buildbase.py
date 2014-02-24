@@ -267,14 +267,24 @@ or run without that action (ie: --no-{action})"
         self.info("Skipping......")
         return
 
-    def query_build_env(self, skip_keys=None, **kwargs):
+    def query_build_env(self, skip_keys=None, replace_dict=None, **kwargs):
         c = self.config
         env = {}
         if skip_keys is None:
             skip_keys = []
+
+        if not replace_dict:
+            replace_dict = {}
+        # now let's grab the right host based off staging/production
+        # symbol_server_host is defined in build_pool_specifics.py
+        replace_dict.update({"symbol_server_host": c['symbol_server_host']})
+
         # let's envoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
-        env = copy.deepcopy(super(BuildingMixin, self).query_env(**kwargs))
+        env = copy.deepcopy(
+            super(BuildingMixin, self).query_env(replace_dict=replace_dict,
+                                                 **kwargs)
+        )
 
         if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
@@ -289,13 +299,8 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
 
-        # now let's grab the right host based off staging/production
-        # symbol_server_host is defined in build_pool_specifics.py
-        env['SYMBOL_SERVER_HOST'] = env['SYMBOL_SERVER_HOST'] % {
-            "symbol_server_host": c['symbol_server_host']}
-
         # we can't make env an attribute of self because env can change on
-        # every call to this method (like say if we passed partial_env)
+        # every call to this method for reasons like MOZ_SIGN_CMD
         return env
 
     def _ccache_z(self):

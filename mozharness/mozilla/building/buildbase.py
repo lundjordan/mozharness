@@ -769,6 +769,9 @@ or run without that action (ie: --no-{action})"
         }
 
     def _create_snippet(self, snippet_type):
+        # TODO port to mozharness/mozilla/signing.py.
+        # right now, the existing create_snippet method is conducted
+        # differently. these should be merged
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'update'
         )

@@ -33,7 +33,7 @@ AndroidSignatureVerificationErrorList = BaseErrorList + [{
 # TODO I'm not sure how many templates we will need.
 # This will be sufficient for the moment.
 SNIPPET_TEMPLATE = """version=1
-type=%(type)s
+type=complete
 url=%(url)s
 hashFunction=sha512
 hashValue=%(sha512_hash)s
@@ -57,22 +57,20 @@ UPDATE_XML_TEMPLATE = """<?xml version="1.0"?>
 class SigningMixin(BaseSigningMixin):
     """Generic signing helper methods.
     """
-    def create_snippet(self, binary_path, version, buildid,
-                       url, snippet_dir, snippet_type="complete",
-                       size=None, sha512_hash=None,
-                       extra_update_attrs='',
-                       snippet_template=SNIPPET_TEMPLATE,
-                       error_level=ERROR):
+    def create_complete_snippet(self, binary_path, version, buildid,
+                                url, snippet_dir, snippet_file="complete.txt",
+                                size=None, sha512_hash=None,
+                                extra_update_attrs='',
+                                snippet_template=SNIPPET_TEMPLATE,
+                                error_level=ERROR):
         """Creates a complete snippet, and writes to file.
         Returns True for success, False for failure.
         """
         self.info("Creating complete snippet for %s." % binary_path)
         if not os.path.exists(binary_path):
-            self.error("Can't create complete snippet: "
-                       " %s doesn't exist!" % binary_path)
+            self.error("Can't create complete snippet: %s doesn't exist!" % binary_path)
             return False
         replace_dict = {
-            'type': snippet_type,
             'version': version,
             'buildid': buildid,
             'url': url,
@@ -94,7 +92,7 @@ class SigningMixin(BaseSigningMixin):
             replace_dict['extra_update_attrs'] = ''
         contents = snippet_template % replace_dict
         self.mkdir_p(snippet_dir)
-        snippet_path = os.path.join(snippet_dir, snippet_type + '.txt')
+        snippet_path = os.path.join(snippet_dir, snippet_file)
         if self.write_to_file(snippet_path, contents) is None:
             self.log("Unable to write complete snippet to %s!" % snippet_path,
                      level=error_level)

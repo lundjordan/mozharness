@@ -19,6 +19,7 @@ import uuid
 import copy
 import glob
 from itertools import chain
+from datetime import datetime
 
 # import the power of mozharness ;)
 from mozharness.base.vcs.vcsbase import MercurialScript
@@ -186,7 +187,15 @@ class BuildingMixin(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
                     SigningMixin,
                     object):
     def __init__(self, **kwargs):
-        super(BuildingMixin, self).__init__(**kwargs)
+        # TODO epoch is only here to represent the start of the buildbot build
+        # that this mozharn script came from. until I can grab bbot's
+        # status.build.gettime()[0] this will have to do as a rough estimate
+        # although it is about 4s off from the time this should be
+        self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
+        self.buildid = None
+        self.builduid = None
+        self.repo_path = None
+        self.objdir = None
         self.platform = None
         self.objdir = None
         self.repo_path = None
@@ -194,6 +203,7 @@ class BuildingMixin(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
         self.builduid = None
         self.branch = None
         self.epoch_timestamp = None
+        super(BuildingMixin, self).__init__(**kwargs)
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.
@@ -1079,7 +1089,7 @@ or run without that action (ie: --no-{action})"
         if c.get('enable_package_tests'):  # do unittest sendchange
             if c.get('pgo_build'):
                 build_type = 'pgo'
-            if c.get('debug_build'):
+            elif c.get('debug_build'):
                 build_type = 'debug'
             else:  # generic opt build
                 build_type = 'opt'
@@ -1189,8 +1199,8 @@ or run without that action (ie: --no-{action})"
                     'aus2_base_upload_dir', 'update_platform',
                     'balrog_api_root']:
             self.info(val + ": " + str(c[val]))
-        if (not self.query_is_nightly() and
-                    c['create_snippets'] and c['platform_supports_snippets']):
+        if (not (self.query_is_nightly() or not c['create_snippets']) and
+                c['platform_supports_snippets']):
             self.info("Skipping action because this action is only done for "
                       "nightlies and that support/enable snippets...")
             return
@@ -1226,10 +1236,11 @@ or run without that action (ie: --no-{action})"
         # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
         # make an upload command that supports complete and partial formatting
-        upload_cmd = ('scp -o User=%s -o IdentityFile=~/.ssh/%s'
-                      ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
-                          c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
-                          c['aus2_host'], aus_prev_upload_dir)
+        upload_cmd = (
+            'scp -o User=%s -o IdentityFile=~/.ssh/%s %s/%%s.update.snippet '
+            '%s:%s/%%s.txt' % (c['aus2_user'], c['aus2_ssh_key'],
+                               dist_update_dir, c['aus2_host'],
+                               aus_prev_upload_dir)
         )
         self.info("uploading complete snippet")
         self.info("debug, normally would run: %s" % (

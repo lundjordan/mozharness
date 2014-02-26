@@ -21,7 +21,9 @@ import glob
 from itertools import chain
 
 # import the power of mozharness ;)
-from mozharness.mozilla.buildbot import BuildbotMixin
+from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_SUCCESS, \
+    TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
@@ -103,22 +105,23 @@ class MakeUploadOutputParser(OutputParser):
     }
 
     def __init__(self, **kwargs):
-        self.matches = {}
         super(MakeUploadOutputParser, self).__init__(**kwargs)
+        self.matches = {}
+        self.tbpl_status = TBPL_SUCCESS
 
     def parse_single_line(self, line):
+        prop_assigned = False
         pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
         m = re.compile(pat).match(line)
         if m:
             m = m.group(1)
             for prop, condition in self.property_conditions.iteritems():
-                prop_assigned = False
                 if eval(condition):
                     self.matches[prop] = m
                     prop_assigned = True
                     break
             if not prop_assigned:
-                # if we found a match but havn't identified the prop then this
+                # if we found a match but haven't identified the prop then this
                 # is the packageURL. Let's consider this the else block
                 self.matches['packageUrl'] = m
 
@@ -128,7 +131,10 @@ class MakeUploadOutputParser(OutputParser):
             if error_check['regex'].search(line):
                 self.num_warnings += 1
                 self.warning(line)
-                self.buildbot_status(error_check['level'])
+                self.tbpl_status = self.worst_level(
+                    error_check['level'], self.tbpl_status,
+                    levels=TBPL_WORST_LEVEL_TUPLE
+                )
                 break
         else:
             self.info(line)
@@ -143,7 +149,7 @@ class CheckTestCompleteParser(OutputParser):
         self.pass_count = 0
         self.fail_count = 0
         self.leaked = False
-        self.harnessErrRe = TinderBoxPrintRe['harness_error']['full_regex']
+        self.harness_err_re = TinderBoxPrintRe['harness_error']['full_regex']
 
     def parse_single_line(self, line):
         # Counts and flags.
@@ -154,7 +160,7 @@ class CheckTestCompleteParser(OutputParser):
         if "TEST-UNEXPECTED-" in line:
             # Set the error flags.
             # Or set the failure count.
-            m = self.harnessErrRe.match(line)
+            m = self.harness_err_re.match(line)
             if m:
                 r = m.group(1)
                 if r == "missing output line for total leaks!":
@@ -171,18 +177,23 @@ class CheckTestCompleteParser(OutputParser):
         summary = tbox_print_summary(self.pass_count,
                                      self.fail_count,
                                      self.leaked)
-        self.info("TinderboxPrint: check<br/>%s\n" % (summary))
+        self.info("TinderboxPrint: check<br/>%s\n" % summary)
+
 
 #### Mixins
 
-
-class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
+class BuildingMixin(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
+                    SigningMixin,
                     object):
-
-    objdir = None
-    repo_path = None
-    buildid = None
-    builduid = None
+    def __init__(self, **kwargs):
+        super(BuildingMixin, self).__init__(**kwargs)
+        self.platform = None
+        self.objdir = None
+        self.repo_path = None
+        self.buildid = None
+        self.builduid = None
+        self.branch = None
+        self.epoch_timestamp = None
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.
@@ -194,7 +205,7 @@ class BuildingMixin(BuildbotMixin, PurgeMixin, MockMixin, SigningMixin,
         """
         # TODO add type and value checking, not just keys
         # TODO solution should adhere to: bug 699343
-        # TODO add this to basescript when the above is done
+        # TODO add this to BaseScript when the above is done
         c = self.config
         undetermined_keys = []
         err_template = "The key '%s' could not be determined \
@@ -250,7 +261,6 @@ or run without that action (ie: --no-{action})"
         if self.repo_path:
             return self.repo_path
 
-        repo_path = ''
         if self.buildbot_config and 'properties' in self.buildbot_config:
             bbot_repo = self.buildbot_config['properties'].get('repo_path')
             repo_path = 'http://hg.mozilla.org/%s' % (bbot_repo,)
@@ -269,7 +279,6 @@ or run without that action (ie: --no-{action})"
 
     def query_build_env(self, skip_keys=None, replace_dict=None, **kwargs):
         c = self.config
-        env = {}
         if skip_keys is None:
             skip_keys = []
 
@@ -279,7 +288,7 @@ or run without that action (ie: --no-{action})"
         # symbol_server_host is defined in build_pool_specifics.py
         replace_dict.update({"symbol_server_host": c['symbol_server_host']})
 
-        # let's envoke the base query_env and make a copy of it
+        # let's evoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
         env = copy.deepcopy(
             super(BuildingMixin, self).query_env(replace_dict=replace_dict,
@@ -401,7 +410,6 @@ or run without that action (ie: --no-{action})"
     def _count_ctors(self):
         """count num of ctors and set testresults."""
         dirs = self.query_abs_dirs()
-        testresults = []
         abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
                                             'buildfarm',
                                             'utils',
@@ -413,21 +421,15 @@ or run without that action (ie: --no-{action})"
 
         cmd = ['python', abs_count_ctors_path, abs_libxul_path]
         output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
-        try:
-            output = output.split("\t")
-            num_ctors = int(output[0])
-            testresults = [(
-                'num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
-            self.set_buildbot_property('num_ctors',
-                                       num_ctors,
-                                       write_to_file=True)
-            self.set_buildbot_property('testresults',
-                                       testresults,
-                                       write_to_file=True)
-        except:
-            self.set_buildbot_property('testresults',
-                                       testresults,
-                                       write_to_file=True)
+        output = output.split("\t")
+        num_ctors = int(output[0])
+        testresults = [('num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
+        self.set_buildbot_property('num_ctors',
+                                   num_ctors,
+                                   write_to_file=True)
+        self.set_buildbot_property('testresults',
+                                   testresults,
+                                   write_to_file=True)
 
     def _create_complete_mar(self):
         # TODO use mar.py MIXINs
@@ -537,7 +539,7 @@ or run without that action (ie: --no-{action})"
         for mar_dir in ['current', 'previous']:
             target_path = os.path.join(dirs['abs_obj_dir'], mar_dir)
             if os.path.exists(target_path):
-                for root, dirs, file_names in os.walk(target_path):
+                for root, target_dirs, file_names in os.walk(target_path):
                     for file_name in file_names:
                         if file_name.endswith('.pgc'):
                             self.info('removing file: %s' % (file_name,))
@@ -547,7 +549,7 @@ or run without that action (ie: --no-{action})"
             os.path.join(dist_update_dir, '*.partial.*.mar')
         )
         if not mar_file_results:
-            self.warning("Could not determine existing partial mar from "
+            self.warning("Could not determine an existing partial mar from "
                          "%s pattern in %s dir" % ('*.partial.*.mar',
                                                    dist_update_dir))
         for mar_file in mar_file_results:
@@ -564,7 +566,7 @@ or run without that action (ie: --no-{action})"
         cmd = 'make -C tools/update-packaging partial-patch',
         self.run_mock_command(c.get('mock_target'),
                               command=cmd,
-                              cwd=self.query_abs_dirs()['abs_obj_dir'],
+                              cwd=dirs['abs_obj_dir'],
                               env=dict(chain(update_env.items(),
                                              make_partial_env.items())),
                               halt_on_failure=True)
@@ -579,7 +581,7 @@ or run without that action (ie: --no-{action})"
         if c.get('graph_server_branch_name'):
             return c['graph_server_branch_name']
         else:
-            # capitalize every word inbetween '-'
+            # capitalize every word in between '-'
             branch_list = self.branch.split('-')
             branch_list = [elem.capitalize() for elem in branch_list]
             return '-'.join(branch_list)
@@ -709,9 +711,9 @@ or run without that action (ie: --no-{action})"
         platform = self.platform
         if c.get('pgo_build'):
             platform += '-pgo'
-        tinderboxBuildsDir = "%s-%s" % (self.branch, platform)
+        tinderbox_build_dir = "%s-%s" % (self.branch, platform)
 
-        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderboxBuildsDir])
+        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderbox_build_dir])
         post_upload_cmd.extend(["-p", c['stage_product']])
         post_upload_cmd.extend(['-i', buildid])
         post_upload_cmd.extend(['--revision', revision])
@@ -724,9 +726,9 @@ or run without that action (ie: --no-{action})"
         return post_upload_cmd
 
     def _grab_mar_props(self, snippet_type='complete'):
-        return (self.query_buildbot_property('%sMarUrl' % (snippet_type)),
-                self.query_buildbot_property('%sMarHash' % (snippet_type)),
-                self.query_buildbot_property('%sMarSize' % (snippet_type)))
+        return (self.query_buildbot_property('%sMarUrl' % snippet_type),
+                self.query_buildbot_property('%sMarHash' % snippet_type),
+                self.query_buildbot_property('%sMarSize' % snippet_type))
 
     def _get_snippet_values(self, snippet_dir, snippet_type='complete'):
         fatal_msg = ("Can't determine the '%s' prop and it's needed for "
@@ -747,7 +749,7 @@ or run without that action (ie: --no-{action})"
             url, hash_val, size = self._grab_mar_props(snippet_type)
         version = self.query_buildbot_property('appVersion')
         if not version:
-            self._set_build_props()
+            self.generate_build_props()
             # now try, try again!
             version = self.query_buildbot_property('appVersion')
 
@@ -834,7 +836,7 @@ or run without that action (ie: --no-{action})"
             )
             if not abs_balrog_cred_file:
                 self.fatal("credential file given but doesn't exist!"
-                           " Path given: %s" % (abs_balrog_cred_file))
+                           " Path given: %s" % abs_balrog_cred_file)
             cmd.extend(['--credentials-file', abs_balrog_cred_file])
         self.info("Submitting Balrog updates...")
         self.info("debug, normally would run: %s" % (str(cmd)))
@@ -847,7 +849,7 @@ or run without that action (ie: --no-{action})"
             return self._skip_buildbot_specific_action()
         super(BuildingMixin, self).read_buildbot_config()
 
-    def setup_mock(self):
+    def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
         """Override setup_mock found in MockMixin.
 
         Initializes and runs any mock initialization actions.
@@ -1040,6 +1042,7 @@ or run without that action (ie: --no-{action})"
                                            'output_parser': parser}
         )
         self.info('Setting properties from make upload...')
+        self.buildbot_status(parser.tbpl_status)
         for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,
                                        value,
@@ -1119,8 +1122,7 @@ or run without that action (ie: --no-{action})"
                                   env=env)
         update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],
                                                      'tools',
-                                                     'update-packaging'),
-                                        )
+                                                     'update-packaging'),)
         self.run_mock_command(c['mock_target'],
                               command=base_cmd % (update_package_cmd,),
                               cwd=dirs['abs_src_dir'],
@@ -1186,10 +1188,9 @@ or run without that action (ie: --no-{action})"
                     'aus2_user', 'aus2_ssh_key', 'aus2_host',
                     'aus2_base_upload_dir', 'update_platform',
                     'balrog_api_root']:
-
             self.info(val + ": " + str(c[val]))
-        if not self.query_is_nightly() and (
-                c['create_snippets'] and c['platform_supports_snippets']):
+        if (not self.query_is_nightly() and
+                    c['create_snippets'] and c['platform_supports_snippets']):
             self.info("Skipping action because this action is only done for "
                       "nightlies and that support/enable snippets...")
             return
@@ -1229,10 +1230,10 @@ or run without that action (ie: --no-{action})"
                       ' %s/%%s.update.snippet %s:%s/%%s.txt' % (
                           c['aus2_user'], c['aus2_ssh_key'], dist_update_dir,
                           c['aus2_host'], aus_prev_upload_dir)
-                      )
+        )
         self.info("uploading complete snippet")
         self.info("debug, normally would run: %s" % (
-            str(upload_cmd % ('complete', 'complete'),)))
+            str(upload_cmd % ('complete', 'complete'), )))
         # XXX
         # self.retry(self.run_command,
         #            args=(upload_cmd % ('complete', 'complete'),))
@@ -1240,7 +1241,7 @@ or run without that action (ie: --no-{action})"
         if c['create_partial'] and c['platform_supports_partials']:
             self.info("uploading partial snippet")
             self.info("debug, normally would run: %s" % (
-                str(upload_cmd % ('partial', 'partial'),)))
+                str(upload_cmd % ('partial', 'partial'), )))
             # XXX
             # self.retry(self.run_command,
             #            args=(upload_cmd % ('partial', 'partial'),))
@@ -1269,7 +1270,7 @@ or run without that action (ie: --no-{action})"
         ##### submit balrog update steps
         if c['balrog_api_root']:
             self._submit_balrog_updates()
-        #####
+            #####
 
     # # TODO trigger other schedulers (if any) I think this may be l10n nightly
     # # builders when we do nightly builds here. This will need to be

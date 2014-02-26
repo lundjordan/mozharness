@@ -24,10 +24,10 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 # import mozharness ;)
 from mozharness.base.config import BaseConfig
 from mozharness.mozilla.building.buildbase import BuildingMixin
-from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.base.config import parse_config_file
 
 
+# noinspection PyUnusedLocal
 class FxBuildOptionParser(object):
     platform = None
     bits = None
@@ -94,7 +94,7 @@ class FxBuildOptionParser(object):
             else:
                 sys.exit(error_msg % (target_option, 'platform', '--platform',
                                       '"linux", "windows", or "mac"'))
-        return (cls.bits, cls.platform)
+        return cls.bits, cls.platform
 
     @classmethod
     def set_build_variant(cls, option, opt, value, parser):
@@ -104,9 +104,8 @@ class FxBuildOptionParser(object):
         shortname coupled with known platform/bits.
         """
 
-        prospective_cfg_path = None
         valid_variant_cfg_path = None
-        # first let's see if we were given a valid shortname
+        # first let's see if we were given a valid short-name
         if cls.build_variants.get(value):
             bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
             prospective_cfg_path = cls.build_variants[value] % (pltfrm, bits)
@@ -181,13 +180,13 @@ class FxBuildConfig(BaseConfig):
         This is class specific. It recognizes certain config files
         by knowing how to combine them in an organized hierarchy
         """
-        # overrided from BaseConfig
+        # override from BaseConfig
         # *NOTE the base class of this method supports configs from urls. For
         # the purpose of this script, which does not have to be generic, I am
         # not adding that functionality.
 
         # this is what we will return. It will represent each config
-        # file name and its assoctiated dict
+        # file name and its associated dict
         # eg ('builds/branch_specifics.py', {'foo': 'bar'})
         all_config_dicts = []
         # important config files
@@ -197,9 +196,9 @@ class FxBuildConfig(BaseConfig):
         # not matter. ie: you can supply --branch before --build-pool
         # or vice versa and the hierarchy will not be different
 
-        #### The order from highest presedence to lowest is:
+        #### The order from highest precedence to lowest is:
         ## There can only be one of these...
-        # 1) build_pool: this can be either staging, preprod, and prod cfgs
+        # 1) build_pool: this can be either staging, pre-prod, and prod cfgs
         # 2) branch: eg: mozilla-central, cedar, cypress, etc
         # 3) build_variant: these could be known like asan and debug
         #                   or a custom config
@@ -275,7 +274,7 @@ class FxBuildConfig(BaseConfig):
         return all_config_dicts
 
 
-class FxDesktopBuild(BuildingMixin, MercurialScript, object):
+class FxDesktopBuild(BuildingMixin, object):
     config_options = [
         [['--developer-run', '--skip-buildbot-actions'], {
             "action": "store_false",

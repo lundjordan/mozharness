@@ -492,7 +492,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
         self.objdir = None
-        super(BuildScript, self).__init__(**kwargs)
+        MercurialScript.__init__(**kwargs)
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
@@ -868,19 +868,18 @@ or run without that action (ie: --no-{action})"
             self.rmtree(mar_file, error_level=FATAL)
 
         self.info('generating partial patch from two complete mars...')
-        make_partial_env = {
+        update_env.update({
             'STAGE_DIR': '../../dist/update',
             'SRC_BUILD': '../../previous',
             'SRC_BUILD_ID': previous_buildid,
             'DST_BUILD': '../../current',
             'DST_BUILD_ID': self.query_buildid()
-        }
+        })
         cmd = 'make -C tools/update-packaging partial-patch',
         self.run_mock_command(c.get('mock_target'),
                               command=cmd,
                               cwd=dirs['abs_obj_dir'],
-                              env=dict(chain(update_env.items(),
-                                             make_partial_env.items())),
+                              env=update_env,
                               halt_on_failure=True)
         self.rmtree(os.path.join(dist_update_dir, 'previous.mar'),
                     error_level=FATAL)

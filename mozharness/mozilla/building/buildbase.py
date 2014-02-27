@@ -823,18 +823,20 @@ or run without that action (ie: --no-{action})"
             c['stage_username'], c['stage_ssh_key'], c['stage_server'],
             latest_mar_dir, c['platform_ftp_name']
         )
-        previous_mar_file = self.get_output_from_command(cmd)
-        if not re.search(r'\.mar$', previous_mar_file):
-            self.fatal('could not determine the previous complete mar file')
-        previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
-                                               latest_mar_dir,
-                                               previous_mar_file)
-        self.info('downloading previous mar...')
-        # use self.download_file(self, url, file_name=None
-        self.download_file(previous_mar_url,
-                           file_name='previous.mar',
-                           parent_dir=dist_update_dir,
-                           error_level=FATAL)
+        previous_mar_name = self.get_output_from_command(cmd)
+        if re.search(r'\.mar$', previous_mar_name or ""):
+            previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
+                                                   latest_mar_dir,
+                                                   previous_mar_name)
+            self.info('downloading previous mar...')
+            previous_mar_file = self.download_file(previous_mar_url,
+                                                   file_name='previous.mar',
+                                                   parent_dir=dist_update_dir)
+            if not previous_mar_file:
+                return
+        else:
+            self.warning('could not determine the previous complete mar file')
+            return
         self.info('unpacking previous mar...')
         cmd = '%s %s %s' % (self.query_exe('perl'),
                             abs_unwrap_update_path,
@@ -843,8 +845,7 @@ or run without that action (ie: --no-{action})"
                               command=cmd,
                               cwd=os.path.join(dirs['abs_obj_dir'],
                                                'previous'),
-                              env=update_env,
-                              halt_on_failure=True)
+                              env=update_env)
         # Extract the build ID from the unpacked previous complete mar.
         previous_buildid = self._query_previous_buildid()
         self.info('removing pgc files from previous and current dirs')
@@ -865,7 +866,7 @@ or run without that action (ie: --no-{action})"
                          "%s pattern in %s dir" % ('*.partial.*.mar',
                                                    dist_update_dir))
         for mar_file in mar_file_results:
-            self.rmtree(mar_file, error_level=FATAL)
+            self.rmtree(mar_file)
 
         self.info('generating partial patch from two complete mars...')
         update_env.update({
@@ -879,10 +880,8 @@ or run without that action (ie: --no-{action})"
         self.run_mock_command(c.get('mock_target'),
                               command=cmd,
                               cwd=dirs['abs_obj_dir'],
-                              env=update_env,
-                              halt_on_failure=True)
-        self.rmtree(os.path.join(dist_update_dir, 'previous.mar'),
-                    error_level=FATAL)
+                              env=update_env)
+        self.rmtree(os.path.join(dist_update_dir, 'previous.mar'))
         self._set_file_properties(file_name=c['partial_mar_pattern'],
                                   find_dir=dist_update_dir,
                                   prop_type='partialMar')
@@ -959,18 +958,23 @@ or run without that action (ie: --no-{action})"
     def _set_file_properties(self, file_name, find_dir, prop_type):
         c = self.config
         dirs = self.query_abs_dirs()
+        error_msg = "Not setting properties: prop_type{Filename, Size, Hash}"
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",
                "f", "-name", file_name]
         file_path = self.get_output_from_command(cmd,
                                                  dirs['abs_work_dir'])
         if not file_path:
-            self.fatal("Can't determine filepath with cmd: %s" % (str(cmd),))
+            self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
+            self.error(error_msg)
+            return
 
         cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
                file_path]
         hash_prop = self.get_output_from_command(cmd, dirs['abs_work_dir'])
         if not hash_prop:
-            self.fatal("undetermined hash_prop with cmd: %s" % (str(cmd),))
+            self.error("undetermined hash_prop with cmd: %s" % (str(cmd),))
+            self.error(error_msg)
+            return
         self.set_buildbot_property(prop_type + 'Filename',
                                    os.path.split(file_path)[1],
                                    write_to_file=True)

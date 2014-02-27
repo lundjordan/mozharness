@@ -492,7 +492,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
         self.objdir = None
-        MercurialScript.__init__(**kwargs)
+        super(BuildScript, self).__init__(**kwargs)
         # TODO epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate

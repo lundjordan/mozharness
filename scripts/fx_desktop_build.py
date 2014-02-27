@@ -22,11 +22,11 @@ from datetime import datetime
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.vcs.vcsbase import MercurialScript
-from mozharness.mozilla.building.buildbase import BuildingMixin, \
-    BUILD_BASE_CONFIG_OPTIONS, BuildingConfig
+from mozharness.mozilla.building.buildbase import BUILD_BASE_CONFIG_OPTIONS, \
+    BuildingConfig, BuildScript
 
 
-class FxDesktopBuild(MercurialScript, BuildingMixin, object):
+class FxDesktopBuild(BuildScript, object):
     def __init__(self):
         buildscript_kwargs = {
             'config_options': BUILD_BASE_CONFIG_OPTIONS,

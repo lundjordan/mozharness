@@ -24,6 +24,7 @@ from itertools import chain
 import sys
 from mozharness.base.config import BaseConfig, parse_config_file
 from mozharness.base.script import BaseScript
+from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_SUCCESS, \
     TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.purge import PurgeMixin
@@ -484,18 +485,19 @@ BUILD_BASE_CONFIG_OPTIONS = [
 ]
 
 
-class BuildingMixin(BaseScript, BuildbotMixin, PurgeMixin, MockMixin,
-                    SigningMixin, object):
-    # for pep reasons, let's give this mixin some variables it expects to be
-    # able to reach
-    epoch_timestamp = None
-    branch = None
-    bits = None
-    platform = None
-    buildid = None
-    builduid = None
-    repo_path = None
-    objdir = None
+class BuildScript(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
+                  SigningMixin, object):
+
+    def __init__(self, **kwargs):
+        self.epoch_timestamp = None
+        self.branch = None
+        self.bits = None
+        self.platform = None
+        self.buildid = None
+        self.builduid = None
+        self.repo_path = None
+        self.objdir = None
+        super(BuildScript, self).__init__(**kwargs)
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.
@@ -593,8 +595,8 @@ or run without that action (ie: --no-{action})"
         # let's evoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
         env = copy.deepcopy(
-            super(BuildingMixin, self).query_env(replace_dict=replace_dict,
-                                                 **kwargs)
+            super(BuildScript, self).query_env(replace_dict=replace_dict,
+                                               **kwargs)
         )
 
         if self.query_is_nightly():
@@ -1149,7 +1151,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         if not c.get('is_automation'):
             return self._skip_buildbot_specific_action()
-        super(BuildingMixin, self).read_buildbot_config()
+        super(BuildScript, self).read_buildbot_config()
 
     def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
         """Override setup_mock found in MockMixin.

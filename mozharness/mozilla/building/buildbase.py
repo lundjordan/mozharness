@@ -19,10 +19,11 @@ import uuid
 import copy
 import glob
 from itertools import chain
-from datetime import datetime
 
 # import the power of mozharness ;)
-from mozharness.base.vcs.vcsbase import MercurialScript
+import sys
+from mozharness.base.config import BaseConfig, parse_config_file
+from mozharness.base.script import BaseScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_SUCCESS, \
     TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.purge import PurgeMixin
@@ -181,29 +182,320 @@ class CheckTestCompleteParser(OutputParser):
         self.info("TinderboxPrint: check<br/>%s\n" % summary)
 
 
-#### Mixins
+class BuildingConfig(BaseConfig):
+    def get_cfgs_from_files(self, all_config_files, parser):
+        """ create a config based upon config files passed
 
-class BuildingMixin(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
-                    SigningMixin,
-                    object):
-    def __init__(self, **kwargs):
-        # TODO epoch is only here to represent the start of the buildbot build
-        # that this mozharn script came from. until I can grab bbot's
-        # status.build.gettime()[0] this will have to do as a rough estimate
-        # although it is about 4s off from the time this should be
-        self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
-        self.buildid = None
-        self.builduid = None
-        self.repo_path = None
-        self.objdir = None
-        self.platform = None
-        self.objdir = None
-        self.repo_path = None
-        self.buildid = None
-        self.builduid = None
-        self.branch = None
-        self.epoch_timestamp = None
-        super(BuildingMixin, self).__init__(**kwargs)
+        This is class specific. It recognizes certain config files
+        by knowing how to combine them in an organized hierarchy
+        """
+        # override from BaseConfig
+
+        # this is what we will return. It will represent each config
+        # file name and its associated dict
+        # eg ('builds/branch_specifics.py', {'foo': 'bar'})
+        all_config_dicts = []
+        # important config files
+        variant_cfg_file = branch_cfg_file = pool_cfg_file = ''
+
+        # we want to make the order in which the options were given
+        # not matter. ie: you can supply --branch before --build-pool
+        # or vice versa and the hierarchy will not be different
+
+        #### The order from highest precedence to lowest is:
+        ## There can only be one of these...
+        # 1) build_pool: this can be either staging, pre-prod, and prod cfgs
+        # 2) branch: eg: mozilla-central, cedar, cypress, etc
+        # 3) build_variant: these could be known like asan and debug
+        #                   or a custom config
+        ##
+        ## There can be many of these
+        # 4) all other configs: these are any configs that are passed with
+        #                       --cfg and --opt-cfg. There order is kept in
+        #                       which they were passed on the cmd line. This
+        #                       behaviour is maintains what happens by default
+        #                       in mozharness
+        ##
+        ####
+
+        # so, let's first assign the configs that hold a known position of
+        # importance (1 through 3)
+        for i, cf in enumerate(all_config_files):
+            if parser.build_pool:
+                if cf == BuildOptionParser.build_pools[parser.build_pool]:
+                    pool_cfg_file = all_config_files[i]
+
+            if cf == BuildOptionParser.branch_cfg_file:
+                branch_cfg_file = all_config_files[i]
+
+            if cf == parser.build_variant:
+                variant_cfg_file = all_config_files[i]
+
+        # now remove these from the list if there was any
+        # we couldn't pop() these in the above loop as mutating a list while
+        # iterating through it causes spurious results :)
+        for cf in [pool_cfg_file, branch_cfg_file, variant_cfg_file]:
+            if cf:
+                all_config_files.remove(cf)
+
+        # now let's update config with the remaining config files.
+        # this functionality is the same as the base class
+        all_config_dicts.extend(
+            super(BuildingConfig, self).get_cfgs_from_files(all_config_files,
+                                                            parser)
+        )
+
+        # stack variant, branch, and pool cfg files on top of that,
+        # if they are present, in that order
+        if variant_cfg_file:
+            # take the whole config
+            all_config_dicts.append(
+                (variant_cfg_file, parse_config_file(variant_cfg_file))
+            )
+        if branch_cfg_file:
+            # take only the specific branch, if present
+            branch_configs = parse_config_file(branch_cfg_file)
+            if branch_configs.get(parser.branch or ""):
+                print(
+                    'Branch found in file: "builds/branch_specifics.py". '
+                    'Updating self.config with keys/values under '
+                    'branch: "%s".' % (parser.branch,)
+                )
+                all_config_dicts.append(
+                    (branch_cfg_file, branch_configs[parser.branch])
+                )
+        if pool_cfg_file:
+            # take only the specific pool. If we are here, the pool
+            # must be present
+            build_pool_configs = parse_config_file(pool_cfg_file)
+            print(
+                'Build pool config found in file: '
+                '"builds/build_pool_specifics.py". Updating self.config'
+                ' with keys/values under build pool: '
+                '"%s".' % (parser.build_pool,)
+            )
+            all_config_dicts.append(
+                (pool_cfg_file, build_pool_configs[parser.build_pool])
+            )
+        return all_config_dicts
+
+
+# noinspection PyUnusedLocal
+class BuildOptionParser(object):
+    platform = None
+    bits = None
+    config_file_search_path = [
+        '.', os.path.join(sys.path[0], '..', 'configs'),
+        os.path.join(sys.path[0], '..', '..', 'configs')
+    ]
+
+    build_variants = {
+        'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
+        'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
+        'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
+        'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
+    }
+    build_pools = {
+        'staging': 'builds/build_pool_specifics.py',
+        'preproduction': 'builds/build_pool_specifics.py',
+        'production': 'builds/build_pool_specifics.py',
+    }
+    branch_cfg_file = 'builds/branch_specifics.py'
+
+    @classmethod
+    def _query_pltfrm_and_bits(cls, target_option, options):
+        """ determine platform and bits
+
+        This can be from either from a supplied --platform and --bits
+        or parsed from given config file names.
+        """
+        error_msg = (
+            'Whoops!\nYou are trying to pass a shortname for '
+            '%s. \nHowever, I need to know the %s to find the appropriate '
+            'filename. You can tell me by passing:\n\t"%s" or a config '
+            'filename via "--config" with %s in it. \nIn either case, these '
+            'option arguments must come before --custom-build-variant.'
+        )
+        current_config_files = options.config_files or []
+        if not cls.bits:
+            # --bits has not been supplied
+            # lets parse given config file names for 32 or 64
+            for cfg_file_name in current_config_files:
+                if '32' in cfg_file_name:
+                    cls.bits = '32'
+                    break
+                if '64' in cfg_file_name:
+                    cls.bits = '64'
+                    break
+            else:
+                sys.exit(error_msg % (target_option, 'bits', '--bits',
+                                      '"32" or "64"'))
+
+        if not cls.platform:
+            # --platform has not been supplied
+            # lets parse given config file names for platform
+            for cfg_file_name in current_config_files:
+                if 'windows' in cfg_file_name:
+                    cls.platform = 'windows'
+                    break
+                if 'mac' in cfg_file_name:
+                    cls.platform = 'mac'
+                    break
+                if 'linux' in cfg_file_name:
+                    cls.platform = 'linux'
+                    break
+            else:
+                sys.exit(error_msg % (target_option, 'platform', '--platform',
+                                      '"linux", "windows", or "mac"'))
+        return cls.bits, cls.platform
+
+    @classmethod
+    def set_build_variant(cls, option, opt, value, parser):
+        """ sets an extra config file.
+
+        This is done by either taking an existing filepath or by taking a valid
+        shortname coupled with known platform/bits.
+        """
+
+        valid_variant_cfg_path = None
+        # first let's see if we were given a valid short-name
+        if cls.build_variants.get(value):
+            bits, pltfrm = cls._query_pltfrm_and_bits(opt, parser.values)
+            prospective_cfg_path = cls.build_variants[value] % (pltfrm, bits)
+        else:
+            # this is either an incomplete path or an invalid key in
+            # build_variants
+            prospective_cfg_path = value
+
+        if os.path.exists(prospective_cfg_path):
+            # now let's see if we were given a valid pathname
+            valid_variant_cfg_path = value
+        else:
+            # let's take our prospective_cfg_path and see if we can
+            # determine an existing file
+            for path in cls.config_file_search_path:
+                if os.path.exists(os.path.join(path, prospective_cfg_path)):
+                    # success! we found a config file
+                    valid_variant_cfg_path = os.path.join(path,
+                                                          prospective_cfg_path)
+                    break
+
+        if not valid_variant_cfg_path:
+            # either the value was an indeterminable path or an invalid short
+            # name
+            sys.exit("Whoops!\n'--custom-build-variant' was passed but an "
+                     "appropriate config file could not be determined. Tried "
+                     "using: '%s' but it was either not:\n\t-- a valid "
+                     "shortname: %s \n\t-- a valid path in %s \n\t-- a "
+                     "valid variant for the given platform and bits." % (
+                         prospective_cfg_path,
+                         str(cls.build_variants.keys()),
+                         str(cls.config_file_search_path)))
+        parser.values.config_files.append(valid_variant_cfg_path)
+        option.dest = valid_variant_cfg_path
+
+    @classmethod
+    def set_build_pool(cls, option, opt, value, parser):
+        if cls.build_pools.get(value):
+            # first let's add the build pool file where there may be pool
+            # specific keys/values. Then let's store the pool name
+            parser.values.config_files.append(cls.build_pools[value])
+            setattr(parser.values, option.dest, value)  # the pool
+        else:
+            sys.exit(
+                "Whoops!\n--build-pool-type was passed with '%s' but only "
+                "'%s' are valid options" % (value, str(cls.build_pools.keys()))
+            )
+
+    @classmethod
+    def set_build_branch(cls, option, opt, value, parser):
+        # first let's add the branch_specific file where there may be branch
+        # specific keys/values. Then let's store the branch name we are using
+        parser.values.config_files.append(cls.branch_cfg_file)
+        setattr(parser.values, option.dest, value)  # the branch name
+
+    @classmethod
+    def set_platform(cls, option, opt, value, parser):
+        cls.platform = value
+        setattr(parser.values, option.dest, value)
+
+    @classmethod
+    def set_bits(cls, option, opt, value, parser):
+        cls.bits = value
+        setattr(parser.values, option.dest, value)
+
+
+BUILD_BASE_CONFIG_OPTIONS = [
+    [['--developer-run', '--skip-buildbot-actions'], {
+        "action": "store_false",
+        "dest": "is_automation",
+        "default": True,
+        "help": "If this is running outside of Mozilla's build"
+                "infrastructure, use this option. It ignores actions"
+                "that are not needed and adds config checks."}],
+    [['--platform'], {
+        "action": "callback",
+        "callback": BuildOptionParser.set_platform,
+        "type": "string",
+        "dest": "platform",
+        "help": "Sets the platform we are running this against"
+                "valid values: 'windows', 'mac', 'linux'"}],
+    [['--bits'], {
+        "action": "callback",
+        "callback": BuildOptionParser.set_bits,
+        "type": "string",
+        "dest": "bits",
+        "help": "Sets which bits we are building this against"
+                "valid values: '32', '64'"}],
+    [['--custom-build-variant-cfg'], {
+        "action": "callback",
+        "callback": BuildOptionParser.set_build_variant,
+        "type": "string",
+        "dest": "build_variant",
+        "help": "Sets the build type and will determine appropriate "
+                "additional config to use. Either pass a config path "
+                " or use a valid shortname from: "
+                "%s " % (BuildOptionParser.build_variants.keys(),)}],
+    [['--build-pool-type'], {
+        "action": "callback",
+        "callback": BuildOptionParser.set_build_pool,
+        "type": "string",
+        "dest": "build_pool",
+        "help": "This will update the config with specific pool "
+                "environment keys/values. The dicts for this are "
+                "in %s\nValid values: staging, preproduction, or "
+                "production" % ('builds/build_pool_specifics.py',)}],
+    [['--branch'], {
+        "action": "callback",
+        "callback": BuildOptionParser.set_build_branch,
+        "type": "string",
+        "dest": "branch",
+        "help": "This sets the branch we will be building this for. "
+                "If this branch is in branch_specifics.py, update our "
+                "config with specific keys/values from that. See "
+                "%s for possibilites" % (
+                    BuildOptionParser.branch_cfg_file,
+                )}],
+    [['--enable-pgo'], {
+        "action": "store_true",
+        "dest": "pgo_build",
+        "default": False,
+        "help": "Sets the build to run in PGO mode"}],
+]
+
+
+class BuildingMixin(BaseScript, BuildbotMixin, PurgeMixin, MockMixin,
+                    SigningMixin, object):
+    # for pep reasons, let's give this mixin some variables it expects to be
+    # able to reach
+    epoch_timestamp = None
+    branch = None
+    bits = None
+    platform = None
+    buildid = None
+    builduid = None
+    repo_path = None
+    objdir = None
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.
@@ -1282,21 +1574,6 @@ or run without that action (ie: --no-{action})"
         if c['balrog_api_root']:
             self._submit_balrog_updates()
             #####
-
-    # # TODO trigger other schedulers (if any) I think this may be l10n nightly
-    # # builders when we do nightly builds here. This will need to be
-    # # done from the master in SigningScript/Script factory
-
-    # TODO find out if we need to do this. For nightlies we always start by
-    # clobbering the whole work dir anyway so why bother here? Also, it seems
-    # weird to ccache -s after rm the build dir anyway?
-    # def cleanup(self):
-    #     dirs = self.query_abs_dirs()
-    #     if not self.query_is_nightly():
-    #         self.info("No clean up required for non nightlies.")
-    #         return
-    #     # TODO find out if we should blow away the whole abs_work_dir
-    #     self.rmtree(dirs['abs_src_dir'])
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

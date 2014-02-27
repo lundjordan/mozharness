@@ -15,13 +15,10 @@ author: Jordan Lund
 
 import sys
 import os
-import time
-from datetime import datetime
 
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
-from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.building.buildbase import BUILD_BASE_CONFIG_OPTIONS, \
     BuildingConfig, BuildScript
 
@@ -77,20 +74,6 @@ class FxDesktopBuild(BuildScript, object):
             'ConfigClass': BuildingConfig,
         }
         super(FxDesktopBuild, self).__init__(**buildscript_kwargs)
-        # TODO epoch is only here to represent the start of the buildbot build
-        # that this mozharn script came from. until I can grab bbot's
-        # status.build.gettime()[0] this will have to do as a rough estimate
-        # although it is about 4s off from the time this should be
-        self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
-        self.branch = self.config.get('branch')
-        self.bits = self.config.get('bits')
-        self.platform = self.config.get('platform')
-        if self.bits == '64' and not self.platform.endswith('64'):
-            self.platform += '64'
-        self.buildid = None
-        self.builduid = None
-        self.repo_path = None
-        self.objdir = None
 
     def _pre_config_lock(self, rw_config):
         """grab buildbot props if we are running this in automation"""

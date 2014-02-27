@@ -22,8 +22,8 @@ from itertools import chain
 
 # import the power of mozharness ;)
 import sys
+from datetime import datetime
 from mozharness.base.config import BaseConfig, parse_config_file
-from mozharness.base.script import BaseScript
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_SUCCESS, \
     TBPL_WORST_LEVEL_TUPLE
@@ -485,19 +485,27 @@ BUILD_BASE_CONFIG_OPTIONS = [
 ]
 
 
-class BuildScript(MercurialScript, BuildbotMixin, PurgeMixin, MockMixin,
-                  SigningMixin, object):
+class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
+                  SigningMixin, MercurialScript, object):
 
     def __init__(self, **kwargs):
-        self.epoch_timestamp = None
-        self.branch = None
-        self.bits = None
-        self.platform = None
+        # objdir is referenced in _query_abs_dirs() so let's make sure we
+        # have that attribute before calling BaseScript.__init__
+        self.objdir = None
+        super(BuildScript, self).__init__(**kwargs)
+        # TODO epoch is only here to represent the start of the buildbot build
+        # that this mozharn script came from. until I can grab bbot's
+        # status.build.gettime()[0] this will have to do as a rough estimate
+        # although it is about 4s off from the time this should be
+        self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
+        self.branch = self.config.get('branch')
+        self.bits = self.config.get('bits')
+        self.platform = self.config.get('platform')
+        if self.bits == '64' and not self.platform.endswith('64'):
+            self.platform += '64'
         self.buildid = None
         self.builduid = None
         self.repo_path = None
-        self.objdir = None
-        super(BuildScript, self).__init__(**kwargs)
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.

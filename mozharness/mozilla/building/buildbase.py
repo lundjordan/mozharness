@@ -31,7 +31,7 @@ from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
-from mozharness.base.log import OutputParser
+from mozharness.base.log import OutputParser, ERROR
 from mozharness.mozilla.buildbot import TBPL_RETRY
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
@@ -899,6 +899,7 @@ or run without that action (ie: --no-{action})"
                                                    file_name='previous.mar',
                                                    parent_dir=dist_update_dir)
             if not previous_mar_file:
+                # download_file will send error logs if this does not download
                 return
         else:
             self.warning('could not determine the previous complete mar file')
@@ -942,7 +943,7 @@ or run without that action (ie: --no-{action})"
             'DST_BUILD': '../../current',
             'DST_BUILD_ID': self.query_buildid()
         })
-        cmd = 'make -C tools/update-packaging partial-patch',
+        cmd = 'make -C tools/update-packaging partial-patch'
         self.run_mock_command(c.get('mock_target'),
                               command=cmd,
                               cwd=dirs['abs_obj_dir'],
@@ -1024,14 +1025,14 @@ or run without that action (ie: --no-{action})"
     def _set_file_properties(self, file_name, find_dir, prop_type):
         c = self.config
         dirs = self.query_abs_dirs()
-        error_msg = "Not setting properties: prop_type{Filename, Size, Hash}"
+        error_msg = "Not setting props: %s{Filename, Size, Hash}" % prop_type
         cmd = ["find", find_dir, "-maxdepth", "1", "-type",
                "f", "-name", file_name]
         file_path = self.get_output_from_command(cmd,
                                                  dirs['abs_work_dir'])
         if not file_path:
-            self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
             self.error(error_msg)
+            self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
             return
 
         cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
@@ -1112,37 +1113,51 @@ or run without that action (ie: --no-{action})"
                 self.query_buildbot_property('%sMarHash' % snippet_type),
                 self.query_buildbot_property('%sMarSize' % snippet_type))
 
-    def _get_snippet_values(self, snippet_dir, snippet_type='complete'):
-        fatal_msg = ("Can't determine the '%s' prop and it's needed for "
-                     "creating snippets. Please run the action 'upload' prior"
+    def _get_snippet_values(self, snippet_dir, snippet_type='complete',
+                            error_level=ERROR):
+        error_msg = ("Can't determine the '%s' prop and it's needed for "
+                     "creating snippets. Please run the action 'upload' prior "
                      "to this")
         c = self.config
         buildid = self.query_buildid()
         url, hash_val, size = self._grab_mar_props(snippet_type)
         if not url or not hash_val or not size:
+            mar_pattern = '%s_mar_pattern' % (snippet_type,)
+            self.warning("Could not find the mar properties. Trying to find"
+                         " them with %s pattern." % (c[mar_pattern],))
+            # note this will not find the mar url. If that is what is missing
+            #  then we will have to run upload() along with this.
             self._assert_cfg_valid_for_action(
-                ['%s_mar_pattern' % (snippet_type,)], 'update'
+                [mar_pattern], 'update'
             )
             self._set_file_properties(
-                file_name=c['%s_mar_pattern' % (snippet_type,)],
-                find_dir=snippet_dir, prop_type='completeMar'
+                file_name=c[mar_pattern],
+                find_dir=snippet_dir, prop_type='%sMar' % snippet_type
             )
             # now try, try again!
             url, hash_val, size = self._grab_mar_props(snippet_type)
         version = self.query_buildbot_property('appVersion')
         if not version:
+            self.warning("Could not find the appVersion property. Trying to "
+                         "find it with it in application.ini")
             self.generate_build_props()
             # now try, try again!
             version = self.query_buildbot_property('appVersion')
 
         if not url:
-            self.fatal(fatal_msg % ('%sMarUrl' % (snippet_type,),))
+            self.log(error_msg % ('%sMarUrl' % (snippet_type,),), error_level)
+            return {}
         if not hash_val:
-            self.fatal(fatal_msg % ('%sMarHash' % (snippet_type,),))
+            self.log(error_msg % ('%sMarHash' % (snippet_type,),), error_level)
+            return {}
         if not size:
-            self.fatal(fatal_msg % ('%sMarSize' % (snippet_type,),))
+            self.log(error_msg % ('%sMarSize' % (snippet_type,),), error_level)
+            return {}
         if not version:
-            self.fatal(fatal_msg % ('appVersion',))
+            self.log("Can't determine the '%s' prop. This is needed for "
+                     "%sMar snippet generation." % ('appVersion', snippet_type),
+                     error_level)
+            return {}
         return {
             'type': snippet_type,
             'url': url,
@@ -1159,6 +1174,10 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'update'
         )
+        if snippet_type == 'complete':
+            error_level = FATAL
+        else:
+            error_level = ERROR
         dirs = self.query_abs_dirs()
         snippet_dir = os.path.join(dirs['abs_obj_dir'],
                                    'dist',
@@ -1166,19 +1185,14 @@ or run without that action (ie: --no-{action})"
         if not os.path.exists(snippet_dir):
             self.fatal("The path: '%s' needs to exist for this action"
                        "Have you ran the 'build' action?" % (snippet_dir,))
-        abs_snippet_path = os.path.join(snippet_dir,
-                                        '%s.update.snippet' % (snippet_type,))
-        content = SNIPPET_TEMPLATE % self._get_snippet_values(snippet_dir,
-                                                              snippet_type)
-        self.info('saving snippet to file...')
-        if self.write_to_file(abs_snippet_path, content) is None:
-            self.error("Unable to write %s snippet to %s!" % (
-                snippet_type, abs_snippet_path)
-            )
-        self.info("displaying %s snippet file contents..." % (snippet_type,))
-        with open(abs_snippet_path) as f:
-            for line in f:
-                self.info(line)
+        snippet_values = self._get_snippet_values(
+            snippet_dir, snippet_type, error_level=error_level
+        )
+        if not snippet_values:
+            self.error("A %s snippet could not be created." % snippet_type)
+            return ''
+        else:
+            return SNIPPET_TEMPLATE % snippet_values
 
     def _submit_balrog_updates(self):
         c = self.config
@@ -1564,6 +1578,7 @@ or run without that action (ie: --no-{action})"
         )
         c = self.config
         dirs = self.query_abs_dirs()
+        created_partial_snippet = False
         # XXX FOR DEBUGGING
         for val in ['create_snippets', 'platform_supports_snippets',
                     'create_partial', 'platform_supports_partials',
@@ -1587,14 +1602,37 @@ or run without that action (ie: --no-{action})"
                                           c['update_platform'])
         ##### Create snippet steps
         # create a complete snippet
-        self._create_snippet('complete')
+        abs_snippet_path = os.path.join(dist_update_dir,
+                                        'complete.update.snippet')
+        content = self._create_snippet('complete')
+        if content:
+            self.info('saving complete snippet to file...')
+            if self.write_to_file(abs_snippet_path, content) is None:
+                self.fatal("Unable to write %s snippet to %s!" % (
+                    "complete", abs_snippet_path)
+                )
+        else:
+            # we need to create a complete snippet. we shouldn't have made it
+            #  here
+            self.fatal("Creating complete snippet failed! Missing data for "
+                       "template.")
         buildid = self.query_buildid()
         # if branch supports partials and platform supports partials
         if c['create_partial'] and c['platform_supports_partials']:
             # now create a partial snippet
-            self._create_snippet('partial')
+            abs_snippet_path = os.path.join(dist_update_dir,
+                                            'partial.update.snippet')
+            content = self._create_snippet('partial')
+            if content:
+                self.info('saving partial snippet to file...')
+                created_partial_snippet = True
+                if self.write_to_file(abs_snippet_path, content) is None:
+                    self.error("Unable to write %s snippet to %s!" % (
+                        "partial", abs_snippet_path)
+                    )
+                    created_partial_snippet = False
             # let's change the buildid to be the previous buildid
-            # because that the previous upload dir uses that id
+            # because the previous upload dir uses that id
             buildid = self._query_previous_buildid()
         #####
 
@@ -1622,32 +1660,37 @@ or run without that action (ie: --no-{action})"
         #            args=(upload_cmd % ('complete', 'complete'),))
         # if branch supports partials and platform supports partials
         if c['create_partial'] and c['platform_supports_partials']:
-            self.info("uploading partial snippet")
-            self.info("debug, normally would run: %s" % (
-                str(upload_cmd % ('partial', 'partial'), )))
-            # XXX
-            # self.retry(self.run_command,
-            #            args=(upload_cmd % ('partial', 'partial'),))
-            self.info("creating aus current upload dir")
-            aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
-                                                      self.query_buildid())
-            cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
-            self.info("debug, normally would run: %s" % (
-                str(base_ssh_cmd + cmd)))
-            # XXX
-            # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
-            # Create remote empty complete/partial snippets for current
-            # build.  Also touch the remote platform dir to defeat NFS
-            # caching on the AUS webheads.
-            self.info("creating empty snippets")
-            cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
-                aus_current_upload_dir, aus_current_upload_dir,
-                root_aus_full_dir
-            )
-            self.info("debug, normally would run: %s" % (
-                str(base_ssh_cmd + cmd)))
-            # XXX
-            # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+            if created_partial_snippet:
+                self.info("Uploading partial snippet")
+                self.info("debug, normally would run: %s" % (
+                    str(upload_cmd % ('partial', 'partial'), )))
+                # XXX
+                # self.retry(self.run_command,
+                #            args=(upload_cmd % ('partial', 'partial'),))
+                self.info("creating aus current upload dir")
+                aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
+                                                          self.query_buildid())
+                cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
+                self.info("debug, normally would run: %s" % (
+                    str(base_ssh_cmd + cmd)))
+                # XXX
+                # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+
+                # Create remote empty complete/partial snippets for current
+                # build.  Also touch the remote platform dir to defeat NFS
+                # caching on the AUS webheads.
+                self.info("creating empty snippets")
+                cmd = 'touch %s/complete.txt %s/partial.txt %s' % (
+                    aus_current_upload_dir, aus_current_upload_dir,
+                    root_aus_full_dir
+                )
+                self.info("debug, normally would run: %s" % (
+                    str(base_ssh_cmd + cmd)))
+                # XXX
+                # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+            else:
+                self.error("Partial snippet failed to be created. Nothing to "
+                           "be uploaded.")
         #####
 
         ##### submit balrog update steps

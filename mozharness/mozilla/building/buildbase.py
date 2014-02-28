@@ -502,10 +502,12 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         self.platform = self.config.get('platform')
         if self.bits == '64' and not self.platform.endswith('64'):
             self.platform += '64'
-        self.buildid = self.query_buildid()
-        self.builduid = self.query_builduid()
         self.repo_path = None
         self.revision = None
+        self.buildid = None
+        self.builduid = None
+        self.query_buildid()  # sets self.buildid
+        self.query_builduid()  # sets self.builduid
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.

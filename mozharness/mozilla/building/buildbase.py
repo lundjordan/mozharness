@@ -607,7 +607,7 @@ or run without that action (ie: --no-{action})"
                                                **kwargs)
         )
 
-        if self.query_is_nightly():
+        if True:
             env["IS_NIGHTLY"] = "yes"
             if c["create_snippets"] and c['platform_supports_snippets']:
                 # in branch_specifics.py we might set update_channel explicitly
@@ -619,6 +619,14 @@ or run without that action (ie: --no-{action})"
         if c.get('enable_signing') and 'MOZ_SIGN_CMD' not in skip_keys:
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
+        else:
+            # so SigningScriptFactory (what calls mozharness script
+            # from buildbot) assigns  MOZ_SIGN_CMD but does so incorrectly
+            # for desktop builds. Also, sometimes like for make l10n check,
+            # we don't actually want it in the env as it's not needed
+            # MOZ_SIGN_CMD
+            if env.get("MOZ_SIGN_CMD"):
+                del env["MOZ_SIGN_CMD"]
 
         # we can't make env an attribute of self because env can change on
         # every call to this method for reasons like MOZ_SIGN_CMD
@@ -630,6 +638,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
+        sys.exit(0)
         # update env for just this command
         ccache_env = copy.deepcopy(c['ccache_env'])
         ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(

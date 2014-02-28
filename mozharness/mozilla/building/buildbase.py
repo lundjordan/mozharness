@@ -487,7 +487,6 @@ BUILD_BASE_CONFIG_OPTIONS = [
 
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
                   SigningMixin, MercurialScript, object):
-
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
@@ -503,9 +502,10 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         self.platform = self.config.get('platform')
         if self.bits == '64' and not self.platform.endswith('64'):
             self.platform += '64'
-        self.buildid = None
-        self.builduid = None
+        self.buildid = self.query_buildid()
+        self.builduid = self.query_builduid()
         self.repo_path = None
+        self.revision = None
 
     def _assert_cfg_valid_for_action(self, dependencies, action):
         """ assert dependency keys are in config for given action.
@@ -533,29 +533,81 @@ or run without that action (ie: --no-{action})"
         # otherwise:
         return  # all good
 
+    def _query_build_prop_from_app_ini(self, prop):
+        dirs = self.query_abs_dirs()
+        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
+                                               'config',
+                                               'printconfigsetting.py')
+        application_ini_path = os.path.join(dirs['abs_obj_dir'],
+                                            'dist',
+                                            'bin',
+                                            'application.ini')
+        if (os.path.exists(print_conf_setting_path) and
+                os.path.exists(application_ini_path)):
+            cmd = [
+                'python', print_conf_setting_path, application_ini_path,
+                'App', prop
+            ]
+            return self.get_output_from_command(cmd, cwd=dirs['base_work_dir'])
+
     def query_builduid(self):
+        c = self.config
         if self.builduid:
             return self.builduid
-        if self.buildbot_config['properties'].get('builduid'):
-            self.builduid = self.buildbot_config['properties']['builduid']
+        in_buildbot_props = False
+        if c.get("is_automation"):
+            if self.buildbot_config['properties'].get('builduid'):
+                in_buildbot_props = True
+
+        # let's see if it's in buildbot_properties
+        if in_buildbot_props:
+            self.info("Determining builduid from buildbot properties")
+            self.buildid = self.buildbot_config['properties']['builduid']
         else:
+            # TODO find out if this is how we do it in buildbot
+            self.info("Creating buildid through uuid hex")
             self.builduid = uuid.uuid4().hex
-            self.set_buildbot_property('builduid',
-                                       self.builduid,
-                                       write_to_file=True)
+            if c.get('is_automation'):
+                self.set_buildbot_property('builduid',
+                                           self.buildid,
+                                           write_to_file=True)
         return self.builduid
 
     def query_buildid(self):
+        c = self.config
         if self.buildid:
             return self.buildid
-        if self.buildbot_config['properties'].get('buildid'):
+        in_buildbot_props = False
+        if c.get("is_automation"):
+            if self.buildbot_config['properties'].get('buildid'):
+                in_buildbot_props = True
+
+        # first let's see if we have already built ff
+        # in which case we would have a buildid
+        if self._query_build_prop_from_app_ini('BuildID'):
+            self.info("Determining buildid from application.ini")
+            self.buildid = self._query_build_prop_from_app_ini('BuildID')
+        # now let's see if it's in buildbot_properties
+        elif in_buildbot_props:
+            self.info("Determining buildid from buildbot properties")
             self.buildid = self.buildbot_config['properties']['buildid']
         else:
+            # finally, let's resort to making a buildid this will happen when
+            #  buildbot has not made one, and we are running this script for
+            # the first time in a clean dir
+            # TODO find out if this is how we do it in buildbot
+            self.info("Creating buildid through current time")
             self.buildid = time.strftime("%Y%m%d%H%M%S",
                                          time.localtime(time.time()))
-            self.set_buildbot_property('buildid',
-                                       self.buildid,
-                                       write_to_file=True)
+        if self.buildid:
+            if c.get('is_automation') and not in_buildbot_props:
+                self.set_buildbot_property('buildid',
+                                           self.buildid,
+                                           write_to_file=True)
+        else:
+            # something went horribly wrong
+            self.fatal("Could not determine Buildid!")
+
         return self.buildid
 
     def _query_objdir(self):
@@ -607,7 +659,7 @@ or run without that action (ie: --no-{action})"
                                                **kwargs)
         )
 
-        if True:
+        if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
             if c["create_snippets"] and c['platform_supports_snippets']:
                 # in branch_specifics.py we might set update_channel explicitly
@@ -638,7 +690,6 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
-        sys.exit(0)
         # update env for just this command
         ccache_env = copy.deepcopy(c['ccache_env'])
         ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(
@@ -711,6 +762,8 @@ or run without that action (ie: --no-{action})"
 
     def _checkout_source(self):
         """use vcs_checkout to grab source needed for build."""
+        if self.revision:
+            return self.revision
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
@@ -727,6 +780,8 @@ or run without that action (ie: --no-{action})"
             self.set_buildbot_property('got_revision',
                                        rev[:12],
                                        write_to_file=True)
+            self.revision = rev[:12]
+        return self.revision
 
     def _count_ctors(self):
         """count num of ctors and set testresults."""
@@ -943,7 +998,7 @@ or run without that action (ie: --no-{action})"
         cmd.extend(['--server', c['graph_server']])
         cmd.extend(['--selector', c['graph_selector']])
         cmd.extend(['--branch', self._query_graph_server_branch_name()])
-        cmd.extend(['--buildid', self.query_buildbot_property('buildid')])
+        cmd.extend(['--buildid', self.query_buildid()])
         cmd.extend(['--sourcestamp',
                     self.query_buildbot_property('sourcestamp')])
         cmd.extend(['--resultsname', resultsname])
@@ -1030,8 +1085,9 @@ or run without that action (ie: --no-{action})"
         self._assert_cfg_valid_for_action(['stage_product'], 'upload')
         c = self.config
         post_upload_cmd = ["post_upload.py"]
-        buildid = self.query_buildbot_property('buildid')
-        revision = self.query_buildbot_property('got_revision')
+        buildid = self.query_buildid()
+        # if checkout src/dest exists, this should just return the rev
+        revision = self._checkout_source()
         platform = self.platform
         if c.get('pgo_build'):
             platform += '-pgo'
@@ -1233,7 +1289,7 @@ or run without that action (ie: --no-{action})"
                                             'application.ini')
         if (not os.path.exists(print_conf_setting_path) or
                 not os.path.exists(application_ini_path)):
-            self.fatal("Can't set the following properties: "
+            self.error("Can't set the following properties: "
                        "buildid, sourcestamp, appVersion, and appName. "
                        "Required paths missing. Verify both %s and %s "
                        "exist. These paths require the 'build' action to be "
@@ -1245,7 +1301,7 @@ or run without that action (ie: --no-{action})"
         properties_needed = [
             # TODO, do we need to set buildid since we already do in
             # self.query_buildid() ?
-            # {'ini_name': 'BuildID', 'prop_name': 'buildid'},
+            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
             {'ini_name': 'Version', 'prop_name': 'appVersion'},
             {'ini_name': 'Name', 'prop_name': 'appName'}

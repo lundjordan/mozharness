@@ -9,7 +9,7 @@
 Verify the .json and .py files in the configs/ directory are well-formed.
 Further tests to verify validity would be desirable.
 
-This is also a good example script to look at to understand mozharness.
+This is also a good example script to look at to understand mozharness_jlund.
 """
 
 import os
@@ -73,7 +73,7 @@ class ConfigTest(BaseScript):
 
     def list_config_files(self):
         """ Non-default action that is mainly here to demonstrate how
-        non-default actions work in a mozharness script.
+        non-default actions work in a mozharness_jlund script.
         """
         config_files = self.query_config_files()
         for config_file in config_files:

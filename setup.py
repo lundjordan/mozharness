@@ -16,14 +16,14 @@ try:
 except ImportError:
     dependencies.append('simplejson')
 
-setup(name='mozharness',
+setup(name='mozharness_jlund',
       version=version,
       description="Mozharness is a configuration-driven script harness with full logging that allows production infrastructure and individual developers to use the same scripts. ",
       long_description=description,
       classifiers=[],  # Get strings from http://www.python.org/pypi?%3Aaction=list_classifiers
       author='Aki Sasaki',
       author_email='aki@mozilla.com',
-      url='https://hg.mozilla.org/build/mozharness/',
+      url='https://hg.mozilla.org/build/mozharness_jlund/',
       license='MPL',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
       include_package_data=True,

@@ -11,8 +11,6 @@ Ideally this will go away if and when we retire buildbot.
 import os
 import re
 import sys
-import pprint
-import codecs
 
 try:
     import simplejson as json
@@ -110,21 +108,6 @@ class BuildbotMixin(object):
             return self.buildbot_config['properties'].get('nightly_build', False)
         return False
 
-    def dump_buildbot_properties_to_json(self, prop_dict,
-                                         file_name="properties.json"):
-        c = self.config
-        if not os.path.isabs(file_name):
-            file_name = os.path.join(c['base_work_dir'],
-                                     "properties",
-                                     file_name)
-        self.info("Dumping buildbot properties to %s." % file_name)
-        self.mkdir_p(os.path.dirname(file_name))
-        json_config = json.dumps(prop_dict, sort_keys=True, indent=4)
-        fh = codecs.open(file_name, encoding='utf-8', mode='w+')
-        fh.write(json_config)
-        fh.close()
-        self.info(pprint.pformat(prop_dict))
-
     def dump_buildbot_properties(self, prop_list=None, file_name="properties", error_level=ERROR):
         c = self.config
         if not os.path.isabs(file_name):
@@ -184,7 +167,6 @@ class BuildbotMixin(object):
         for d in downloadables:
             sendchange += [d]
 
-        self.info('DRY-RUN. Would run command: ' + str(buildbot + sendchange))
-        # retcode = self.run_command(buildbot + sendchange)
-        # if retcode != 0:
-        #     self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)
+        retcode = self.run_command(buildbot + sendchange)
+        if retcode != 0:
+            self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)

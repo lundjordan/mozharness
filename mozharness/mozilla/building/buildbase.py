@@ -20,7 +20,7 @@ import copy
 import glob
 from itertools import chain
 
-# import the power of mozharness ;)
+# import the power of mozharness_jlund ;)
 import sys
 from datetime import datetime
 from mozharness.base.config import BaseConfig, parse_config_file
@@ -129,7 +129,7 @@ class MakeUploadOutputParser(OutputParser):
                 self.matches['packageUrl'] = m
 
         # now let's check for retry errors which will give log levels:
-        # tbpl status as RETRY and mozharness status as WARNING
+        # tbpl status as RETRY and mozharness_jlund status as WARNING
         for error_check in self.tbpl_error_list:
             if error_check['regex'].search(line):
                 self.num_warnings += 1
@@ -215,7 +215,7 @@ class BuildingConfig(BaseConfig):
         #                       --cfg and --opt-cfg. There order is kept in
         #                       which they were passed on the cmd line. This
         #                       behaviour is maintains what happens by default
-        #                       in mozharness
+        #                       in mozharness_jlund
         ##
         ####
 
@@ -404,7 +404,7 @@ class BuildOptionParser(object):
             setattr(parser.values, option.dest, value)  # the pool
         else:
             sys.exit(
-                "Whoops!\n--build-pool-type was passed with '%s' but only "
+                "Whoops!\n--build-pool was passed with '%s' but only "
                 "'%s' are valid options" % (value, str(cls.build_pools.keys()))
             )
 
@@ -457,7 +457,7 @@ BUILD_BASE_CONFIG_OPTIONS = [
                 "additional config to use. Either pass a config path "
                 " or use a valid shortname from: "
                 "%s " % (BuildOptionParser.build_variants.keys(),)}],
-    [['--build-pool-type'], {
+    [['--build-pool'], {
         "action": "callback",
         "callback": BuildOptionParser.set_build_pool,
         "type": "string",
@@ -674,7 +674,7 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
         else:
-            # so SigningScriptFactory (what calls mozharness script
+            # so SigningScriptFactory (what calls mozharness_jlund script
             # from buildbot) assigns  MOZ_SIGN_CMD but does so incorrectly
             # for desktop builds. Also, sometimes like for make l10n check,
             # we don't actually want it in the env as it's not needed
@@ -991,8 +991,7 @@ or run without that action (ie: --no-{action})"
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
-        self.dump_buildbot_properties_to_json(all_current_props,
-                                              graph_props_path)
+        self.dump_config(graph_props_path, all_current_props)
 
         gs_env = self.query_build_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})
@@ -1168,7 +1167,7 @@ or run without that action (ie: --no-{action})"
         }
 
     def _create_snippet(self, snippet_type):
-        # TODO port to mozharness/mozilla/signing.py.
+        # TODO port to mozharness_jlund/mozilla/signing.py.
         # right now, the existing create_snippet method is conducted
         # differently. these should be merged
         self._assert_cfg_valid_for_action(
@@ -1216,8 +1215,10 @@ or run without that action (ie: --no-{action})"
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
-        self.dump_buildbot_properties_to_json(all_current_props,
-                                              balrog_props_path)
+        # TODO - make sure all of these required props are in
+        # all_current_props tools/scripts/updates/balrog-submitter.py
+        self.info("Dumping buildbot properties to %s." % balrog_props_path)
+        self.dump_config(balrog_props_path, all_current_props)
         cmd = [
             self.query_exe('python'),
             balrog_submitter_path,
@@ -1234,10 +1235,11 @@ or run without that action (ie: --no-{action})"
                 self.fatal("credential file given but doesn't exist!"
                            " Path given: %s" % abs_balrog_cred_file)
             cmd.extend(['--credentials-file', abs_balrog_cred_file])
+        else:
+            self.fatal("Balrog requires a credential file. Pease add the"
+                       " path to your config via: 'balrog_credentials_file'")
         self.info("Submitting Balrog updates...")
-        self.info("debug, normally would run: %s" % (str(cmd)))
-        # XXX
-        # self.retry(self.run_command, args=(cmd,))
+        self.retry(self.run_command, args=(cmd,))
 
     def read_buildbot_config(self):
         c = self.config
@@ -1579,13 +1581,6 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         created_partial_snippet = False
-        # XXX FOR DEBUGGING
-        for val in ['create_snippets', 'platform_supports_snippets',
-                    'create_partial', 'platform_supports_partials',
-                    'aus2_user', 'aus2_ssh_key', 'aus2_host',
-                    'aus2_base_upload_dir', 'update_platform',
-                    'balrog_api_root']:
-            self.info(val + ": " + str(c[val]))
         if (not (self.query_is_nightly() or not c['create_snippets']) and
                 c['platform_supports_snippets']):
             self.info("Skipping action because this action is only done for "
@@ -1641,9 +1636,7 @@ or run without that action (ie: --no-{action})"
         aus_prev_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
                                                buildid)
         cmd = 'mkdir -p %s' % (aus_prev_upload_dir,)
-        self.info("debug, normally would run: %s" % (str(base_ssh_cmd + cmd)))
-        # XXX
-        # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+        self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
         # make an upload command that supports complete and partial formatting
         upload_cmd = (
@@ -1653,28 +1646,19 @@ or run without that action (ie: --no-{action})"
                                aus_prev_upload_dir)
         )
         self.info("uploading complete snippet")
-        self.info("debug, normally would run: %s" % (
-            str(upload_cmd % ('complete', 'complete'), )))
-        # XXX
-        # self.retry(self.run_command,
-        #            args=(upload_cmd % ('complete', 'complete'),))
+        self.retry(self.run_command,
+                   args=(upload_cmd % ('complete', 'complete'),))
         # if branch supports partials and platform supports partials
         if c['create_partial'] and c['platform_supports_partials']:
             if created_partial_snippet:
                 self.info("Uploading partial snippet")
-                self.info("debug, normally would run: %s" % (
-                    str(upload_cmd % ('partial', 'partial'), )))
-                # XXX
-                # self.retry(self.run_command,
-                #            args=(upload_cmd % ('partial', 'partial'),))
+                self.retry(self.run_command,
+                           args=(upload_cmd % ('partial', 'partial'),))
                 self.info("creating aus current upload dir")
                 aus_current_upload_dir = "%s/%s/en-US" % (root_aus_full_dir,
                                                           self.query_buildid())
                 cmd = 'mkdir -p %s' % (aus_current_upload_dir,)
-                self.info("debug, normally would run: %s" % (
-                    str(base_ssh_cmd + cmd)))
-                # XXX
-                # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+                self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
 
                 # Create remote empty complete/partial snippets for current
                 # build.  Also touch the remote platform dir to defeat NFS
@@ -1684,10 +1668,7 @@ or run without that action (ie: --no-{action})"
                     aus_current_upload_dir, aus_current_upload_dir,
                     root_aus_full_dir
                 )
-                self.info("debug, normally would run: %s" % (
-                    str(base_ssh_cmd + cmd)))
-                # XXX
-                # self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
+                self.retry(self.run_command, args=(base_ssh_cmd + cmd,))
             else:
                 self.error("Partial snippet failed to be created. Nothing to "
                            "be uploaded.")
@@ -1696,7 +1677,7 @@ or run without that action (ie: --no-{action})"
         ##### submit balrog update steps
         if c['balrog_api_root']:
             self._submit_balrog_updates()
-            #####
+        #####
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()

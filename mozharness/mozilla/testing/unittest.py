@@ -157,7 +157,7 @@ class DesktopUnittestOutputParser(OutputParser):
         super(DesktopUnittestOutputParser, self).parse_single_line(line)
 
     def evaluate_parser(self, return_code):
-        if self.num_errors:  # mozharness ran into a script error
+        if self.num_errors:  # mozharness_jlund ran into a script error
             self.tbpl_status = self.worst_level(TBPL_FAILURE, self.tbpl_status,
                                                 levels=TBPL_WORST_LEVEL_TUPLE)
 

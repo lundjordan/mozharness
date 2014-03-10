@@ -243,7 +243,7 @@ config = {
         "hg": [os.path.join(os.getcwd(), "build", "venv", "bin", "hg"), "--config", "web.cacerts=/etc/pki/tls/certs/ca-bundle.crt"],
         "tooltool.py": [
             os.path.join(os.getcwd(), "build", "venv", "bin", "python"),
-            os.path.join(os.getcwd(), "mozharness", "external_tools", "tooltool.py"),
+            os.path.join(os.getcwd(), "mozharness_jlund", "external_tools", "tooltool.py"),
         ],
     },
 

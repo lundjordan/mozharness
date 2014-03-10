@@ -1,7 +1,7 @@
 # This is a template config file for b2g emulator unittest testing
 
 config = {
-    # mozharness script options
+    # mozharness_jlund script options
     "application": "b2g",
     "test_suite": "mochitest",                               # reftest, mochitest or xpcshell
     "gaia_repo": "https://hg.mozilla.org/integration/gaia-central",

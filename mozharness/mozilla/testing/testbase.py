@@ -389,7 +389,7 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
             if self.buildbot_config:  # this cmd is for buildbot
                 # TODO rather then checking for formatting on every string
                 # in every preflight enabled cmd: find a better solution!
-                # maybe I can implement WithProperties in mozharness?
+                # maybe I can implement WithProperties in mozharness_jlund?
                 cmd = [x % (self.buildbot_config.get('properties'))
                        for x in cmd]
             self.run_command(cmd,

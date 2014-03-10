@@ -2,7 +2,7 @@
 import os
 
 config = {
-    # mozharness options
+    # mozharness_jlund options
     "application": "b2g",
     "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
 

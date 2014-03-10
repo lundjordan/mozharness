@@ -25,7 +25,7 @@ from mozharness.base.script import ScriptMixin
 HG_OPTIONS = ['--config', 'ui.merge=internal:merge']
 
 # MercurialVCS {{{1
-# TODO Make the remaining functions more mozharness-friendly.
+# TODO Make the remaining functions more mozharness_jlund-friendly.
 # TODO Add the various tag functionality that are currently in
 # build/tools/scripts to MercurialVCS -- generic tagging logic belongs here.
 REVISION, BRANCH = 0, 1

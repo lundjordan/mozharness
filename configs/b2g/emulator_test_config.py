@@ -1,7 +1,7 @@
 # This is a template config file for b2g emulator unittest testing
 
 config = {
-    # mozharness_jlund script options
+    # mozharness script options
     "application": "b2g",
     "test_suite": "xpcshell",                               # reftest, mochitest or xpcshell
 

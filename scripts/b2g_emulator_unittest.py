@@ -335,7 +335,7 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
 
         # TODO we probably have to move some of the code in
         # scripts/desktop_unittest.py and scripts/marionette.py to
-        # mozharness_jlund.mozilla.testing.unittest so we can share it.
+        # mozharness.mozilla.testing.unittest so we can share it.
         # In the short term, I'm ok with some duplication of code if it
         # expedites things; please file bugs to merge if that happens.
 

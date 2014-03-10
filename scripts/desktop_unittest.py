@@ -289,7 +289,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
 
     # Actions {{{2
 
-    # clobber defined in BaseScript, deletes mozharness_jlund/build if exists
+    # clobber defined in BaseScript, deletes mozharness/build if exists
     # read_buildbot_config is in BuildbotMixin.
     # postflight_read_buildbot_config is in TestingMixin.
     # preflight_download_and_extract is in TestingMixin.

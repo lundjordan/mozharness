@@ -9,7 +9,7 @@
 Verify the .json and .py files in the configs/ directory are well-formed.
 Further tests to verify validity would be desirable.
 
-This is also a good example script to look at to understand mozharness_jlund.
+This is also a good example script to look at to understand mozharness.
 """
 
 import os

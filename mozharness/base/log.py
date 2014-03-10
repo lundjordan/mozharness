@@ -21,7 +21,7 @@ import traceback
 FATAL_LEVEL = logging.CRITICAL + 10
 logging.addLevelName(FATAL_LEVEL, 'FATAL')
 
-# mozharness_jlund log levels.
+# mozharness log levels.
 DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL, IGNORE = (
     'debug', 'info', 'warning', 'error', 'critical', 'fatal', 'ignore')
 

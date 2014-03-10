@@ -20,7 +20,7 @@ import copy
 import glob
 from itertools import chain
 
-# import the power of mozharness_jlund ;)
+# import the power of mozharness ;)
 import sys
 from datetime import datetime
 from mozharness.base.config import BaseConfig, parse_config_file
@@ -129,7 +129,7 @@ class MakeUploadOutputParser(OutputParser):
                 self.matches['packageUrl'] = m
 
         # now let's check for retry errors which will give log levels:
-        # tbpl status as RETRY and mozharness_jlund status as WARNING
+        # tbpl status as RETRY and mozharness status as WARNING
         for error_check in self.tbpl_error_list:
             if error_check['regex'].search(line):
                 self.num_warnings += 1
@@ -215,7 +215,7 @@ class BuildingConfig(BaseConfig):
         #                       --cfg and --opt-cfg. There order is kept in
         #                       which they were passed on the cmd line. This
         #                       behaviour is maintains what happens by default
-        #                       in mozharness_jlund
+        #                       in mozharness
         ##
         ####
 
@@ -674,7 +674,7 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
         else:
-            # so SigningScriptFactory (what calls mozharness_jlund script
+            # so SigningScriptFactory (what calls mozharness script
             # from buildbot) assigns  MOZ_SIGN_CMD but does so incorrectly
             # for desktop builds. Also, sometimes like for make l10n check,
             # we don't actually want it in the env as it's not needed
@@ -1167,7 +1167,7 @@ or run without that action (ie: --no-{action})"
         }
 
     def _create_snippet(self, snippet_type):
-        # TODO port to mozharness_jlund/mozilla/signing.py.
+        # TODO port to mozharness/mozilla/signing.py.
         # right now, the existing create_snippet method is conducted
         # differently. these should be merged
         self._assert_cfg_valid_for_action(

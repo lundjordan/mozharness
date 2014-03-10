@@ -16,7 +16,7 @@ try:
 except ImportError:
     dependencies.append('simplejson')
 
-setup(name='mozharness_jlund',
+setup(name='mozharness',
       version=version,
       description="Mozharness is a configuration-driven script harness with full logging that allows production infrastructure and individual developers to use the same scripts. ",
       long_description=description,

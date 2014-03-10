@@ -6,7 +6,7 @@
 # ***** END LICENSE BLOCK *****
 """Generic error lists.
 
-Error lists are used to parse output in mozharness_jlund.base.log.OutputParser.
+Error lists are used to parse output in mozharness.base.log.OutputParser.
 
 Each line of output is matched against each substring or regular expression
 in the error list.  On a match, we determine the 'level' of that line,

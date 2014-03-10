@@ -8,7 +8,7 @@
 """
 
 # Figure out where our external_tools are
-# These are in a sibling directory to the 'mozharness_jlund' module
+# These are in a sibling directory to the 'mozharness' module
 import os
 import mozharness
 external_tools_path = os.path.join(

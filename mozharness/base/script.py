@@ -7,7 +7,7 @@
 """Generic script objects.
 
 script.py, along with config.py and log.py, represents the core of
-mozharness_jlund.
+mozharness.
 """
 
 import codecs
@@ -1071,7 +1071,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
 
     def _config_lock(self):
         """After this point, the config is locked and should not be
-        manipulated (based on mozharness_jlund.base.config.ReadOnlyDict)
+        manipulated (based on mozharness.base.config.ReadOnlyDict)
         """
         self.config.lock()
 

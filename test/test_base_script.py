@@ -239,7 +239,7 @@ class TestScript(unittest.TestCase):
     def test_get_output_from_command_with_missing_file2(self):
         self.s = get_debug_script_obj()
         self.s.run_command(
-            command="cat mozharness_jlund/base/errors.py",
+            command="cat mozharness/base/errors.py",
             error_list=[{
                 'substr': "error", 'level': ERROR
             }, {

@@ -94,7 +94,7 @@ class FxDesktopBuild(BuildScript, object):
         dirs = {
             # BuildFactories in factory.py refer to a 'build' dir on the slave.
             # This contains all the source code/objdir to compile.  However,
-            # there is already a build dir in mozharness_jlund for every mh run. The
+            # there is already a build dir in mozharness for every mh run. The
             # 'build' that factory refers to I named: 'source' so
             # there is a seperation in mh.  for example, rather than having
             # '{mozharness_repo}/build/build/', I have '{

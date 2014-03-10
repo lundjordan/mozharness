@@ -655,7 +655,7 @@ intree=1
         # https://people.mozilla.com/~hwine/tmp/vcs2vcs/notes.html#initial-conversion
         # We may need to update this script if we update git.
         # Currently, due to the way the script outputs (with \r but not \n),
-        # mozharness_jlund doesn't output anything for a number of ours.  This
+        # mozharness doesn't output anything for a number of ours.  This
         # prevents using the output_timeout run_command() option (or, if we
         # did, it would have to be many hours long).
         env = deepcopy(self.config.get('env', {}))

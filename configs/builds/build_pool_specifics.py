@@ -3,10 +3,7 @@
 
 config = {
     "staging": {
-        # for testing, here is my master
-        "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:8038"],
-        # XXX TODO: use this dev sendchange master when we go live
-        # "sendchange_masters": ["dev-master01.build.scl1.mozilla.com:9901"],
+        "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:9901"],
         # XXX: should point at aus4-admin-dev once production is pointing
         # elsewhere
         'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
@@ -22,6 +19,8 @@ pub/mozilla.org/firefox/nightly',
         # self._query_graph_server_branch_name()
         "graph_server_branch_name": "MozillaTest",
     },
+    # I don't think we use preproduction anymore, but it was little effort to
+    #  add it
     "preproduction": {
         "sendchange_masters": [
             "preproduction-master.srv.releng.scl3.mozilla.com:9008"

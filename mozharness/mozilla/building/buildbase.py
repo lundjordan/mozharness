@@ -1122,8 +1122,9 @@ or run without that action (ie: --no-{action})"
         url, hash_val, size = self._grab_mar_props(snippet_type)
         if not url or not hash_val or not size:
             mar_pattern = '%s_mar_pattern' % (snippet_type,)
-            self.warning("Could not find the mar properties. Trying to find"
-                         " them with %s pattern." % (c[mar_pattern],))
+            self.warning("Could not find the %s mar properties. Trying to find"
+                         " them with %s pattern." % (snippet_type,
+                                                     c[mar_pattern],))
             # note this will not find the mar url. If that is what is missing
             #  then we will have to run upload() along with this.
             self._assert_cfg_valid_for_action(
@@ -1626,9 +1627,12 @@ or run without that action (ie: --no-{action})"
                         "partial", abs_snippet_path)
                     )
                     created_partial_snippet = False
-            # let's change the buildid to be the previous buildid
-            # because the previous upload dir uses that id
-            buildid = self._query_previous_buildid()
+                # let's change the buildid to be the previous buildid
+                # because the previous upload dir uses that id
+                buildid = self._query_previous_buildid()
+            else:
+                self.warning("Because partial snippet failed to be created, "
+                             "the AUS prev upload dir will current buildid.")
         #####
 
         ##### Upload snippet steps

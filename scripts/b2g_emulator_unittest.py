@@ -37,13 +37,6 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
          "help": "The type of tests to run",
          }
     ], [
-        ["--no-update"],
-        {"action": "store_false",
-         "dest": "update_files",
-         "default": True,
-         "help": "Don't update emulator and gecko before running tests"
-         }
-    ], [
         ["--busybox-url"],
         {"action": "store",
          "dest": "busybox_url",
@@ -111,6 +104,8 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
     error_list = [
         {'substr': 'FAILED (errors=', 'level': ERROR},
         {'substr': r'''Could not successfully complete transport of message to Gecko, socket closed''', 'level': ERROR},
+        {'substr': r'''Could not communicate with Marionette server. Is the Gecko process still running''', 'level': ERROR},
+        {'substr': r'''Connection to Marionette server is lost. Check gecko''', 'level': ERROR},
         {'substr': 'Timeout waiting for marionette on port', 'level': ERROR},
         {'regex': re.compile(r'''(Timeout|NoSuchAttribute|Javascript|NoSuchElement|XPathLookup|NoSuchWindow|StaleElement|ScriptTimeout|ElementNotVisible|NoSuchFrame|InvalidElementState|NoAlertPresent|InvalidCookieDomain|UnableToSetCookie|InvalidSelector|MoveTargetOutOfBounds)Exception'''), 'level': ERROR},
     ]
@@ -271,6 +266,14 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
             'this_chunk': self.config.get('this_chunk'),
         }
 
+        # Bug 978233 - hack to get around multiple mochitest manifest arguments
+        if suite == 'mochitest':
+            if self.test_manifest.endswith('.ini'):
+                manifest_param = '--manifest'
+            else:
+                manifest_param = '--test-manifest'
+            str_format_values['test_manifest'] = '%s=%s' % (manifest_param, self.test_manifest)
+
         name = '%s_options' % suite
         options = self.tree_config.get(name, self.config.get(name))
         if options:
@@ -356,8 +359,6 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
         env['MOZ_UPLOAD_DIR'] = dirs['abs_blob_upload_dir']
         if not os.path.isdir(env['MOZ_UPLOAD_DIR']):
             self.mkdir_p(env['MOZ_UPLOAD_DIR'])
-        if suite_name == 'reftest' and os.environ.get("OPENGL_IS_BROKEN_HERE"):
-            env["GALLIUM_DRIVER"] = "softpipe"
         env = self.query_env(partial_env=env)
 
         parser = DesktopUnittestOutputParser(suite_category=suite_name,

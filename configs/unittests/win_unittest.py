@@ -73,6 +73,7 @@ config = {
         "--tbpl"
     ],
     "mozbase_options": [
+        "-b", "%(binary_path)s"
     ],
     #local mochi suites
     "all_mochitest_suites":
@@ -103,6 +104,8 @@ config = {
                         'tests/reftest/tests/layout/reftests/reftest-sanity/reftest.list'],
         "reftest-no-accel": ["--setpref=gfx.direct2d.disabled=true", "--setpref=layers.acceleration.disabled=true",
                              "tests/reftest/tests/layout/reftests/reftest.list"],
+        "reftest-omtc": ["--setpref=layers.offmainthreadcomposition.enabled=true",
+                         "tests/reftest/tests/layout/reftests/reftest.list"],
         "crashtest-ipc": ['--setpref=browser.tabs.remote=true',
                           '--setpref=browser.tabs.remote.autostart=true',
                           'tests/reftest/tests/testing/crashtest/crashtests.list'],

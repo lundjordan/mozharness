@@ -68,12 +68,6 @@ config = {
         'CCACHE_UMASK': '002',
     },
     'vcs_share_base': '/builds/hg-shared',
-    "hgtool_base_mirror_urls": [
-        "http://hg-internal.dmz.scl3.mozilla.com"
-    ],
-    "hgtool_base_bundle_urls": [
-        "http://ftp.mozilla.org/pub/mozilla.org/firefox/bundles"
-    ],
     'objdir': 'obj-firefox',
     'old_packages': [
         "%(objdir)s/dist/firefox-*",

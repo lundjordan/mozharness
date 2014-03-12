@@ -104,9 +104,17 @@ class BuildbotMixin(object):
         return self.buildbot_properties.get(prop_name)
 
     def query_is_nightly(self):
-        if self.buildbot_config and 'properties' in self.buildbot_config:
+        # in an effort to move away from buildbot props, we allow for nightly
+        # builds to be configured at a mozharness level
+        if self.config.get('nightly_build'):
+            return True
+        # now see if we obtained buildbot props and if nightly_build is
+        # there
+        elif self.buildbot_config and 'properties' in self.buildbot_config:
             return self.buildbot_config['properties'].get('nightly_build', False)
-        return False
+        # fall back to this
+        else:
+            return False
 
     def dump_buildbot_properties(self, prop_list=None, file_name="properties", error_level=ERROR):
         c = self.config

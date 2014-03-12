@@ -4,7 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 # ***** END LICENSE BLOCK *****
-"""fx_nightly_build.py.
+"""fx_desktop_build.py.
 
 script harness to build nightly firefox within Mozilla's build environment
 and developer machines alike
@@ -119,5 +119,5 @@ class FxDesktopBuild(BuildScript, object):
 
 
 if __name__ == '__main__':
-    fx_nightly_build = FxDesktopBuild()
-    fx_nightly_build.run_and_exit()
+    fx_desktop_build = FxDesktopBuild()
+    fx_desktop_build.run_and_exit()

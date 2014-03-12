@@ -290,7 +290,14 @@ class BuildOptionParser(object):
         os.path.join(sys.path[0], '..', '..', 'configs')
     ]
 
+    # add to this list and you can automagically do things like
+    # --custom-build-variant non-unified
+    # and the script will pull up the appropriate path for the config
+    # against the current platform and bits.
+    # *It will warn and fail if there is not a config for the current
+    # platform/bits
     build_variants = {
+        'non-unified': 'builds/releng_sub_%s_configs/%s_non-unified.py',
         'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
         'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
         'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
@@ -482,6 +489,12 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "dest": "pgo_build",
         "default": False,
         "help": "Sets the build to run in PGO mode"}],
+
+    [['--enable-nightly'], {
+        "action": "store_true",
+        "dest": "nightly_build",
+        "default": False,
+        "help": "Sets the build to run in nightly mode"}],
 ]
 
 
@@ -985,7 +998,6 @@ or run without that action (ie: --no-{action})"
         # persisted to file rather than use whats in the buildbot_properties
         # live object so we become less action dependant.
         graph_props_path = os.path.join(c['base_work_dir'],
-                                        "properties",
                                         "graph_props.json")
         all_current_props = dict(
             chain(self.buildbot_config['properties'].items(),
@@ -1206,7 +1218,6 @@ or run without that action (ie: --no-{action})"
         # now and balrog may be removing the buildprops cli arg once we no
         # longer use buildbot
         balrog_props_path = os.path.join(c['base_work_dir'],
-                                         "properties",
                                          "balrog_props.json")
         balrog_submitter_path = os.path.join(dirs['abs_tools_dir'],
                                              'scripts',
@@ -1391,21 +1402,6 @@ or run without that action (ie: --no-{action})"
                               command='make package',
                               cwd=cwd,
                               env=self.query_build_env())
-
-        # TODO check not 'xulrunner' (when we do xulrunner builds)
-        # I don't think we actually need package_filename, size, hash, etc. but
-        # it may turn out that we will. commenting out for now
-        # find_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
-        #                         'dist')
-        # NOTE package_filename can be obtained by build sys: eg `make
-        # echo-variable-PACKAGE` However, this env var is not always correct
-        # and may be influenced by things like: MOZ_OFFICIAL=1,
-        # MOZ_PKG_PRETTYNAMES=1 and on windows, there is more than one package
-        # name. for now, let's use the package_filename pattern to search for
-        # it manually with 'find' cmd
-        # self._set_file_properties(file_name=c['package_filename'],
-        #                           find_dir=find_dir,
-        #                           prop_type='package')
 
     def upload(self):
         self._assert_cfg_valid_for_action(

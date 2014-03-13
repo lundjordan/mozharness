@@ -112,8 +112,7 @@ config = {
 
     #########################################################################
     ###### 64 bit specific ######
-    # TODO find out if we need all these platform keys
-    # TODO port self.platform_variation self.complete_platform for RPM check
+    # TODO we may need to add these other platform keys but thus far, I don't
     'platform': 'linux64',
     # # this will change for sub configs like asan, pgo etc
     # 'platform_variation': '',

@@ -112,8 +112,9 @@ config = {
 
     #########################################################################
     ###### 32 bit specific ######
-    # TODO find out if we need all these platform keys
     'platform': 'linux',
+    # TODO we may need to add these other platform keys but thus far, I don't
+    #  see the need:
     # 'platform_variation': '',
     # 'complete_platform': 'linux',
     # 'stage_platform': 'linux',

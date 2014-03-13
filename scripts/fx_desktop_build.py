@@ -47,6 +47,8 @@ class FxDesktopBuild(BuildScript, object):
             'require_config_file': True,
             # Default configuration
             'config': {
+                "repo_base": "http://hg.mozilla.org",
+                "nightly_build": False,
                 "pgo_build": False,
                 'is_automation': True,
                 # create_snippets will be decided by

@@ -68,9 +68,9 @@ MISSING_CFG_KEY_MSG = "The key '%s' could not be determined \
 Please add this to your config."
 
 ERROR_MSGS = {
-    'undetermined_repo_path': 'The repo_path could not be determined. \
-Please make sure there is a "repo_path" in either your config or, if \
-you are running this in buildbot, in your buildbot_config.',
+    'undetermined_repo_path': 'The repo could not be determined. \
+Please make sure that either "repo" is in your config or, if \
+you are running this in buildbot, "repo_path" is in your buildbot_config.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.',
     'src_mozconfig_path_not_found': '"abs_src_mozconfig" path could not be \
@@ -92,7 +92,7 @@ class MakeUploadOutputParser(OutputParser):
     # rather than a long if/else with duplicate code
     property_conditions = {
         # key: property name, value: condition
-        # TODO I think we can rm these RPM conditions
+        # TODO find out if we can rm these RPM conditions
         'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
         'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
         'packageRpmUrl': "m.endswith('.rpm')",
@@ -505,10 +505,13 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         # have that attribute before calling BaseScript.__init__
         self.objdir = None
         super(BuildScript, self).__init__(**kwargs)
-        # TODO epoch is only here to represent the start of the buildbot build
+        # epoch is only here to represent the start of the buildbot build
         # that this mozharn script came from. until I can grab bbot's
         # status.build.gettime()[0] this will have to do as a rough estimate
-        # although it is about 4s off from the time this should be
+        # although it is about 4s off from the time it would be if it was
+        # done through MBF.
+        # TODO find out if that time diff matters or if we just use it to
+        # separate each build
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.branch = self.config.get('branch')
         self.bits = self.config.get('bits')
@@ -533,6 +536,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         # TODO add type and value checking, not just keys
         # TODO solution should adhere to: bug 699343
         # TODO add this to BaseScript when the above is done
+        # for now, let's just use this as a way to save typing...
         c = self.config
         undetermined_keys = []
         err_template = "The key '%s' could not be determined \
@@ -564,6 +568,8 @@ or run without that action (ie: --no-{action})"
                 'App', prop
             ]
             return self.get_output_from_command(cmd, cwd=dirs['base_work_dir'])
+        else:
+            return ''
 
     def query_builduid(self):
         c = self.config
@@ -577,15 +583,19 @@ or run without that action (ie: --no-{action})"
         # let's see if it's in buildbot_properties
         if in_buildbot_props:
             self.info("Determining builduid from buildbot properties")
-            self.buildid = self.buildbot_config['properties']['builduid']
+            self.builduid = self.buildbot_config['properties']['builduid']
         else:
-            # TODO find out if this is how we do it in buildbot
-            self.info("Creating buildid through uuid hex")
+            self.info("Creating builduid through uuid hex")
             self.builduid = uuid.uuid4().hex
-            if c.get('is_automation'):
+
+        if self.builduid:
+            if c.get('is_automation') and not in_buildbot_props:
                 self.set_buildbot_property('builduid',
                                            self.buildid,
                                            write_to_file=True)
+        else:
+            # something went horribly wrong
+            self.fatal("Could not determine builduid!")
         return self.builduid
 
     def query_buildid(self):
@@ -609,8 +619,7 @@ or run without that action (ie: --no-{action})"
         else:
             # finally, let's resort to making a buildid this will happen when
             #  buildbot has not made one, and we are running this script for
-            # the first time in a clean dir
-            # TODO find out if this is how we do it in buildbot
+            # the first time in a clean clobbered state
             self.info("Creating buildid through current time")
             self.buildid = time.strftime("%Y%m%d%H%M%S",
                                          time.localtime(time.time()))
@@ -634,22 +643,16 @@ or run without that action (ie: --no-{action})"
         self.objdir = self.config['objdir']
         return self.objdir
 
-    # TODO query_repo is basically a copy from B2GBuild, maybe get B2GBuild to
-    # inherit from BuildingMixin after buildbase's generality is more defined?
     def _query_repo(self):
         if self.repo_path:
             return self.repo_path
+        self._assert_cfg_valid_for_action(['repo_base', 'repo_path'], 'build')
+        c = self.config
 
-        repo_path = self.config.get('repo')
-        if not repo_path:
-            if self.buildbot_config and 'properties' in self.buildbot_config:
-                bbot_repo = self.buildbot_config['properties'].get('repo_path')
-                if bbot_repo:
-                    repo_path = 'http://hg.mozilla.org/%s' % (bbot_repo,)
-
-        if not repo_path:
-            self.fatal(ERROR_MSGS['undetermined_repo_path'])
-        self.repo_path = repo_path
+        # unlike b2g, we actually supply the repo in mozharness so if it's in
+        #  the config, we use that (automation does not require it in
+        # buildbot props)
+        self.repo_path = '%s/%s' % (c['repo_base'], c['repo_path'],)
         return self.repo_path
 
     def _skip_buildbot_specific_action(self):
@@ -797,7 +800,7 @@ or run without that action (ie: --no-{action})"
             self.set_buildbot_property('got_revision',
                                        rev[:12],
                                        write_to_file=True)
-            self.revision = rev[:12]
+        self.revision = rev[:12]
         return self.revision
 
     def _count_ctors(self):
@@ -1028,8 +1031,6 @@ or run without that action (ie: --no-{action})"
                                  args=(cmd,),
                                  kwargs={'cwd': dirs['abs_src_dir'],
                                          'env': gs_env})
-        # TODO find out if this translates to the same from this file:
-        # http://mxr.mozilla.org/build/source/buildbotcustom/steps/test.py#73
         if result_code != 0:
             self.error('Automation Error: failed graph server post')
         else:
@@ -1184,7 +1185,9 @@ or run without that action (ie: --no-{action})"
     def _create_snippet(self, snippet_type):
         # TODO port to mozharness/mozilla/signing.py.
         # right now, the existing create_snippet method is conducted
-        # differently. these should be merged
+        # differently. these should be merged. however, snippet logic is on
+        # it's way out. It's only used as a backup for balrog so it is not
+        # high priority to port to signing.py
         self._assert_cfg_valid_for_action(
             ['mock_target'], 'update'
         )
@@ -1229,8 +1232,6 @@ or run without that action (ie: --no-{action})"
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
-        # TODO - make sure all of these required props are in
-        # all_current_props tools/scripts/updates/balrog-submitter.py
         self.info("Dumping buildbot properties to %s." % balrog_props_path)
         self.dump_config(balrog_props_path, all_current_props)
         cmd = [
@@ -1254,12 +1255,6 @@ or run without that action (ie: --no-{action})"
                        " path to your config via: 'balrog_credentials_file'")
         self.info("Submitting Balrog updates...")
         self.retry(self.run_command, args=(cmd,))
-
-    def read_buildbot_config(self):
-        c = self.config
-        if not c.get('is_automation'):
-            return self._skip_buildbot_specific_action()
-        super(BuildScript, self).read_buildbot_config()
 
     def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
         """Override setup_mock found in MockMixin.
@@ -1331,9 +1326,6 @@ or run without that action (ie: --no-{action})"
             'python', print_conf_setting_path, application_ini_path, 'App'
         ]
         properties_needed = [
-            # TODO, do we need to set buildid since we already do in
-            # self.query_buildid() ?
-            {'ini_name': 'BuildID', 'prop_name': 'buildid'},
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
             {'ini_name': 'Version', 'prop_name': 'appVersion'},
             {'ini_name': 'Name', 'prop_name': 'appName'}
@@ -1357,9 +1349,8 @@ or run without that action (ie: --no-{action})"
         # TODO in buildbot, we see if self.graphServer exists, but we know that
         # nightly does not use graph server so let's use that instead of adding
         # confusion to the configs. This may need to change once we
-        # port xul, valgrind, etc over and it turns out we need the
-        # graph_server condition
-        # if self.config.get('graph_server'):
+        # port xul, valgrind, etc and it turns out we need the
+        # graphServer condition
         if not self.query_is_nightly():
             self._graph_server_post()
         else:

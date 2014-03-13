@@ -640,11 +640,13 @@ or run without that action (ie: --no-{action})"
         if self.repo_path:
             return self.repo_path
 
-        if self.buildbot_config and 'properties' in self.buildbot_config:
-            bbot_repo = self.buildbot_config['properties'].get('repo_path')
-            repo_path = 'http://hg.mozilla.org/%s' % (bbot_repo,)
-        else:
-            repo_path = self.config.get('repo')
+        repo_path = self.config.get('repo')
+        if not repo_path:
+            if self.buildbot_config and 'properties' in self.buildbot_config:
+                bbot_repo = self.buildbot_config['properties'].get('repo_path')
+                if bbot_repo:
+                    repo_path = 'http://hg.mozilla.org/%s' % (bbot_repo,)
+
         if not repo_path:
             self.fatal(ERROR_MSGS['undetermined_repo_path'])
         self.repo_path = repo_path

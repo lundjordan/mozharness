@@ -73,6 +73,7 @@ config = {
         "--tbpl"
     ],
     "mozbase_options": [
+        "-b", "%(binary_path)s"
     ],
     #local mochi suites
     "all_mochitest_suites": {
@@ -119,7 +120,9 @@ config = {
         "cppunittest": ['tests/cppunittests']
     },
     "all_jittest_suites": {
-        "jittest": []
+        "jittest": [],
+        "jittest1": ["--total-chunks=2", "--this-chunk=1"],
+        "jittest2": ["--total-chunks=2", "--this-chunk=2"],
     },
     "all_mozbase_suites": {
         "mozbase": []

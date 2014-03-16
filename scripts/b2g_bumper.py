@@ -43,6 +43,7 @@ class B2GBumper(VCSScript, MapperMixin):
         super(B2GBumper, self).__init__(
             all_actions=[
                 'clobber',
+                'check-treestatus',
                 'checkout-gecko',
                 'bump-gaia',
                 'checkout-manifests',
@@ -55,6 +56,10 @@ class B2GBumper(VCSScript, MapperMixin):
                 'push-loop',
             ],
             require_config_file=require_config_file,
+            # Default config options
+            config={
+                'treestatus_base_url': 'https://treestatus.mozilla.org',
+            }
         )
 
         # Mapping of device name to manifest
@@ -193,15 +198,19 @@ class B2GBumper(VCSScript, MapperMixin):
 
         # TODO: alert/notify on missing repositories
         # TODO: Add external caching
+        abort = False
         for p, result in results:
             abs_revision = result.get()
             remote_url = repo_manifest.get_project_remote_url(manifest, p)
             revision = repo_manifest.get_project_revision(manifest, p)
             if not abs_revision:
-                self.fatal("Couldn't resolve %s %s" % (remote_url, revision))
+                abort = True
+                self.error("Couldn't resolve %s %s" % (remote_url, revision))
             # Save to our cache
             self._git_ref_cache[remote_url, revision] = abs_revision
             p.setAttribute('revision', abs_revision)
+        if abort:
+            self.fatal("couldn't resolve some refs; exiting")
 
     def query_manifest_path(self, device):
         dirs = self.query_abs_dirs()
@@ -325,7 +334,12 @@ class B2GBumper(VCSScript, MapperMixin):
                 return 0
         contents = {
             "repo_path": repo_path,
-            "revision": revision
+            "revision": revision,
+            "git": {
+                "remote": "",
+                "branch": "",
+                "revision": ""
+            }
         }
         if self.write_to_file(path, json.dumps(contents, indent=4) + "\n") != path:
             self.add_summary(
@@ -358,7 +372,31 @@ class B2GBumper(VCSScript, MapperMixin):
         message = message.encode("utf-8")
         return message
 
+    def query_treestatus(self):
+        "Return True if we can land based on treestatus"
+        c = self.config
+        dirs = self.query_abs_dirs()
+        tree = c.get('treestatus_tree', os.path.basename(c['gecko_pull_url']))
+        treestatus_url = "%s/%s?format=json" % (c['treestatus_base_url'], tree)
+        treestatus_json = os.path.join(dirs['abs_work_dir'], 'treestatus.json')
+        if self.download_file(treestatus_url, file_name=treestatus_json) != treestatus_json:
+            # Failed to check tree status...assume we can land
+            self.info("failed to check tree status - assuming we can land")
+            return True
+
+        treestatus = self._read_json(treestatus_json)
+        if treestatus['status'] != 'closed':
+            self.info("treestatus is %s - assuming we can land" % repr(treestatus['status']))
+            return True
+
+        return False
+
     # Actions {{{1
+    def check_treestatus(self):
+        if not self.query_treestatus():
+            self.info("breaking early since treestatus is closed")
+            sys.exit(0)
+
     def checkout_gecko(self):
         c = self.config
         dirs = self.query_abs_dirs()
@@ -465,10 +503,13 @@ class B2GBumper(VCSScript, MapperMixin):
         max_retries = 5
         for _ in range(max_retries):
             changed = False
+            if not self.query_treestatus():
+                # Tree is closed; exit early to avoid a bunch of wasted time
+                self.info("breaking early since treestatus is closed")
+                break
+
             self.checkout_gecko()
-            # TODO: Enforce b2g manifests have equivalent revision of gaia that
-            # gaia.json has?
-            if self.bump_gaia():
+            if not self.config.get('skip_gaia_json') and self.bump_gaia():
                 changed = True
             self.checkout_manifests()
             self.massage_manifests()
@@ -486,6 +527,10 @@ class B2GBumper(VCSScript, MapperMixin):
                 break
             # If we're here, then the push failed. It also stripped any
             # outgoing commits, so we should be in a pristine state again
+            # Empty our local cache of manifests so they get loaded again next
+            # time through this loop. This makes sure we get fresh upstream
+            # manifests, and avoids problems like bug 979080
+            self.device_manifests = {}
 
             # Sleep before trying again
             self.info("Sleeping 60 before trying again")

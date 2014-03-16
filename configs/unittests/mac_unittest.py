@@ -64,6 +64,7 @@ config = {
         "--tbpl"
     ],
     "mozbase_options": [
+        "-b", "%(binary_path)s"
     ],
     #local mochi suites
     "all_mochitest_suites": {
@@ -103,6 +104,9 @@ config = {
     },
     "all_jittest_suites": {
         "jittest": []
+    },
+    "all_mozbase_suites": {
+        "mozbase": []
     },
     "run_cmd_checks_enabled": True,
     "preflight_run_cmd_suites": [

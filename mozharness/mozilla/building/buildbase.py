@@ -1620,8 +1620,8 @@ or run without that action (ie: --no-{action})"
                 # because the previous upload dir uses that id
                 buildid = self._query_previous_buildid()
             else:
-                self.warning("Because partial snippet failed to be created, "
-                             "the AUS prev upload dir will current buildid.")
+                self.warning("Partial snippet failed to be created so the"
+                             "AUS prev upload dir will use current buildid.")
         #####
 
         ##### Upload snippet steps

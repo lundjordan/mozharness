@@ -47,7 +47,7 @@ class FxDesktopBuild(BuildScript, object):
             'require_config_file': True,
             # Default configuration
             'config': {
-                "repo_base": "http://hg.mozilla.org",
+                "repo_base": "https://hg.mozilla.org",
                 "nightly_build": False,
                 "pgo_build": False,
                 'is_automation': True,
@@ -59,7 +59,7 @@ class FxDesktopBuild(BuildScript, object):
                 # We have "platform_supports_{snippets, partial}" to dictate
                 # whether the platform even supports creating_{snippets,
                 # partial}. In other words: we create {snippets, partial} if
-                # the branch wants it AND the platform supports it. So for eg:
+                # the branch wants it AND the platform supports it. So eg:
                 # For nightlies, the 'mozilla-central' branch may set
                 # create_snippets to true but if it's a linux asan platform,
                 # platform_supports_snippets will be False
@@ -71,7 +71,7 @@ class FxDesktopBuild(BuildScript, object):
                 # variant, use --release-to-latest in post upload cmd
                 'platform_supports_post_upload_to_latest': True,
                 'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
-                'balrog_credentials_file': 'BuildSlaves.py',
+                'balrog_credentials_file': 'oauth.txt',
             },
             'ConfigClass': BuildingConfig,
         }

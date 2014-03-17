@@ -1569,7 +1569,7 @@ or run without that action (ie: --no-{action})"
             ['create_snippets', 'platform_supports_snippets',
              'create_partial', 'platform_supports_partials',
              'aus2_user', 'aus2_ssh_key', 'aus2_host',
-             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'
+             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root',
              'balrog_username'],
             'update'
         )

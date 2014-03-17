@@ -1010,10 +1010,12 @@ or run without that action (ie: --no-{action})"
         graph_props_path = os.path.join(c['base_work_dir'],
                                         "graph_props.json")
         all_current_props = dict(
-            properties=chain(self.buildbot_config['properties'].items(),
-                             self.buildbot_properties.items())
+            chain(self.buildbot_config['properties'].items(),
+                  self.buildbot_properties.items())
         )
-        self.dump_config(graph_props_path, all_current_props)
+        # graph_server_post.py expects a file with 'properties' key
+        graph_props = dict(properties=all_current_props)
+        self.dump_config(graph_props_path, graph_props)
 
         gs_env = self.query_build_env()
         gs_env.update({'PYTHONPATH': gs_pythonpath})

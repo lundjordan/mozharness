@@ -305,7 +305,6 @@ class BuildOptionParser(object):
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
-        'preproduction': 'builds/build_pool_specifics.py',
         'production': 'builds/build_pool_specifics.py',
     }
     branch_cfg_file = 'builds/branch_specifics.py'
@@ -471,7 +470,7 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "dest": "build_pool",
         "help": "This will update the config with specific pool "
                 "environment keys/values. The dicts for this are "
-                "in %s\nValid values: staging, preproduction, or "
+                "in %s\nValid values: staging or "
                 "production" % ('builds/build_pool_specifics.py',)}],
     [['--branch'], {
         "action": "callback",
@@ -724,14 +723,20 @@ or run without that action (ie: --no-{action})"
         """rm the old package."""
         c = self.config
         dirs = self.query_abs_dirs()
-        cmd = ["rm", "-rf"]
-        old_packages = c.get('old_packages')
+        old_package_paths = []
+        old_package_patterns = c.get('old_packages')
 
-        for product in old_packages:
-            cmd.append(product % {"objdir": dirs['abs_obj_dir']})
         self.info("removing old packages...")
-        if dirs['abs_src_dir']:
-            self.run_command(cmd, cwd=dirs['abs_src_dir'])
+        if os.path.exists(dirs['abs_obj_dir']):
+            for product in old_package_patterns:
+                old_package_paths.extend(
+                    glob.glob(product % {"objdir": dirs['abs_obj_dir']})
+                )
+        if old_package_paths:
+            for package_path in old_package_paths:
+                self.rmtree(package_path)
+        else:
+            self.info("There wasn't any old packages to remove.")
 
     def _get_mozconfig(self):
         """assign mozconfig."""
@@ -1021,8 +1026,6 @@ or run without that action (ie: --no-{action})"
         cmd.extend(['--sourcestamp',
                     self.query_buildbot_property('sourcestamp')])
         cmd.extend(['--resultsname', resultsname])
-        cmd.extend(['--testresults',
-                    str(self.query_buildbot_property('testresults'))])
         cmd.extend(['--properties-file', graph_props_path])
         cmd.extend(['--timestamp', str(self.epoch_timestamp)])
 
@@ -1211,7 +1214,7 @@ or run without that action (ie: --no-{action})"
         else:
             return SNIPPET_TEMPLATE % snippet_values
 
-    def _submit_balrog_updates(self):
+    def _submit_balrog_updates(self, balrog_type='nightly'):
         c = self.config
         dirs = self.query_abs_dirs()
         # first download buildprops_balrog.json this should be all the
@@ -1239,7 +1242,8 @@ or run without that action (ie: --no-{action})"
             balrog_submitter_path,
             '--build-properties', balrog_props_path,
             '--api-root', c['balrog_api_root'],
-            '--verbose',
+            '--username', c['balrog_username'],
+            '-t', balrog_type, '--verbose',
         ]
         if c['balrog_credentials_file']:
             self.info("Using Balrog credential file...")
@@ -1565,7 +1569,8 @@ or run without that action (ie: --no-{action})"
             ['create_snippets', 'platform_supports_snippets',
              'create_partial', 'platform_supports_partials',
              'aus2_user', 'aus2_ssh_key', 'aus2_host',
-             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'],
+             'aus2_base_upload_dir', 'update_platform', 'balrog_api_root'
+             'balrog_username'],
             'update'
         )
         c = self.config

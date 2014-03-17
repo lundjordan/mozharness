@@ -6,7 +6,7 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        # 'generate-build-props', non-unified skips this action
+        'generate-build-props',
         # 'generate-build-stats', debug skips this action
         'symbols',
         # 'packages',  non-unified skips this action

@@ -4,7 +4,7 @@ config = {
         'pull',
         'setup-mock',
         'build',
-        # 'generate-build-props',
+        'generate-build-props',
         'generate-build-stats',
         'symbols',
         # 'packages',

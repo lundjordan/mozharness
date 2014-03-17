@@ -24,15 +24,16 @@ from itertools import chain
 import sys
 from datetime import datetime
 from mozharness.base.config import BaseConfig, parse_config_file
+from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_SUCCESS, \
-    TBPL_WORST_LEVEL_TUPLE
+    TBPL_WORST_LEVEL_TUPLE, TBPL_STATUS_DICT, TBPL_EXCEPTION
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 from mozharness.base.log import OutputParser, ERROR
-from mozharness.mozilla.buildbot import TBPL_RETRY
+from mozharness.mozilla.buildbot import TBPL_RETRY, TBPL_FAILURE
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.base.log import FATAL
@@ -297,11 +298,13 @@ class BuildOptionParser(object):
     # *It will warn and fail if there is not a config for the current
     # platform/bits
     build_variants = {
-        'non-unified': 'builds/releng_sub_%s_configs/%s_non-unified.py',
         'asan': 'builds/releng_sub_%s_configs/%s_asan.py',
         'debug': 'builds/releng_sub_%s_configs/%s_debug.py',
         'asan-and-debug': 'builds/releng_sub_%s_configs/%s_asan_and_debug.py',
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
+        'non-unified': 'builds/releng_sub_%s_configs/%s_non_unified.py',
+        'debug-and-non-unified':
+            'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -1037,7 +1040,13 @@ or run without that action (ie: --no-{action})"
                                  kwargs={'cwd': dirs['abs_src_dir'],
                                          'env': gs_env})
         if result_code != 0:
-            self.error('Automation Error: failed graph server post')
+            self.add_summary('Automation Error: failed graph server post',
+                             level=ERROR)
+            self.worst_buildbot_status = self.worst_level(
+                TBPL_EXCEPTION, self.worst_buildbot_status,
+                TBPL_STATUS_DICT.keys()
+            )
+
         else:
             self.info("graph server post ok")
 
@@ -1435,8 +1444,13 @@ or run without that action (ie: --no-{action})"
                                            'env': upload_env,
                                            'output_parser': parser}
         )
+        if parser.tbpl_status != TBPL_SUCCESS:
+            self.add_summary("make upload failed")
+        self.worst_buildbot_status = self.worst_level(
+            parser.tbpl_status, self.worst_buildbot_status,
+            TBPL_STATUS_DICT.keys()
+        )
         self.info('Setting properties from make upload...')
-        self.buildbot_status(parser.tbpl_status)
         for prop, value in parser.matches.iteritems():
             self.set_buildbot_property(prop,
                                        value,
@@ -1684,3 +1698,9 @@ or run without that action (ie: --no-{action})"
         env = self.query_build_env()
         cmd = ['ccache', '-s']
         self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)
+
+
+    @PostScriptRun
+    def _summarize(self):
+        self.buildbot_status(self.worst_buildbot_status)
+        self.summary()

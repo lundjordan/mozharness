@@ -1010,8 +1010,8 @@ or run without that action (ie: --no-{action})"
         graph_props_path = os.path.join(c['base_work_dir'],
                                         "graph_props.json")
         all_current_props = dict(
-            chain(self.buildbot_config['properties'].items(),
-                  self.buildbot_properties.items())
+            properties=chain(self.buildbot_config['properties'].items(),
+                             self.buildbot_properties.items())
         )
         self.dump_config(graph_props_path, all_current_props)
 

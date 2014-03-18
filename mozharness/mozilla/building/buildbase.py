@@ -1269,7 +1269,9 @@ or run without that action (ie: --no-{action})"
             self.fatal("Balrog requires a credential file. Pease add the"
                        " path to your config via: 'balrog_credentials_file'")
         self.info("Submitting Balrog updates...")
-        self.retry(self.run_command, args=(cmd,))
+        self.retry(
+            self.run_command, args=(cmd,), kwargs={'halt_on_failure': True}
+        )
 
     def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
         """Override setup_mock found in MockMixin.

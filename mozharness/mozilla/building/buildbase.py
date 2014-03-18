@@ -1247,7 +1247,8 @@ or run without that action (ie: --no-{action})"
                   self.buildbot_properties.items())
         )
         self.info("Dumping buildbot properties to %s." % balrog_props_path)
-        self.dump_config(balrog_props_path, all_current_props)
+        balrog_props = dict(properties=all_current_props)
+        self.dump_config(balrog_props_path, balrog_props)
         cmd = [
             self.query_exe('python'),
             balrog_submitter_path,
@@ -1704,5 +1705,12 @@ or run without that action (ie: --no-{action})"
 
     @PostScriptRun
     def _summarize(self):
+        if self.return_code != 0:
+            # TODO this will need some work. Once we define various return
+            # codes and correlate tbpl levels against it, we can have more
+            # definitions for tbpl status
+            self.worst_buildbot_status = self.worst_level(
+                TBPL_FAILURE, self.worst_buildbot_status, TBPL_STATUS_DICT
+            )
         self.buildbot_status(self.worst_buildbot_status)
         self.summary()

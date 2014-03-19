@@ -415,7 +415,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                 # appropriate return codes. Therefore, we must parse the output
                 # to determine what the tbpl_status and worst_log_level must
                 # be. We do this by:
-                # 1) checking to see if our mozharness_jlund script ran into any
+                # 1) checking to see if our mozharness script ran into any
                 #    errors itself with 'num_errors' <- OutputParser
                 # 2) if num_errors is 0 then we look in the subclassed 'parser'
                 #    findings for harness/suite errors <- DesktopUnittestOutputParser

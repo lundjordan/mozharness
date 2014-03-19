@@ -584,7 +584,7 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MobileSigningMixin,
                 msg += "without an upload url."
                 self.add_failure(locale, msg)
                 continue
-            if not self.create_snippet(binary_path, version,
+            if not self.create_complete_snippet(binary_path, version,
                                                 buildid, url, aus_abs_dir):
                 msg = "Errors creating snippet for %s! " % locale
                 msg += "Removing snippet directory."

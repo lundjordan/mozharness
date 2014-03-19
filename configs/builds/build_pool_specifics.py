@@ -4,8 +4,6 @@
 config = {
     "staging": {
         "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:9038"],
-        # XXX: should point at aus4-admin-dev once production is pointing
-        # elsewhere
         'balrog_api_root': 'https://aus4-admin-dev.allizom.org',
         'balrog_username': 'stage-ffxbld',
         'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla'

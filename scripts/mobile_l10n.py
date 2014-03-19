@@ -498,7 +498,7 @@ class MobileSingleLocale(MockMixin, LocalesMixin, ReleaseMixin,
             if not url:
                 self.add_failure(locale, "Can't create a snippet for %s without an upload url." % locale)
                 continue
-            if not self.create_snippet(binary_path, version, buildid, url, aus_abs_dir):
+            if not self.create_complete_snippet(binary_path, version, buildid, url, aus_abs_dir):
                 self.add_failure(locale, message="Errors creating snippet for %s!  Removing snippet directory." % locale)
                 self.rmtree(aus_abs_dir)
                 continue

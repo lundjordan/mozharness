@@ -73,7 +73,7 @@ class ConfigTest(BaseScript):
 
     def list_config_files(self):
         """ Non-default action that is mainly here to demonstrate how
-        non-default actions work in a mozharness_jlund script.
+        non-default actions work in a mozharness script.
         """
         config_files = self.query_config_files()
         for config_file in config_files:

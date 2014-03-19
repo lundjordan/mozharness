@@ -1242,6 +1242,7 @@ or run without that action (ie: --no-{action})"
                                              'scripts',
                                              'updates',
                                              'balrog-submitter.py')
+        self.set_buildbot_property('hashType', 'sha512', write_to_file=True)
         all_current_props = dict(
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
@@ -1703,12 +1704,19 @@ or run without that action (ie: --no-{action})"
         self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)
 
 
+    def _post_fatal(self):
+        # until this script has more defined return_codes, let's make sure
+        # that we at least set the return_code to a failure for things like
+        # _summarize()
+        self.return_code = 2
+
     @PostScriptRun
     def _summarize(self):
         if self.return_code != 0:
             # TODO this will need some work. Once we define various return
             # codes and correlate tbpl levels against it, we can have more
             # definitions for tbpl status
+            # bug 985068 should lay the plumbing down for this work
             self.worst_buildbot_status = self.worst_level(
                 TBPL_FAILURE, self.worst_buildbot_status, TBPL_STATUS_DICT
             )

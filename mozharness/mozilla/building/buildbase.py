@@ -781,7 +781,7 @@ or run without that action (ie: --no-{action})"
         cmd = [
             f_and_un_path,
             tooltool_manifest_path,
-            c['tooltool_url_list'][0],
+            c['tooltool_url'],
             c['tooltool_script'],
             c['tooltool_bootstrap'],
         ]

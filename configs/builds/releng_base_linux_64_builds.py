@@ -1,4 +1,3 @@
-CLOBBERER_URL = 'http://clobberer.pvt.build.mozilla.org/index.php'
 STAGE_PRODUCT = 'firefox'
 # TODO Reminder, stage_username and stage_ssh_key differ on Try
 STAGE_USERNAME = 'ffxbld'
@@ -12,17 +11,8 @@ config = {
     # code block and also make sure this is synced with
     # releng_base_linux_64_builds.py
 
-    # if false, only clobber 'abs_work_dir'
-    # if true: possibly clobber, clobberer, and purge_builds
-    # see PurgeMixin for clobber() conditions
-    'clobberer_url': CLOBBERER_URL,  # we wish to clobberer
-    'periodic_clobber': 168,  # default anyway but can be overwritten
-
-    # hg tool stuff
-    'default_vcs': 'hgtool',
     # decides whether we want to use moz_sign_cmd in env
     'enable_signing': True,
-    "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
     "buildbot_json_path": "buildprops.json",
     'default_actions': [
         'clobber',
@@ -76,15 +66,10 @@ config = {
         "%(objdir)s/dist/thunderbird*",
         "%(objdir)s/dist/install/sea/*.exe"
     ],
-    'tooltool_url_list': [
-        "http://runtime-binaries.pvt.build.mozilla.org/tooltool"
-    ],
     'tooltool_script': "/tools/tooltool.py",
     'tooltool_bootstrap': "setup.sh",
     # in linux we count ctors
     'enable_count_ctors': True,
-    'graph_server': 'graphs.allizom.org',
-    'graph_selector': '/server/collect.cgi',
     'graph_branch': 'MozillaTest',
     'enable_package_tests': True,
     'stage_product': STAGE_PRODUCT,

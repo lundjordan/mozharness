@@ -70,8 +70,20 @@ class FxDesktopBuild(BuildScript, object):
                 # if nightly and our platform is not an ASAN or Stat Analysis
                 # variant, use --release-to-latest in post upload cmd
                 'platform_supports_post_upload_to_latest': True,
+                'aus2_ssh_key': 'ffxbld_dsa',
+                'aus2_user': 'ffxbld',
                 'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
                 'balrog_credentials_file': 'oauth.txt',
+                'periodic_clobber': 168,  # default anyway but can be overwritten
+                # hg tool stuff
+                'default_vcs': 'hgtool',
+                "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
+                "graph_selector": "/server/collect.cgi",
+                'hash_type': 'sha512',
+                'tooltool_url_list': 'http://runtime-binaries.pvt.build.mozilla'
+                                     '.org/tooltool',
+
+
             },
             'ConfigClass': BuildingConfig,
         }

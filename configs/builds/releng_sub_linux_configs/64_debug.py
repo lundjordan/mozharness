@@ -19,7 +19,7 @@ config = {
         'enable-ccache',
     ],
     'platform': 'linux64-debug',
-    'mock_pre_package_copy_files': [
+    'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/builds/gapi.data', '/builds/gapi.data'),

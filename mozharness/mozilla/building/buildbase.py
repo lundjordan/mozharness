@@ -774,12 +774,12 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         if not c.get('tooltool_manifest_src'):
             return self.warning(ERROR_MSGS['tooltool_manifest_undetermined'])
-        f_and_un_path = os.path.join(dirs['abs_tools_dir'],
-                                     'scripts/tooltool/fetch_and_unpack.sh')
+        fetch_script_path = os.path.join(dirs['abs_tools_dir'],
+                                         'scripts/tooltool/fetch_and_unpack.sh')
         tooltool_manifest_path = os.path.join(dirs['abs_src_dir'],
                                               c['tooltool_manifest_src'])
         cmd = [
-            f_and_un_path,
+            fetch_script_path,
             tooltool_manifest_path,
             c['tooltool_url'],
             c['tooltool_script'],
@@ -869,7 +869,7 @@ or run without that action (ie: --no-{action})"
                                   prop_type='completeMar')
 
     def _create_partial_mar(self):
-        # TODO use mar.py MIXINs
+        # TODO use mar.py MIXINs and make this simpler
         self._assert_cfg_valid_for_action(
             ['mock_target', 'update_env', 'platform_ftp_name', 'stage_server'],
             'upload'
@@ -1001,9 +1001,9 @@ or run without that action (ie: --no-{action})"
                                               'buildfarm',
                                               'utils',
                                               'graph_server_post.py')
-        gs_pythonpath = os.path.join(dirs['abs_tools_dir'],
-                                     'lib',
-                                     'python')
+        graph_server_path = os.path.join(dirs['abs_tools_dir'],
+                                         'lib',
+                                         'python')
         # graph server takes all our build properties we had initially
         # (buildbot_config) and what we updated to since
         # the script ran (buildbot_properties)
@@ -1021,7 +1021,7 @@ or run without that action (ie: --no-{action})"
         self.dump_config(graph_props_path, graph_props)
 
         gs_env = self.query_build_env()
-        gs_env.update({'PYTHONPATH': gs_pythonpath})
+        gs_env.update({'PYTHONPATH': graph_server_path})
         resultsname = c['base_name'] % {'branch': self.branch}
         cmd = ['python', graph_server_post_path]
         cmd.extend(['--server', c['graph_server']])
@@ -1050,7 +1050,8 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("graph server post ok")
 
-    def _set_file_properties(self, file_name, find_dir, prop_type):
+    def _set_file_properties(self, file_name, find_dir, prop_type,
+                             error_level=ERROR):
         c = self.config
         dirs = self.query_abs_dirs()
         error_msg = "Not setting props: %s{Filename, Size, Hash}" % prop_type
@@ -1063,12 +1064,15 @@ or run without that action (ie: --no-{action})"
             self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
             return
 
-        cmd = ['openssl', 'dgst', '-' + c.get("hash_type", "sha512"),
-               file_path]
+        cmd = [
+            self.query_exe('openssl'), 'dgst',
+            '-%s' % (c.get("hash_type", "sha512"),), file_path
+        ]
         hash_prop = self.get_output_from_command(cmd, dirs['abs_work_dir'])
         if not hash_prop:
-            self.error("undetermined hash_prop with cmd: %s" % (str(cmd),))
-            self.error(error_msg)
+            self.log("undetermined hash_prop with cmd: %s" % (str(cmd),),
+                     level=error_level)
+            self.log(error_msg, level=error_level)
             return
         self.set_buildbot_property(prop_type + 'Filename',
                                    os.path.split(file_path)[1],
@@ -1242,7 +1246,9 @@ or run without that action (ie: --no-{action})"
                                              'scripts',
                                              'updates',
                                              'balrog-submitter.py')
-        self.set_buildbot_property('hashType', 'sha512', write_to_file=True)
+        self.set_buildbot_property(
+            'hashType', c.get('hash_type', 'sha512'), write_to_file=True
+        )
         all_current_props = dict(
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
@@ -1274,28 +1280,6 @@ or run without that action (ie: --no-{action})"
         self.retry(
             self.run_command, args=(cmd,), kwargs={'halt_on_failure': True}
         )
-
-    def setup_mock(self, mock_target=None, mock_packages=None, mock_files=None):
-        """Override setup_mock found in MockMixin.
-
-        Initializes and runs any mock initialization actions.
-        Finally, installs packages.
-
-        """
-        if self.done_mock_setup:
-            return
-        self._assert_cfg_valid_for_action(['mock_target'], 'setup-mock')
-        c = self.config
-        self.init_mock(c['mock_target'])
-        if c.get('mock_pre_package_copy_files'):
-            self.copy_mock_files(c['mock_target'],
-                                 c.get('mock_pre_package_copy_files'))
-        for cmd in c.get('mock_pre_package_cmds', []):
-            self.run_mock_command(c['mock_target'], cmd, '/')
-        if c.get('mock_packages'):
-            self.install_mock_packages(c['mock_target'],
-                                       list(c.get('mock_packages')))
-        self.done_mock_setup = True
 
     def preflight_build(self):
         """set up machine state for a complete build."""
@@ -1360,21 +1344,27 @@ or run without that action (ie: --no-{action})"
     def generate_build_stats(self):
         """grab build stats following a compile.
 
-        this action handles all statitics from a build:
-        count_ctors and graph_server_post
+        This action handles all statitics from a build:
+        count_ctors and graph_server_post.
+        We only count_ctors for linux platforms and we only post to
+        graph_server if this is not a nightly build
 
         """
-        self._count_ctors()
-        # TODO in buildbot, we see if self.graphServer exists, but we know that
-        # nightly does not use graph server so let's use that instead of adding
-        # confusion to the configs. This may need to change once we
-        # port xul, valgrind, etc and it turns out we need the
-        # graphServer condition
-        if not self.query_is_nightly():
-            self._graph_server_post()
+        # NOTE: before this implementation, we would only tinderboxprint the
+        # num_ctors to the log if this was not a nightly build. I don't think
+        # it's any harm doing so even if we are running a nightly for the
+        # benefit of making a simpler condition flow like below.
+        if self.query_is_nightly() or c.get('enable_count_ctors'):
+            if c.get('enable_count_ctors'):
+                self._count_ctors()
+                num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
+                self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
+            if not self.query_is_nightly():
+                self._graph_server_post()
         else:
-            num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
-            self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
+            self.info("Nothing to do for this action since we disabled"
+                      " count_ctors and we don't post to graph server for"
+                      " nightlies")
 
     def symbols(self):
         c = self.config
@@ -1525,7 +1515,7 @@ or run without that action (ie: --no-{action})"
 
     def pretty_names(self):
         self._assert_cfg_valid_for_action(
-            ['mock_target'], 'prett-names'
+            ['mock_target'], 'pretty-names'
         )
         c = self.config
         dirs = self.query_abs_dirs()

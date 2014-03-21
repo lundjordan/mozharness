@@ -42,7 +42,7 @@ config = {
     'use_mock':  True,
     'mock_mozilla_dir':  '/builds/mock_mozilla',
     'mock_target': 'mozilla-centos6-x86_64',
-    'mock_pre_package_copy_files': [
+    'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/builds/gapi.data', '/builds/gapi.data'),

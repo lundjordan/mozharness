@@ -20,7 +20,7 @@ config = {
     ],
     'platform': 'linux64-asan-debug',
     'purge_minsize': 12,
-    'mock_pre_package_copy_files': [
+    'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/builds/gapi.data', '/builds/gapi.data'),

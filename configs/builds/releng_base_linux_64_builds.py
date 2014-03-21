@@ -46,9 +46,7 @@ config = {
         ('/builds/gapi.data', '/builds/gapi.data'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
-    'mock_pre_package_cmds': [
-        'mkdir -p /builds/slave/m-cen-lx-000000000000000000000/build'
-    ],
+    'mock_pre_package_cmds': [],
     'enable_ccache': True,
     'ccache_env': {
         'CCACHE_BASEDIR': "%(base_dir)s",
@@ -70,7 +68,6 @@ config = {
     'tooltool_bootstrap': "setup.sh",
     # in linux we count ctors
     'enable_count_ctors': True,
-    'graph_branch': 'MozillaTest',
     'enable_package_tests': True,
     'stage_product': STAGE_PRODUCT,
     "enable_talos_sendchange": True,

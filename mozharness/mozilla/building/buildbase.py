@@ -84,6 +84,7 @@ Skipping run_tooltool...',
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
 
+
 ### Output Parsers
 
 
@@ -91,22 +92,18 @@ class MakeUploadOutputParser(OutputParser):
     tbpl_error_list = TBPL_UPLOAD_ERRORS
     # let's create a switch case using name-spaces/dict
     # rather than a long if/else with duplicate code
-    property_conditions = {
+    property_conditions = [
         # key: property name, value: condition
-        # TODO find out if we can rm these RPM conditions
-        'develRpmUrl': "'devel' in m and m.endswith('.rpm')",
-        'testsRpmUrl': "'tests' in m and m.endswith('.rpm')",
-        'packageRpmUrl': "m.endswith('.rpm')",
-        'symbolsUrl': "m.endswith('crashreporter-symbols.zip') or "
-                      "m.endswith('crashreporter-symbols-full.zip')",
-        'testsUrl': "m.endswith(('tests.tar.bz2', 'tests.zip'))",
-        'unsignedApkUrl': "m.endswith('apk') and "
-                          "'unsigned-unaligned' in m",
-        'robocopApkUrl': "m.endswith('apk') and 'robocop' in m",
-        'jsshellUrl': "'jsshell-' in m and m.endswith('.zip')",
-        'completeMarUrl': "m.endswith('.complete.mar')",
-        'partialMarUrl': "m.endswith('.mar') and '.partial.' in m",
-    }
+        ('symbolsUrl', "m.endswith('crashreporter-symbols.zip') or "
+                       "m.endswith('crashreporter-symbols-full.zip')"),
+        ('testsUrl', "m.endswith(('tests.tar.bz2', 'tests.zip'))"),
+        ('unsignedApkUrl', "m.endswith('apk') and "
+                           "'unsigned-unaligned' in m"),
+        ('robocopApkUrl', "m.endswith('apk') and 'robocop' in m"),
+        ('jsshellUrl', "'jsshell-' in m and m.endswith('.zip')"),
+        ('completeMarUrl', "m.endswith('.complete.mar')"),
+        ('partialMarUrl', "m.endswith('.mar') and '.partial.' in m"),
+    ]
 
     def __init__(self, **kwargs):
         super(MakeUploadOutputParser, self).__init__(**kwargs)
@@ -119,7 +116,7 @@ class MakeUploadOutputParser(OutputParser):
         m = re.compile(pat).match(line)
         if m:
             m = m.group(1)
-            for prop, condition in self.property_conditions.iteritems():
+            for prop, condition in self.property_conditions:
                 if eval(condition):
                     self.matches[prop] = m
                     prop_assigned = True
@@ -185,6 +182,7 @@ class CheckTestCompleteParser(OutputParser):
 
 
 class BuildingConfig(BaseConfig):
+    # TODO add nosetests for this class
     def get_cfgs_from_files(self, all_config_files, parser):
         """ create a config based upon config files passed
 
@@ -284,6 +282,7 @@ class BuildingConfig(BaseConfig):
 
 # noinspection PyUnusedLocal
 class BuildOptionParser(object):
+    # TODO add nosetests for this class
     platform = None
     bits = None
     config_file_search_path = [
@@ -304,7 +303,7 @@ class BuildOptionParser(object):
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
         'non-unified': 'builds/releng_sub_%s_configs/%s_non_unified.py',
         'debug-and-non-unified':
-            'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
+                'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -449,41 +448,41 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "type": "string",
         "dest": "platform",
         "help": "Sets the platform we are running this against"
-                "valid values: 'windows', 'mac', 'linux'"}],
+                " valid values: 'windows', 'mac', 'linux'"}],
     [['--bits'], {
         "action": "callback",
         "callback": BuildOptionParser.set_bits,
         "type": "string",
         "dest": "bits",
         "help": "Sets which bits we are building this against"
-                "valid values: '32', '64'"}],
+                " valid values: '32', '64'"}],
     [['--custom-build-variant-cfg'], {
         "action": "callback",
         "callback": BuildOptionParser.set_build_variant,
         "type": "string",
         "dest": "build_variant",
-        "help": "Sets the build type and will determine appropriate "
-                "additional config to use. Either pass a config path "
+        "help": "Sets the build type and will determine appropriate"
+                " additional config to use. Either pass a config path"
                 " or use a valid shortname from: "
-                "%s " % (BuildOptionParser.build_variants.keys(),)}],
+                "%s" % (BuildOptionParser.build_variants.keys(),)}],
     [['--build-pool'], {
         "action": "callback",
         "callback": BuildOptionParser.set_build_pool,
         "type": "string",
         "dest": "build_pool",
-        "help": "This will update the config with specific pool "
-                "environment keys/values. The dicts for this are "
-                "in %s\nValid values: staging or "
-                "production" % ('builds/build_pool_specifics.py',)}],
+        "help": "This will update the config with specific pool"
+                " environment keys/values. The dicts for this are"
+                " in %s\nValid values: staging or"
+                " production" % ('builds/build_pool_specifics.py',)}],
     [['--branch'], {
         "action": "callback",
         "callback": BuildOptionParser.set_build_branch,
         "type": "string",
         "dest": "branch",
-        "help": "This sets the branch we will be building this for. "
-                "If this branch is in branch_specifics.py, update our "
-                "config with specific keys/values from that. See "
-                "%s for possibilites" % (
+        "help": "This sets the branch we will be building this for."
+                " If this branch is in branch_specifics.py, update our"
+                " config with specific keys/values from that. See"
+                " %s for possibilites" % (
                     BuildOptionParser.branch_cfg_file,
                 )}],
     [['--enable-pgo'], {
@@ -501,7 +500,7 @@ BUILD_BASE_CONFIG_OPTIONS = [
 
 
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
-                  SigningMixin, MercurialScript, object):
+                  SigningMixin, MercurialScript):
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
@@ -554,19 +553,21 @@ or run without that action (ie: --no-{action})"
         # otherwise:
         return  # all good
 
-    def _query_build_prop_from_app_ini(self, prop):
+    def _query_build_prop_from_app_ini(self, prop, app_ini_path=None):
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config',
                                                'printconfigsetting.py')
-        application_ini_path = os.path.join(dirs['abs_obj_dir'],
-                                            'dist',
-                                            'bin',
-                                            'application.ini')
+        if not app_ini_path:
+            # set the default for at least desktop ff
+            app_ini_path = os.path.join(dirs['abs_obj_dir'],
+                                        'dist',
+                                        'bin',
+                                        'application.ini')
         if (os.path.exists(print_conf_setting_path) and
-                os.path.exists(application_ini_path)):
+                os.path.exists(app_ini_path)):
             cmd = [
-                'python', print_conf_setting_path, application_ini_path,
+                'python', print_conf_setting_path, app_ini_path,
                 'App', prop
             ]
             return self.get_output_from_command(cmd, cwd=dirs['base_work_dir'])
@@ -1714,14 +1715,13 @@ or run without that action (ie: --no-{action})"
         ##### submit balrog update steps
         if c['balrog_api_root']:
             self._submit_balrog_updates()
-        #####
+            #####
 
     def enable_ccache(self):
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
         cmd = ['ccache', '-s']
         self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)
-
 
     def _post_fatal(self):
         # until this script has more defined return_codes, let's make sure

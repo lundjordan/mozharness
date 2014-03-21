@@ -121,7 +121,6 @@ config = {
         'CCACHE_UMASK': '002',
         'LC_ALL': 'C',
         ## 64 bit specific
-        'MOZ_SYMBOLS_EXTRA_BUILDID': 'linux64',
         'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:\
 /usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:\
 /tools/python27-mercurial/bin:/home/cltbld/bin',
@@ -167,5 +166,6 @@ releng.manifest",
     },
     'base_name': 'Linux_x86-64_%(branch)s',
     'update_platform': 'Linux_x86_64-gcc3',
+    'use_platform_in_symbols_extra_buildid': True,
     #########################################################################
 }

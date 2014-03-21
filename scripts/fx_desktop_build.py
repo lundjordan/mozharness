@@ -82,8 +82,8 @@ class FxDesktopBuild(BuildScript, object):
                 'hash_type': 'sha512',
                 'tooltool_url_list': 'http://runtime-binaries.pvt.build.mozilla'
                                      '.org/tooltool',
-
-
+                # only used for make uploadsymbols
+                'use_branch_in_symbols_extra_buildid': False,
             },
             'ConfigClass': BuildingConfig,
         }

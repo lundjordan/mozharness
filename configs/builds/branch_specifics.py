@@ -7,6 +7,7 @@ config = {
         "create_snippets": True,
         "create_partial": True,
         "graph_server_branch_name": "Firefox",
-        "repo_path": 'mozilla-central'
+        "repo_path": 'mozilla-central',
+        'use_branch_in_symbols_extra_buildid': True,
     }
 }

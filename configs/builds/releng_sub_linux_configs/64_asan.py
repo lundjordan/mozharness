@@ -39,8 +39,8 @@ asan.manifest",
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',
-        # not sure if this will always be server host
-        'SYMBOL_SERVER_HOST': "symbolpush.mozilla.org",
+        # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
+        'SYMBOL_SERVER_HOST': "%(symbol_server_host)s",
         'SYMBOL_SERVER_USER': 'ffxbld',
         'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
         'SYMBOL_SERVER_SSH_KEY': "/home/mock_mozilla/.ssh/ffxbld_dsa",
@@ -52,7 +52,6 @@ asan.manifest",
         'CCACHE_UMASK': '002',
         'LC_ALL': 'C',
         ## 64 bit specific
-        'MOZ_SYMBOLS_EXTRA_BUILDID': 'linux64-asan',
         'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:\
 /usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:\
 /tools/python27-mercurial/bin:/home/cltbld/bin',

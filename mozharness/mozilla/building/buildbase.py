@@ -697,13 +697,12 @@ or run without that action (ie: --no-{action})"
             # so SigningScriptFactory (what calls mozharness script
             # from buildbot) assigns  MOZ_SIGN_CMD but does so incorrectly
             # for desktop builds. Also, sometimes like for make l10n check,
-            # we don't actually want it in the env as it's not needed
-            # MOZ_SIGN_CMD
+            # we don't actually want it in the env
             if env.get("MOZ_SIGN_CMD"):
                 del env["MOZ_SIGN_CMD"]
 
         # we can't make env an attribute of self because env can change on
-        # every call to this method for reasons like MOZ_SIGN_CMD
+        # every call for reasons like MOZ_SIGN_CMD
         return env
 
     def _ccache_z(self):
@@ -1388,6 +1387,26 @@ or run without that action (ie: --no-{action})"
         # variants are added
         # not all nightly platforms upload symbols!
         if self.query_is_nightly() and c.get('upload_symbols'):
+            # this is a bit confusing but every platform that make
+            # uploadsymbols may or may not include a
+            # MOZ_SYMBOLS_EXTRA_BUILDID in the env and the value of this
+            # varies.
+            # logic goes:
+            #   If it's the release branch, we only include it for
+            # 64bit platforms and we use just the platform as value.
+            #   If it's a project branch off m-c, we include only the branch
+            # for the value on 32 bit platforms and we include both the
+            # platform and branch for 64 bit platforms
+            moz_symbols_extra_buildid = ''
+            if c.get('use_platform_in_symbols_extra_buildid'):
+                moz_symbols_extra_buildid += self.platform
+            if c.get('use_branch_in_symbols_extra_buildid'):
+                if moz_symbols_extra_buildid:
+                    moz_symbols_extra_buildid += '-%s' % (self.branch,)
+                else:
+                    moz_symbols_extra_buildid = self.branch
+            if moz_symbols_extra_buildid:
+                env['MOZ_SYMBOLS_EXTRA_BUILDID'] = moz_symbols_extra_buildid
             self.retry(
                 self.run_mock_command,
                 kwargs={'mock_target': c.get('mock_target'),

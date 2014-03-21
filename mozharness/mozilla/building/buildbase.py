@@ -1354,6 +1354,7 @@ or run without that action (ie: --no-{action})"
         # num_ctors to the log if this was not a nightly build. I don't think
         # it's any harm doing so even if we are running a nightly for the
         # benefit of making a simpler condition flow like below.
+        c = self.config
         if self.query_is_nightly() or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self._count_ctors()

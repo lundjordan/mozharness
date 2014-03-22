@@ -80,8 +80,8 @@ class FxDesktopBuild(BuildScript, object):
                 "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
                 "graph_selector": "/server/collect.cgi",
                 'hash_type': 'sha512',
-                'tooltool_url_list': 'http://runtime-binaries.pvt.build.mozilla'
-                                     '.org/tooltool',
+                'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
+                                '.org/tooltool',
                 # only used for make uploadsymbols
                 'use_branch_in_symbols_extra_buildid': False,
             },

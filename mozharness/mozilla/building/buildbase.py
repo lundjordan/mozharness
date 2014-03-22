@@ -1714,7 +1714,7 @@ or run without that action (ie: --no-{action})"
         cmd = ['ccache', '-s']
         self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)
 
-    def _post_fatal(self):
+    def _post_fatal(self, message=None, exit_code=None):
         # until this script has more defined return_codes, let's make sure
         # that we at least set the return_code to a failure for things like
         # _summarize()

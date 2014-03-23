@@ -61,8 +61,6 @@ clang.manifest",
     },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/\
 debug-static-analysis-clang',
-    'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/in_tree/mozconfig',
     'base_name': 'Linux x86-64 %(branch)s debug static analysis',
     #######################
 }

@@ -152,8 +152,6 @@ config = {
         'freetype-devel-2.3.11-6.el6_1.8.x86_64'
     ],
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly',
-    'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux64/%(branch)s/nightly/mozconfig',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 releng.manifest",
     'package_filename': '*.linux-x86_64*.tar.bz2',

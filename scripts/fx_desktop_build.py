@@ -48,6 +48,7 @@ class FxDesktopBuild(BuildScript, object):
             # Default configuration
             'config': {
                 "repo_base": "https://hg.mozilla.org",
+                "repo_path": "mozilla-central",
                 "nightly_build": False,
                 "pgo_build": False,
                 'is_automation': True,
@@ -83,7 +84,7 @@ class FxDesktopBuild(BuildScript, object):
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
                                 '.org/tooltool',
                 # only used for make uploadsymbols
-                'use_branch_in_symbols_extra_buildid': False,
+                'use_branch_in_symbols_extra_buildid': True,
             },
             'ConfigClass': BuildingConfig,
         }

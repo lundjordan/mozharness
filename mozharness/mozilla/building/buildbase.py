@@ -75,10 +75,7 @@ you are running this in buildbot, "repo_path" is in your buildbot_config.',
     'comments_undetermined': '"comments" could not be determined. This may be \
 because it was a forced build.',
     'src_mozconfig_path_not_found': '"abs_src_mozconfig" path could not be \
-determined. Please make sure it is a valid path \
-off of "abs_src_dir"',
-    'hg_mozconfig_undetermined': '"hg_mozconfig" could not be determined \
-Please add this to your config or else add a local "src_mozconfig" path.',
+determined. Please make sure it is a valid path off of "abs_src_dir"',
     'tooltool_manifest_undetermined': '"tooltool_manifest_src" not set, \
 Skipping run_tooltool...',
 }
@@ -755,19 +752,14 @@ or run without that action (ie: --no-{action})"
             self.copyfile(abs_src_mozconfig,
                           os.path.join(dirs['abs_src_dir'], '.mozconfig'))
         else:
-            self.info('Downloading mozconfig')
-            hg_mozconfig_url = c.get('hg_mozconfig') % (self.branch,)
-            if not hg_mozconfig_url:
-                self.fatal(ERROR_MSGS['hg_mozconfig_undetermined'])
-            self.download_file(hg_mozconfig_url,
-                               '.mozconfig',
-                               dirs['abs_src_dir'])
-        self.run_command(['cat', '.mozconfig'], cwd=dirs['abs_src_dir'])
+            self.fatal("To build, you must supply a mozconfig from inside the "
+                       "tree to use use. Please provide the path in your "
+                       "config via 'src_mozconfig'")
 
     # TODO add this or merge to ToolToolMixin
     def _run_tooltool(self):
         self._assert_cfg_valid_for_action(
-            ['tooltool_script', 'tooltool_bootstrap', 'tooltool_url_list'],
+            ['tooltool_script', 'tooltool_bootstrap', 'tooltool_url'],
             'build'
         )
         c = self.config

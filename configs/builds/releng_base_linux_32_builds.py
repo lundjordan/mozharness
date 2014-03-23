@@ -174,8 +174,6 @@ config = {
         ######## 32 bit specific ###########
     ],
     'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
-    'hg_mozconfig': 'http://hg.mozilla.org/build/buildbot-configs/raw-file/\
-production/mozilla2/linux/%(branch)s/nightly/mozconfig',
 
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",

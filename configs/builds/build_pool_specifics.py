@@ -9,10 +9,8 @@ config = {
         # if not clobberer_url, only clobber 'abs_work_dir'
         # if true: possibly clobber, clobberer, and purge_builds
         # see PurgeMixin for clobber() conditions
-        'clobberer_url': 'http://clobberer-stage.pvt.build.mozilla.org/index'
-                         '.php',
-        'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla'
-                             '.com/pub/mozilla.org/firefox/nightly',
+        'clobberer_url': 'http://clobberer-stage.pvt.build.mozilla.org/index.php',
+        'download_base_url': 'http://dev-stage01.srv.releng.scl3.mozilla.com/pub/mozilla.org/firefox/nightly',
         # staging we should use MozillaTest
         # but in production we let the self.branch decide via
         # self._query_graph_server_branch_name()
@@ -34,8 +32,7 @@ config = {
         # if true: possibly clobber, clobberer, and purge_builds
         # see PurgeMixin for clobber() conditions
         'clobberer_url': 'http://clobberer.pvt.build.mozilla.org/index.php',
-        'download_base_url': 'http://ftp.mozilla.org/pub/mozilla'
-                             '.org/firefox/nightly',
+        'download_base_url': 'http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly',
         'graph_server': 'graphs.mozilla.org',
         "hgtool_base_bundle_urls": [
             'https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'

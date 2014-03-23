@@ -431,6 +431,8 @@ class BuildOptionParser(object):
         setattr(parser.values, option.dest, value)
 
 
+# this global depends on BuildOptionParser and therefore can not go at the
+# top of the file
 BUILD_BASE_CONFIG_OPTIONS = [
     [['--developer-run', '--skip-buildbot-actions'], {
         "action": "store_false",
@@ -556,11 +558,8 @@ or run without that action (ie: --no-{action})"
                                                'config',
                                                'printconfigsetting.py')
         if not app_ini_path:
-            # set the default for at least desktop ff
-            app_ini_path = os.path.join(dirs['abs_obj_dir'],
-                                        'dist',
-                                        'bin',
-                                        'application.ini')
+            # set the default
+            app_ini_path = dirs['abs_app_ini_path']
         if (os.path.exists(print_conf_setting_path) and
                 os.path.exists(app_ini_path)):
             cmd = [
@@ -1305,20 +1304,16 @@ or run without that action (ie: --no-{action})"
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config',
                                                'printconfigsetting.py')
-        application_ini_path = os.path.join(dirs['abs_obj_dir'],
-                                            'dist',
-                                            'bin',
-                                            'application.ini')
         if (not os.path.exists(print_conf_setting_path) or
-                not os.path.exists(application_ini_path)):
+                not os.path.exists(dirs['abs_app_ini_path'])):
             self.error("Can't set the following properties: "
                        "buildid, sourcestamp, appVersion, and appName. "
                        "Required paths missing. Verify both %s and %s "
                        "exist. These paths require the 'build' action to be "
                        "run prior to this" % (print_conf_setting_path,
-                                              application_ini_path))
+                                              dirs['abs_app_ini_path']))
         base_cmd = [
-            'python', print_conf_setting_path, application_ini_path, 'App'
+            'python', print_conf_setting_path, dirs['abs_app_ini_path'], 'App'
         ]
         properties_needed = [
             {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
@@ -1340,24 +1335,27 @@ or run without that action (ie: --no-{action})"
         count_ctors and graph_server_post.
         We only count_ctors for linux platforms and we only post to
         graph_server if this is not a nightly build
-
         """
+
         # NOTE: before this implementation, we would only tinderboxprint the
-        # num_ctors to the log if this was not a nightly build. I don't think
-        # it's any harm doing so even if we are running a nightly for the
-        # benefit of making a simpler condition flow like below.
+        # num_ctors to the log if this was a nightly build. I don't think
+        # it's any harm doing so even if this is not nightly for the
+        # benefit of making a simpler logic flow like below.
         c = self.config
-        if self.query_is_nightly() or c.get('enable_count_ctors'):
+        if not self.query_is_nightly() or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self._count_ctors()
                 num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
                 self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
             if not self.query_is_nightly():
                 self._graph_server_post()
+            else:
+                self.info("We are not posting to graph server as this is a "
+                          "nightly build.")
         else:
-            self.info("Nothing to do for this action since we disabled"
-                      " count_ctors and we don't post to graph server for"
-                      " nightlies")
+            self.info("Nothing to do for this action since we disabled "
+                      "count_ctors and we don't post to graph server for "
+                      "nightlies")
 
     def symbols(self):
         c = self.config

@@ -109,7 +109,7 @@ class BuildbotMixin(object):
            First will check for 'nightly_build' in self.config and if that is
            not True, we will also allow buildbot_config to determine
            for us. Failing all of that, we default to False.
-           Note, dependancy on buildbot_config is being deprectiated.
+           Note, dependancy on buildbot_config is being deprecated.
            Putting everything in self.config is the preference.
         """
         if self.config.get('nightly_build'):

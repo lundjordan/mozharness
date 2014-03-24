@@ -47,7 +47,6 @@ config = {
         ('/builds/gapi.data', '/builds/gapi.data'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
-    'mock_pre_package_cmds': [],
     'enable_ccache': True,
     'ccache_env': {
         'CCACHE_BASEDIR': "%(base_dir)s",

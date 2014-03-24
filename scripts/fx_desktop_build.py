@@ -125,7 +125,10 @@ class FxDesktopBuild(BuildScript, object):
                                         self._query_objdir()),
             'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
             'abs_app_ini_path': c['app_ini_path'] % {
-                'obj_dir': self ._query_objdir()},
+                'obj_dir': os.path.join(abs_dirs['abs_work_dir'],
+                                        'source',
+                                        self._query_objdir())
+            },
         }
         abs_dirs.update(dirs)
         self.abs_dirs = abs_dirs

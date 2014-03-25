@@ -7,7 +7,7 @@ config = {
         'generate-build-props',
         'generate-build-stats',
         'symbols',
-        # 'packages',
+        'packages',
         # 'upload',
         # 'sendchanges',
         'pretty-names',

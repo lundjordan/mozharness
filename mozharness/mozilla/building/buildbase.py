@@ -685,13 +685,19 @@ or run without that action (ie: --no-{action})"
     def _query_repo(self):
         if self.repo_path:
             return self.repo_path
-        self._assert_cfg_valid_for_action(['repo_base', 'repo_path'], 'build')
         c = self.config
 
         # unlike b2g, we actually supply the repo in mozharness so if it's in
         #  the config, we use that (automation does not require it in
         # buildbot props)
-        self.repo_path = '%s/%s' % (c['repo_base'], c['repo_path'],)
+        if not c.get('repo_path'):
+            repo_path = 'projects/%s' % (self.branch,)
+            self.info(
+                "repo_path not in config. Using '%s' instead" % (repo_path,)
+            )
+        else:
+            repo_path = c['repo_path']
+        self.repo_path = '%s/%s' % (c['repo_base'], repo_path,)
         return self.repo_path
 
     def _skip_buildbot_specific_action(self):
@@ -1530,16 +1536,25 @@ or run without that action (ie: --no-{action})"
                             username='sendchange',
                             sendchange_props=sendchange_props)
         if c.get('enable_package_tests'):  # do unittest sendchange
-            if c.get('pgo_build'):
+            # we need a way to make opt builds use pgo branch sendchanges.
+            # if the branch supports is per_checkin and this platform is a
+            # pgo platform: see branch_specifics.py, use pgo instead of opt.
+            override_opt_branch = (self.platform in c['pgo_platforms'] and
+                                   c.get('branch_uses_per_checkin_strategy'))
+            if c.get('pgo_build') or override_opt_branch:
                 build_type = 'pgo'
             elif c.get('debug_build'):
                 build_type = 'debug'
             else:  # generic opt build
                 build_type = 'opt'
-            unittest_branch = "%s-%s-%s-%s" % (self.branch,
-                                               self.platform,
-                                               build_type,
-                                               'unittest')
+            if c.get('unittest_platform'):
+                platform = c['unittest_platform']
+            else:
+                platform = self.platform
+            full_unittest_platform = "%s-%s" % (platform, build_type)
+            unittest_branch = "%s-%s-%s" % (self.branch,
+                                            full_unittest_platform,
+                                            'unittest')
             self.sendchange(downloadables=[installer_url, tests_url],
                             branch=unittest_branch,
                             sendchange_props=sendchange_props)

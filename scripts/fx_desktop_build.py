@@ -48,9 +48,9 @@ class FxDesktopBuild(BuildScript, object):
             # Default configuration
             'config': {
                 "repo_base": "https://hg.mozilla.org",
-                "repo_path": "mozilla-central",
                 "nightly_build": False,
                 "pgo_build": False,
+                "pgo_platforms": ['linux', 'linux64', 'win32'],
                 'is_automation': True,
                 # create_snippets will be decided by
                 # configs/builds/branch_specifics.py

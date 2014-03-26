@@ -1636,7 +1636,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         created_partial_snippet = False
-        if (not self.query_is_nightly() and not c['create_snippets'] and
+        if (not self.query_is_nightly() or not c['create_snippets'] or
                 not c['platform_supports_snippets']):
             self.info("Skipping action because this action is only done for "
                       "nightlies and that support/enable snippets...")

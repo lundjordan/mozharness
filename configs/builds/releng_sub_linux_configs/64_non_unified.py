@@ -15,7 +15,7 @@ config = {
         # 'check-test',
         'update',  # decided by query_is_nightly()
         'enable-ccache',
-        ],
+    ],
     'platform': 'linux64-nonunified',
 
     #### 64 bit build specific #####

@@ -66,4 +66,131 @@ config = {
     'services-central': {
         'repo_path': 'services/services-central',
     },
+    'ux': {
+        "graph_server_branch_name": "UX",
+    },
+    'birch': {
+        'enable_merging': False,
+        'pgo_strategy': 'periodic',
+        'enable_nightly': True,
+        'create_snippet': True,
+        'create_mobile_snippet': True,
+        'enable_l10n': True,
+        'enable_l10n_onchange': False,
+        'l10n_platforms': ['linux', 'linux64'],
+        'l10n_tree': 'fxcentral',
+        'l10n_repo_path': 'l10n-central',
+        'enUS_binaryURL': '/nightly/latest-birch',
+        'enable_valgrind': False,
+        'branch_projects': [],
+        'enable_nightly': False,
+        'lock_platforms': True,
+        'platforms': {
+            'linux': {
+                'enable_opt_unittests': False,
+                'enable_debug_unittests': False,
+                'talos_slave_platforms': [],
+                },
+            'linux-debug': {},
+            'linux64': {
+                'enable_opt_unittests': False,
+                'enable_debug_unittests': False,
+                'talos_slave_platforms': [],
+                },
+            'linux64-debug': {},
+            }
+    },
+    'cedar': {
+        'mozharness_tag': 'default',
+        'enable_talos': True,
+        'talos_suites': {
+            'xperf': 1,
+            'tp5o-metro': 1,
+            'other-metro': 1,
+            'svgr-metro': 1,
+            'dromaeojs-metro': 1,
+            },
+        'enable_opt_unittests': True,
+        'mobile_platforms': {
+            'android-x86': {
+                'enable_opt_unittests': True,
+                },
+            },
+        },
+    'date': {
+        'lock_platforms': True,
+        'platforms': {
+            'win32': {
+                'enable_opt_unittests': True,
+                },
+            'win64': {
+                'enable_opt_unittests': True,
+                'slave_platforms': ['win64_vm', 'win8_64'],
+                },
+            'win64-debug': {
+                'enable_debug_unittests': True,
+                },
+            },
+        'enable_merging': False,
+        },
+    'elm': {},
+    'fig': {},
+    'gum': {},
+    'holly': {
+        # Mimic mozilla-aurora
+        'gecko_version': 29,
+        'branch_projects': [],
+        'pgo_strategy': 'periodic',
+        'enable_nightly': True,
+        'create_snippet': True,
+        'create_partial': True,
+        'platforms': {
+            'linux': {
+                'nightly_signing_servers': 'nightly-signing',
+            },
+            'linux64': {
+                'nightly_signing_servers': 'nightly-signing',
+            },
+            'macosx64': {
+                'nightly_signing_servers': 'mac-nightly-signing',
+            },
+            'win32': {
+                'nightly_signing_servers': 'nightly-signing',
+                },
+        },
+    },
+    'jamun': {},
+    'larch': {},
+    'maple': {},
+    # customizations for integration work for bugs 481815 and 307181
+    'oak': {
+        'enable_nightly': True,
+        'create_snippet': True,
+        'create_partial': True,
+        'enable_talos': False,
+        'platforms': {
+            'linux': {
+                'nightly_signing_servers': 'nightly-signing',
+                },
+            'linux64': {
+                'nightly_signing_servers': 'nightly-signing',
+                },
+            'macosx64': {
+                'nightly_signing_servers': 'mac-nightly-signing',
+                },
+            'win32': {
+                'nightly_signing_servers': 'nightly-signing',
+                },
+            },
+    },
+    ### Not needed while booked for Thunderbird
+    #'alder': {},
+    ### Not needed whilst booked for bug 929203.
+    #'pine': {}
+
+    ### other branches that do not require anything special:
+    # 'build-system': {}
+    # 'graphics': {}
+    # 'ionmonkey': {},
+    'ash': {},
 }

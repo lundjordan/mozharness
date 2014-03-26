@@ -1601,14 +1601,13 @@ or run without that action (ie: --no-{action})"
 
     def check_test(self):
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'check_test_env'], 'check-test'
+            ['mock_target', 'check_test_env', 'enable_checktests'],
+            'check-test'
         )
+        c = self.config
         if self.query_is_nightly() or not c['enable_checktests']:
             self.info("Skipping action because this is a nightly run...")
             return
-        self._assert_cfg_valid_for_action(['check_test_env'],
-                                          'check-test-complete')
-        c = self.config
         dirs = self.query_abs_dirs()
         abs_check_test_env = {}
         for env_var, env_value in c['check_test_env'].iteritems():

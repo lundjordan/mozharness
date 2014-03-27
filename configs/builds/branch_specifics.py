@@ -33,7 +33,7 @@ config = {
     "mozilla-central": {
         "update_channel": "nightly",
         "graph_server_branch_name": "Firefox",
-        "repo_path": 'mozilla-central',  # 'mozilla-central' is the default
+        "repo_path": 'mozilla-central',
         'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-release': {

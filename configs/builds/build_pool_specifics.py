@@ -23,6 +23,7 @@ config = {
         'symbol_server_host': "dev-stage01.srv.releng.scl3.mozilla.com",
         "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:9038"],
         'graph_server': 'graphs.allizom.org',
+        'try_package_url': 'http://dev-stage01.srv.releng.scl3.mozilla.com/pub/mozilla.org/firefox/try-builds',
     },
     "production": {
         'aus2_host': 'aus3-staging.mozilla.org',
@@ -40,5 +41,6 @@ config = {
         "sendchange_masters": ["buildbot-master81.build.mozilla.org:9301"],
         'stage_server': 'stage.mozilla.org',
         'symbol_server_host': "symbolpush.mozilla.org",
+        'try_package_url': 'https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/try-builds',
     },
 }

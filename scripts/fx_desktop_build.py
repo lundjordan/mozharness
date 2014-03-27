@@ -86,6 +86,7 @@ class FxDesktopBuild(BuildScript, object):
                 # only used for make uploadsymbols
                 'use_branch_in_symbols_extra_buildid': True,
                 'enable_checktests': True,
+                'try_package_dir': '%(who)s-%(got_revision)s',
             },
             'ConfigClass': BuildingConfig,
         }

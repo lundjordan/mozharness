@@ -290,7 +290,7 @@ class BuildOptionParser(object):
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
         'non-unified': 'builds/releng_sub_%s_configs/%s_non_unified.py',
         'debug-and-non-unified':
-            'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
+                'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',

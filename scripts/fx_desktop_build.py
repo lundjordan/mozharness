@@ -47,11 +47,12 @@ class FxDesktopBuild(BuildScript, object):
             'require_config_file': True,
             # Default configuration
             'config': {
-                "repo_base": "https://hg.mozilla.org",
-                "nightly_build": False,
+                'is_automation': True,
                 "pgo_build": False,
                 "pgo_platforms": ['linux', 'linux64', 'win32'],
-                'is_automation': True,
+
+                # nightly stuff
+                "nightly_build": False,
                 # create_snippets will be decided by
                 # configs/builds/branch_specifics.py
                 # and used only if this is a nightly build
@@ -66,6 +67,7 @@ class FxDesktopBuild(BuildScript, object):
                 # platform_supports_snippets will be False
                 "platform_supports_snippets": True,
                 "platform_supports_partials": True,
+
                 'complete_mar_pattern': '*.complete.mar',
                 'partial_mar_pattern': '*.partial.*.mar',
                 # if nightly and our platform is not an ASAN or Stat Analysis
@@ -76,9 +78,14 @@ class FxDesktopBuild(BuildScript, object):
                 'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
                 'balrog_credentials_file': 'oauth.txt',
                 'periodic_clobber': 168,  # default anyway but can be overwritten
+
                 # hg tool stuff
                 'default_vcs': 'hgtool',
+                'clone_with_purge': False,
+                'clone_by_revision': False,
                 "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
+                "repo_base": "https://hg.mozilla.org",
+
                 "graph_selector": "/server/collect.cgi",
                 'hash_type': 'sha512',
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'

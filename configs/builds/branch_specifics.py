@@ -138,6 +138,10 @@ config = {
     'mozilla-b2g18_v1_1_0_hd': {
         'repo_path': 'releases/mozilla-b2g18',
     },
+    'try': {
+        'clone_by_revision': True,
+        'clone_with_purge': True,
+    },
 
     ### project branches
     'b2g-inbound': {

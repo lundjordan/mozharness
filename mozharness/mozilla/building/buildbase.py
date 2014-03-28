@@ -832,7 +832,15 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
-        rev = self.vcs_checkout(repo=repo, dest=dirs['abs_src_dir'])
+        vcs_checkout_kwargs = {
+            'repo': repo,
+            'dest': dirs['abs_src_dir'],
+        }
+        if c.get('clone_by_revision'):
+            vcs_checkout_kwargs['clone_by_revision'] = True
+        if c.get('clone_with_purge'):
+            vcs_checkout_kwargs['clone_with_purge'] = True
+        rev = self.vcs_checkout(**vcs_checkout_kwargs)
         if c.get('is_automation'):
             changes = self.buildbot_config['sourcestamp']['changes']
             if changes:

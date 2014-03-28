@@ -485,6 +485,11 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "dest": "nightly_build",
         "default": False,
         "help": "Sets the build to run in nightly mode"}],
+    [['--who'], {
+        "dest": "who",
+        "default": '',
+        "help": "stores who made the created the buildbot change."}],
+
 ]
 
 
@@ -1162,6 +1167,7 @@ or run without that action (ie: --no-{action})"
         # TODO support more from postUploadCmdPrefix()
         # as needed (as we introduce builds that use it)
         # h.m.o/build/buildbotcustom/process/factory.py#l119
+
         self._assert_cfg_valid_for_action(['stage_product'], 'upload')
         c = self.config
         post_upload_cmd = ["post_upload.py"]
@@ -1169,15 +1175,38 @@ or run without that action (ie: --no-{action})"
         # if checkout src/dest exists, this should just return the rev
         revision = self._checkout_source()
         platform = self.platform
+        who = c.get('who')
         if c.get('pgo_build'):
             platform += '-pgo'
-        tinderbox_build_dir = "%s-%s" % (self.branch, platform)
 
+        if c.get('tinderbox_build_dir'):
+            # TODO find out if we should fail here like we are
+            if not who and revision:
+                self.fatal("post upload failed. --tinderbox-builds-dir could "
+                           "not be determined. 'who' and/or 'revision unknown")
+            # branches like try will use 'tinderbox_build_dir
+            tinderbox_build_dir = c['tinderbox_build_dir'] % {
+                'who': who,
+                'got_revision': revision
+            }
+        else:
+            # the default
+            tinderbox_build_dir = "%s-%s" % (self.branch, platform)
+
+        if who:
+            post_upload_cmd.extend(["--who", who])
+        if c.get('include_post_upload_builddir'):
+            post_upload_cmd.extend(
+                ["--builddir", "%s-%s" % (self.branch, platform)]
+            )
         post_upload_cmd.extend(["--tinderbox-builds-dir", tinderbox_build_dir])
         post_upload_cmd.extend(["-p", c['stage_product']])
         post_upload_cmd.extend(['-i', buildid])
         post_upload_cmd.extend(['--revision', revision])
-        post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+        if c.get('to_tinderbox_dated'):
+            post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+        if c.get('release_to_try_builds'):
+            post_upload_cmd.append('--release-to-try-builds')
         if self.query_is_nightly():
             post_upload_cmd.extend(['-b', self.branch])
             post_upload_cmd.append('--release-to-dated')
@@ -1496,6 +1525,9 @@ or run without that action (ie: --no-{action})"
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
         cwd = self.query_abs_dirs()['abs_obj_dir']
+        # TODO find out if we need this and impl it for win
+        # if self.platform.startswith('win'):
+        #     objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
         self.retry(
             self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
                                            'command': 'make upload',

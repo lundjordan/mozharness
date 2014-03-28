@@ -81,8 +81,8 @@ class FxDesktopBuild(BuildScript, object):
 
                 # hg tool stuff
                 'default_vcs': 'hgtool',
-                'clone_with_purge': False,
-                'clone_by_revision': False,
+                'clone_with_purge': False,  # eg: try will impl this
+                'clone_by_revision': False,  # eg: try will impl this
                 "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
                 "repo_base": "https://hg.mozilla.org",
 
@@ -93,7 +93,10 @@ class FxDesktopBuild(BuildScript, object):
                 # only used for make uploadsymbols
                 'use_branch_in_symbols_extra_buildid': True,
                 'enable_checktests': True,
-                'try_package_dir': '%(who)s-%(got_revision)s',
+                'tinderbox_build_dir': None,  # eg: try will impl this
+                'to_tinderbox_dated': True,  # eg: try will False this
+                'release_to_try_builds': False,  # eg: try will True this
+                'include_post_upload_builddir': False,
             },
             'ConfigClass': BuildingConfig,
         }

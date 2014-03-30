@@ -18,7 +18,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
-    'platform': 'linux64-asan',
+    'stage_platform': 'linux64-asan',
     'purge_minsize': 12,
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),

@@ -94,12 +94,8 @@ config = {
 
     #########################################################################
     ###### 64 bit specific ######
-    # TODO we may need to add these other platform keys but thus far, I don't
     'platform': 'linux64',
-    # # this will change for sub configs like asan, pgo etc
-    # 'platform_variation': '',
-    # 'complete_platform': 'linux',
-    # 'stage_platform': 'linux64',
+    'stage_platform': 'linux64',
     'platform_ftp_name': 'linux-x86_64.complete.mar',
     'env': {
         'DISPLAY': ':2',

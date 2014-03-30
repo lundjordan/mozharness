@@ -16,7 +16,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
-    'platform': 'linux64-nonunified',
+    'stage_platform': 'linux64-nonunified',
 
     #### 64 bit build specific #####
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly-nonunified',

@@ -509,10 +509,13 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         # separate each build
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.branch = self.config.get('branch')
-        self.bits = self.config.get('bits')
-        self.platform = self.config.get('platform')
-        if self.bits == '64' and not self.platform.endswith('64'):
-            self.platform += '64'
+        self.stage_platform = self.config.get('stage_platform')
+        if not self.branch or self.stage_platform:
+            if not self.branch:
+                self.error("'branch' not determined and is required")
+            if not self.stage_platform:
+                self.error("'stage_platform' not determined and is required")
+            self.fatal("Please add missing items to your config")
         self.repo_path = None
         self.revision = None
         self.buildid = None
@@ -1174,7 +1177,7 @@ or run without that action (ie: --no-{action})"
         buildid = self.query_buildid()
         # if checkout src/dest exists, this should just return the rev
         revision = self._checkout_source()
-        platform = self.platform
+        platform = self.stage_platform
         who = c.get('who')
         if c.get('pgo_build'):
             platform += '-pgo'
@@ -1464,7 +1467,7 @@ or run without that action (ie: --no-{action})"
             # platform and branch for 64 bit platforms
             moz_symbols_extra_buildid = ''
             if c.get('use_platform_in_symbols_extra_buildid'):
-                moz_symbols_extra_buildid += self.platform
+                moz_symbols_extra_buildid += self.stage_platform
             if c.get('use_branch_in_symbols_extra_buildid'):
                 if moz_symbols_extra_buildid:
                     moz_symbols_extra_buildid += '-%s' % (self.branch,)
@@ -1568,7 +1571,7 @@ or run without that action (ie: --no-{action})"
             else:  # we don't do talos sendchange for debug so no need to check
                 build_type = ''  # leave 'opt' out of branch for talos
             talos_branch = "%s-%s-%s%s" % (self.branch,
-                                           self.platform,
+                                           self.stage_platform,
                                            build_type,
                                            'talos')
             self.sendchange(downloadables=[installer_url],
@@ -1579,7 +1582,7 @@ or run without that action (ie: --no-{action})"
             # we need a way to make opt builds use pgo branch sendchanges.
             # if the branch supports is per_checkin and this platform is a
             # pgo platform: see branch_specifics.py, use pgo instead of opt.
-            override_opt_branch = (self.platform in c['pgo_platforms'] and
+            override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
                                    c.get('branch_uses_per_checkin_strategy'))
             if c.get('pgo_build') or override_opt_branch:
                 build_type = 'pgo'
@@ -1590,7 +1593,7 @@ or run without that action (ie: --no-{action})"
             if c.get('unittest_platform'):
                 platform = c['unittest_platform']
             else:
-                platform = self.platform
+                platform = self.stage_platform
             full_unittest_platform = "%s-%s" % (platform, build_type)
             unittest_branch = "%s-%s-%s" % (self.branch,
                                             full_unittest_platform,

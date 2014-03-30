@@ -18,7 +18,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
-    'platform': 'linux-debug',
+    'stage_platform': 'linux-debug',
     'purge_minsize': 14,
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),

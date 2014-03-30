@@ -18,7 +18,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'enable-ccache',
     ],
-    'platform': 'linux64-st-an-debug',
+    'stage_platform': 'linux64-st-an-debug',
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),

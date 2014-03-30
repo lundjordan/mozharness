@@ -97,11 +97,7 @@ config = {
     #########################################################################
     ###### 32 bit specific ######
     'platform': 'linux',
-    # TODO we may need to add these other platform keys but thus far, I don't
-    #  see the need:
-    # 'platform_variation': '',
-    # 'complete_platform': 'linux',
-    # 'stage_platform': 'linux',
+    'stage_platform': 'linux',
     'platform_ftp_name': 'linux-i686.complete.mar',
     'env': {
         'DISPLAY': ':2',

@@ -708,6 +708,24 @@ or run without that action (ie: --no-{action})"
         self.repo_path = '%s/%s' % (c['repo_base'], repo_path,)
         return self.repo_path
 
+    def _query_who(self):
+        """ looks for who triggered the build with a change.
+
+        This is used for things like try builds where the upload dir is
+        associated with who pushed to try. First it will look in self.config
+        and failing that, will poll buildbot_config
+        If nothing is found, it will default to returning "nobody@example.com"
+        """
+        _who = ''
+        if self.config.get('who'):
+            _who = self.config['who']
+        if self.buildbot_config and 'sourcestamp' in self.buildbot_config:
+            if self.buildbot_config['sourcestamp'].get('who'):
+                _who = self.buildbot_config['sourcestamp']['who']
+        if not _who:
+            _who = "nobody@example.com"
+        return _who
+
     def _skip_buildbot_specific_action(self):
         """ ignore actions from buildbot's infra."""
         self.info("This action is specific to buildbot's infrastructure")
@@ -1180,7 +1198,7 @@ or run without that action (ie: --no-{action})"
         # if checkout src/dest exists, this should just return the rev
         revision = self._checkout_source()
         platform = self.stage_platform
-        who = c.get('who')
+        who = self._query_who()
         if c.get('pgo_build'):
             platform += '-pgo'
 
@@ -1825,3 +1843,6 @@ or run without that action (ie: --no-{action})"
             )
         self.buildbot_status(self.worst_buildbot_status)
         self.summary()
+
+
+

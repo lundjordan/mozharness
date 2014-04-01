@@ -510,7 +510,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         self.epoch_timestamp = int(time.mktime(datetime.now().timetuple()))
         self.branch = self.config.get('branch')
         self.stage_platform = self.config.get('stage_platform')
-        if not self.branch or self.stage_platform:
+        if not self.branch or not self.stage_platform:
             if not self.branch:
                 self.error("'branch' not determined and is required")
             if not self.stage_platform:

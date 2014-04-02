@@ -832,7 +832,7 @@ or run without that action (ie: --no-{action})"
         if not c.get('tooltool_manifest_src'):
             return self.warning(ERROR_MSGS['tooltool_manifest_undetermined'])
         fetch_script_path = os.path.join(dirs['abs_tools_dir'],
-                                         'scripts/tooltool/fetch_and_unpack.sh')
+                                         'scripts/tooltool/tooltool_wrapper.sh')
         tooltool_manifest_path = os.path.join(dirs['abs_src_dir'],
                                               c['tooltool_manifest_src'])
         cmd = [
@@ -903,8 +903,7 @@ or run without that action (ie: --no-{action})"
     def _create_complete_mar(self):
         # TODO use mar.py MIXINs
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'complete_mar_pattern'],
-            'make-update'
+            ['complete_mar_pattern'], 'make-update'
         )
         self.info('Creating a complete mar:')
         c = self.config
@@ -925,10 +924,9 @@ or run without that action (ie: --no-{action})"
         update_pkging_path = os.path.join(dirs['abs_obj_dir'],
                                           'tools',
                                           'update-packaging')
-        self.run_mock_command(c['mock_target'],
-                              command='make -C %s' % (update_pkging_path,),
-                              cwd=dirs['abs_src_dir'],
-                              env=env)
+        self.run_command_m(command='make -C %s' % (update_pkging_path,),
+                           cwd=dirs['abs_src_dir'],
+                           env=env)
         self._set_file_properties(file_name=c['complete_mar_pattern'],
                                   find_dir=dist_update_dir,
                                   prop_type='completeMar')
@@ -936,7 +934,7 @@ or run without that action (ie: --no-{action})"
     def _create_partial_mar(self):
         # TODO use mar.py MIXINs and make this simpler
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'update_env', 'platform_ftp_name', 'stage_server'],
+            ['update_env', 'platform_ftp_name', 'stage_server'],
             'upload'
         )
         self.info('Creating a partial mar:')
@@ -964,12 +962,11 @@ or run without that action (ie: --no-{action})"
         cmd = '%s %s %s' % (self.query_exe('perl'),
                             abs_unwrap_update_path,
                             os.path.join(dist_update_dir, mar_file))
-        self.run_mock_command(c['mock_target'],
-                              command=cmd,
-                              cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
-                              env=update_env,
-                              halt_on_failure=True,
-                              fatal_exit_code=3)
+        self.run_command_m(command=cmd,
+                           cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
+                           env=update_env,
+                           halt_on_failure=True,
+                           fatal_exit_code=3)
         # The mar file name will be the same from one day to the next,
         # *except* when we do a version bump for a release. To cope with
         # this, we get the name of the previous complete mar directly
@@ -1000,11 +997,9 @@ or run without that action (ie: --no-{action})"
         cmd = '%s %s %s' % (self.query_exe('perl'),
                             abs_unwrap_update_path,
                             os.path.join(dist_update_dir, 'previous.mar'))
-        self.run_mock_command(c['mock_target'],
-                              command=cmd,
-                              cwd=os.path.join(dirs['abs_obj_dir'],
-                                               'previous'),
-                              env=update_env)
+        self.run_command_m(command=cmd,
+                           cwd=os.path.join(dirs['abs_obj_dir'], 'previous'),
+                           env=update_env)
         # Extract the build ID from the unpacked previous complete mar.
         previous_buildid = self._query_previous_buildid()
         self.info('removing pgc files from previous and current dirs')
@@ -1036,10 +1031,9 @@ or run without that action (ie: --no-{action})"
             'DST_BUILD_ID': self.query_buildid()
         })
         cmd = 'make -C tools/update-packaging partial-patch'
-        self.run_mock_command(c.get('mock_target'),
-                              command=cmd,
-                              cwd=dirs['abs_obj_dir'],
-                              env=update_env)
+        self.run_command_m(command=cmd,
+                           cwd=dirs['abs_obj_dir'],
+                           env=update_env)
         self.rmtree(os.path.join(dist_update_dir, 'previous.mar'))
         self._set_file_properties(file_name=c['partial_mar_pattern'],
                                   find_dir=dist_update_dir,
@@ -1297,9 +1291,6 @@ or run without that action (ie: --no-{action})"
         # differently. these should be merged. however, snippet logic is on
         # it's way out. It's only used as a backup for balrog so it is not
         # high priority to port to signing.py
-        self._assert_cfg_valid_for_action(
-            ['mock_target'], 'update'
-        )
         if snippet_type == 'complete':
             error_level = FATAL
         else:
@@ -1397,10 +1388,9 @@ or run without that action (ie: --no-{action})"
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         if self.config.get('pgo_build'):
             cmd += ' MOZ_PGO=1'
-        self.run_mock_command(self.config.get('mock_target'),
-                              command=cmd,
-                              cwd=self.query_abs_dirs()['abs_src_dir'],
-                              env=self.query_build_env())
+        self.run_command_m(command=cmd,
+                           cwd=self.query_abs_dirs()['abs_src_dir'],
+                           env=self.query_build_env())
 
     def generate_build_props(self):
         """set buildid, sourcestamp, appVersion, and appName."""
@@ -1465,10 +1455,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
         env = self.query_build_env()
-        self.run_mock_command(c.get('mock_target'),
-                              command='make buildsymbols',
-                              cwd=cwd,
-                              env=env)
+        self.run_command_m(command='make buildsymbols', cwd=cwd, env=env)
         # TODO this condition might be extended with xul, valgrind, etc as more
         # variants are added
         # not all nightly platforms upload symbols!
@@ -1494,35 +1481,31 @@ or run without that action (ie: --no-{action})"
             if moz_symbols_extra_buildid:
                 env['MOZ_SYMBOLS_EXTRA_BUILDID'] = moz_symbols_extra_buildid
             self.retry(
-                self.run_mock_command,
-                kwargs={'mock_target': c.get('mock_target'),
-                        'command': 'make uploadsymbols',
+                self.run_command_m,
+                kwargs={'command': 'make uploadsymbols',
                         'cwd': cwd,
                         'env': env}
             )
 
     def packages(self):
-        self._assert_cfg_valid_for_action(['mock_target', 'package_filename'],
-                                          'make-packages')
+        self._assert_cfg_valid_for_action(['package_filename'], 'make-packages')
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
 
         # make package-tests
         if c.get('enable_package_tests'):
-            self.run_mock_command(c['mock_target'],
-                                  command='make package-tests',
-                                  cwd=cwd,
-                                  env=self.query_build_env())
+            self.run_command_m(command='make package-tests',
+                               cwd=cwd,
+                               env=self.query_build_env())
 
         # make package
-        self.run_mock_command(c['mock_target'],
-                              command='make package',
-                              cwd=cwd,
-                              env=self.query_build_env())
+        self.run_command_m(command='make package',
+                           cwd=cwd,
+                           env=self.query_build_env())
 
     def upload(self):
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'upload_env', 'create_snippets',
+            ['upload_env', 'create_snippets',
              'platform_supports_snippets', 'create_partial',
              'platform_supports_partials', 'stage_server'], 'upload'
         )
@@ -1550,11 +1533,10 @@ or run without that action (ie: --no-{action})"
         # if self.platform.startswith('win'):
         #     objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
         self.retry(
-            self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
-                                           'command': 'make upload',
-                                           'cwd': cwd,
-                                           'env': upload_env,
-                                           'output_parser': parser}
+            self.run_command_m, kwargs={'command': 'make upload',
+                                        'cwd': cwd,
+                                        'env': upload_env,
+                                        'output_parser': parser}
         )
         if parser.tbpl_status != TBPL_SUCCESS:
             self.add_summary("make upload failed")
@@ -1621,9 +1603,6 @@ or run without that action (ie: --no-{action})"
                             sendchange_props=sendchange_props)
 
     def pretty_names(self):
-        self._assert_cfg_valid_for_action(
-            ['mock_target'], 'pretty-names'
-        )
         c = self.config
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
@@ -1645,40 +1624,32 @@ or run without that action (ie: --no-{action})"
         # if self.enableInstaller:
         #     pkg_targets.append('installer')
         for target in package_targets:
-            self.run_mock_command(c['mock_target'],
-                                  command=base_cmd % (target,),
-                                  cwd=dirs['abs_obj_dir'],
-                                  env=env)
+            self.run_command(command=base_cmd % (target,),
+                             cwd=dirs['abs_obj_dir'],
+                             env=env)
         update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],
                                                      'tools',
                                                      'update-packaging'),)
-        self.run_mock_command(c['mock_target'],
-                              command=base_cmd % (update_package_cmd,),
-                              cwd=dirs['abs_src_dir'],
-                              env=env)
+        self.run_command_m(command=base_cmd % (update_package_cmd,),
+                           cwd=dirs['abs_src_dir'],
+                           env=env)
         if c.get('do_pretty_name_l10n_check'):
-            self.run_mock_command(c['mock_target'],
-                                  command=base_cmd % ("l10n-check",),
-                                  cwd=dirs['abs_obj_dir'],
-                                  env=env)
+            self.run_command_m(command=base_cmd % ("l10n-check",),
+                               cwd=dirs['abs_obj_dir'],
+                               env=env)
 
     def check_l10n(self):
-        self._assert_cfg_valid_for_action(
-            ['mock_target'], 'check-l10n'
-        )
         c = self.config
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
-        self.run_mock_command(c['mock_target'],
-                              command='make l10n-check',
-                              cwd=dirs['abs_obj_dir'],
-                              env=env)
+        self.run_command_m(command='make l10n-check',
+                           cwd=dirs['abs_obj_dir'],
+                           env=env)
 
     def check_test(self):
         self._assert_cfg_valid_for_action(
-            ['mock_target', 'check_test_env', 'enable_checktests'],
-            'check-test'
+            ['check_test_env', 'enable_checktests'], 'check-test'
         )
         c = self.config
         if self.query_is_nightly() or not c['enable_checktests']:
@@ -1693,11 +1664,10 @@ or run without that action (ie: --no-{action})"
         env.update(abs_check_test_env)
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-        self.run_mock_command(c['mock_target'],
-                              command='make -k check',
-                              cwd=dirs['abs_obj_dir'],
-                              env=env,
-                              output_parser=parser)
+        self.run_command_m(command='make -k check',
+                           cwd=dirs['abs_obj_dir'],
+                           env=env,
+                           output_parser=parser)
         parser.evaluate_parser()
 
     def update(self):

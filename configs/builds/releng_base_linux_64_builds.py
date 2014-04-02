@@ -38,7 +38,6 @@ config = {
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
     # mock shtuff
-    'use_mock':  True,
     'mock_mozilla_dir':  '/builds/mock_mozilla',
     'mock_target': 'mozilla-centos6-x86_64',
     'mock_files': [

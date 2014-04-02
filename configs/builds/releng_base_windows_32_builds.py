@@ -39,16 +39,6 @@ config = {
 #         },
 #     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
 #     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
-#     # mock shtuff
-#     'use_mock':  True,
-#     'mock_mozilla_dir':  '/builds/mock_mozilla',
-#     'mock_target': 'mozilla-centos6-x86_64',
-#     'mock_files': [
-#         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-#         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-#         ('/builds/gapi.data', '/builds/gapi.data'),
-#         ('/tools/tooltool.py', '/builds/tooltool.py'),
-#         ],
     'enable_ccache': False,
 #     'vcs_share_base': '/builds/hg-shared',
 #     'objdir': 'obj-firefox',

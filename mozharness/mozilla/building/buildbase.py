@@ -517,7 +517,6 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
                 self.error("'stage_platform' not determined and is required")
             self.fatal("Please add missing items to your config")
         self.repo_path = None
-        self.revision = None
         self.buildid = None
         self.builduid = None
         self.query_buildid()  # sets self.buildid
@@ -845,10 +844,36 @@ or run without that action (ie: --no-{action})"
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 
+    def query_revision(self, source_path=None):
+        """ returns the revision of the build
+
+         first will look for it in buildbot_properties and then in
+         buildbot_config. Failing that, it will actually poll the source of
+         the repo if it exists yet.
+        """
+        # this is basically a copy from b2g_build.py
+        # TODO get b2g_build.py to use this version of query_revision
+        if 'revision' in self.buildbot_properties:
+            return self.buildbot_properties['revision']
+
+        if self.buildbot_config and 'sourcestamp' in self.buildbot_config:
+            return self.buildbot_config['sourcestamp']['revision']
+
+        if not source_path:
+            dirs = self.query_abs_dirs()
+            source_path = dirs['abs_src_dir']  # let's take the default
+
+        # Look at what we have checked out
+        if os.path.exists(source_path):
+             hg = self.query_exe('hg', return_type='list')
+             return self.get_output_from_command(
+                 hg + ['parent', '--template', '{node|short}'], cwd=source_path
+             )
+
+        return None
+
     def _checkout_source(self):
         """use vcs_checkout to grab source needed for build."""
-        if self.revision:
-            return self.revision
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
@@ -858,6 +883,8 @@ or run without that action (ie: --no-{action})"
         }
         if c.get('clone_by_revision'):
             vcs_checkout_kwargs['clone_by_revision'] = True
+            vcs_checkout_kwargs['revision'] = self.query_revision()
+
         if c.get('clone_with_purge'):
             vcs_checkout_kwargs['clone_with_purge'] = True
         rev = self.vcs_checkout(**vcs_checkout_kwargs)
@@ -873,8 +900,6 @@ or run without that action (ie: --no-{action})"
             self.set_buildbot_property('got_revision',
                                        rev[:12],
                                        write_to_file=True)
-        self.revision = rev[:12]
-        return self.revision
 
     def _count_ctors(self):
         """count num of ctors and set testresults."""
@@ -1186,8 +1211,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         post_upload_cmd = ["post_upload.py"]
         buildid = self.query_buildid()
-        # if checkout src/dest exists, this should just return the rev
-        revision = self._checkout_source()
+        revision = self.query_revision()
         platform = self.stage_platform
         who = self._query_who()
         if c.get('pgo_build'):

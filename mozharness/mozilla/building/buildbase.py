@@ -924,7 +924,8 @@ or run without that action (ie: --no-{action})"
         update_pkging_path = os.path.join(dirs['abs_obj_dir'],
                                           'tools',
                                           'update-packaging')
-        self.run_command_m(command='make -C %s' % (update_pkging_path,),
+        self.run_command_m(command='%s -C %s' % (self.query_exe('make'),
+                                                 update_pkging_path,),
                            cwd=dirs['abs_src_dir'],
                            env=env)
         self._set_file_properties(file_name=c['complete_mar_pattern'],
@@ -1030,7 +1031,9 @@ or run without that action (ie: --no-{action})"
             'DST_BUILD': '../../current',
             'DST_BUILD_ID': self.query_buildid()
         })
-        cmd = 'make -C tools/update-packaging partial-patch'
+        cmd = '%s -C tools/update-packaging partial-patch' % (
+            self.query_exe('make')
+        )
         self.run_command_m(command=cmd,
                            cwd=dirs['abs_obj_dir'],
                            env=update_env)
@@ -1384,7 +1387,7 @@ or run without that action (ie: --no-{action})"
     def build(self):
         """build application."""
         # dependencies in config see _pre_config_lock
-        base_cmd = 'make -f client.mk build'
+        base_cmd = '%s -f client.mk build' % (self.query_exe('make'),)
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         if self.config.get('pgo_build'):
             cmd += ' MOZ_PGO=1'
@@ -1455,7 +1458,10 @@ or run without that action (ie: --no-{action})"
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
         env = self.query_build_env()
-        self.run_command_m(command='make buildsymbols', cwd=cwd, env=env)
+        self.run_command_m(
+            command='%s buildsymbols' % (self.query_exe('make'),),
+            cwd=cwd, env=env
+        )
         # TODO this condition might be extended with xul, valgrind, etc as more
         # variants are added
         # not all nightly platforms upload symbols!
@@ -1482,9 +1488,11 @@ or run without that action (ie: --no-{action})"
                 env['MOZ_SYMBOLS_EXTRA_BUILDID'] = moz_symbols_extra_buildid
             self.retry(
                 self.run_command_m,
-                kwargs={'command': 'make uploadsymbols',
-                        'cwd': cwd,
-                        'env': env}
+                kwargs={
+                    'command': '%s uploadsymbols' % (self.query_exe('make'),),
+                    'cwd': cwd,
+                    'env': env
+                }
             )
 
     def packages(self):
@@ -1494,12 +1502,14 @@ or run without that action (ie: --no-{action})"
 
         # make package-tests
         if c.get('enable_package_tests'):
-            self.run_command_m(command='make package-tests',
-                               cwd=cwd,
-                               env=self.query_build_env())
+            self.run_command_m(
+                command='%s package-tests' % (self.query_exe('make'),),
+                cwd=cwd,
+                env=self.query_build_env()
+            )
 
         # make package
-        self.run_command_m(command='make package',
+        self.run_command_m(command='%s package' % (self.query_exe('make'),),
                            cwd=cwd,
                            env=self.query_build_env())
 
@@ -1533,10 +1543,12 @@ or run without that action (ie: --no-{action})"
         # if self.platform.startswith('win'):
         #     objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
         self.retry(
-            self.run_command_m, kwargs={'command': 'make upload',
-                                        'cwd': cwd,
-                                        'env': upload_env,
-                                        'output_parser': parser}
+            self.run_command_m, kwargs={
+                'command': '%s upload' % (self.query_exe('make'),),
+                'cwd': cwd,
+                'env': upload_env,
+                'output_parser': parser
+            }
         )
         if parser.tbpl_status != TBPL_SUCCESS:
             self.add_summary("make upload failed")
@@ -1607,7 +1619,9 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
-        base_cmd = 'make %s MOZ_PKG_PRETTYNAMES=1'
+        base_cmd = '%s %%s MOZ_PKG_PRETTYNAMES=1' % (
+            self.query_exe('make'),
+        )
 
         # TODO  port below from process/factory.py line 1526 if we end up
         # porting mac before x-compiling
@@ -1643,9 +1657,11 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
-        self.run_command_m(command='make l10n-check',
-                           cwd=dirs['abs_obj_dir'],
-                           env=env)
+        self.run_command_m(
+            command='%s l10n-check' % (self.query_exe('make'),),
+            cwd=dirs['abs_obj_dir'],
+            env=env
+        )
 
     def check_test(self):
         self._assert_cfg_valid_for_action(
@@ -1664,10 +1680,10 @@ or run without that action (ie: --no-{action})"
         env.update(abs_check_test_env)
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-        self.run_command_m(command='make -k check',
-                           cwd=dirs['abs_obj_dir'],
-                           env=env,
-                           output_parser=parser)
+        self.run_command_m(
+            command='%s -k check' % (self.query_exe('make'),),
+            cwd=dirs['abs_obj_dir'], env=env, output_parser=parser
+        )
         parser.evaluate_parser()
 
     def update(self):

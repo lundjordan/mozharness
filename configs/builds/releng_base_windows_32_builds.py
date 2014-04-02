@@ -34,9 +34,10 @@ config = {
 #         'update',  # decided by query_is_nightly()
 #         'enable-ccache',
 #         ],
-#     'exes': {
-#         "buildbot": "/tools/buildbot/bin/buildbot",
-#         },
+    'exes': {
+        "buildbot": "/tools/buildbot/bin/buildbot",
+        "make": ["python", "%(abs_work_dir)s/source/build/pymake/make.py"]
+    },
 #     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
 #     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
     'enable_ccache': False,

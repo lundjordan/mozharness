@@ -856,7 +856,10 @@ or run without that action (ie: --no-{action})"
         if 'revision' in self.buildbot_properties:
             return self.buildbot_properties['revision']
 
-        if self.buildbot_config and 'sourcestamp' in self.buildbot_config:
+        if self.buildbot_config and self.buildbot_config.get('revision'):
+            return self.buildbot_config['revision']
+
+        if self.buildbot_config and self.buildbot_config.get('sourcestamp'):
             return self.buildbot_config['sourcestamp']['revision']
 
         if not source_path:

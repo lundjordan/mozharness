@@ -776,15 +776,9 @@ or run without that action (ie: --no-{action})"
 
     def _ccache_z(self):
         """clear ccache stats."""
-        self._assert_cfg_valid_for_action(['ccache_env'], 'build')
         c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
-        # update env for just this command
-        ccache_env = copy.deepcopy(c['ccache_env'])
-        ccache_env['CCACHE_BASEDIR'] = c['ccache_env'].get(
-            'CCACHE_BASEDIR', "") % {"base_dir": dirs['base_work_dir']}
-        env.update(c['ccache_env'])
         if os.path.exists(dirs['abs_src_dir']):
             self.run_command(command=['ccache', '-z'],
                              cwd=dirs['abs_src_dir'],
@@ -845,9 +839,9 @@ or run without that action (ie: --no-{action})"
             fetch_script_path,
             tooltool_manifest_path,
             c['tooltool_url'],
-            c['tooltool_script'],
             c['tooltool_bootstrap'],
         ]
+        cmd.extend(c['tooltool_script'])
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'])
 

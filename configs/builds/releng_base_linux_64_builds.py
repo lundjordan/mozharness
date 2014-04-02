@@ -48,13 +48,6 @@ config = {
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
     'enable_ccache': True,
-    'ccache_env': {
-        'CCACHE_BASEDIR': "%(base_dir)s",
-        'CCACHE_COMPRESS': '1',
-        'CCACHE_DIR': '/builds/ccache',
-        'CCACHE_HASHDIR': '',
-        'CCACHE_UMASK': '002',
-    },
     'vcs_share_base': '/builds/hg-shared',
     'objdir': 'obj-firefox',
     'old_packages': [
@@ -64,7 +57,7 @@ config = {
         "%(objdir)s/dist/thunderbird*",
         "%(objdir)s/dist/install/sea/*.exe"
     ],
-    'tooltool_script': "/tools/tooltool.py",
+    'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
     # in linux we count ctors
     'enable_count_ctors': True,

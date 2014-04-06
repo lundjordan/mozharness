@@ -17,23 +17,23 @@ config = {
 #     # decides whether we want to use moz_sign_cmd in env
 #     'enable_signing': True,
 #     "buildbot_json_path": "buildprops.json",
-#     'default_actions': [
-#         'clobber',
-#         'pull',
-#         'setup-mock',
-#         'build',
-#         'generate-build-props',
-#         'generate-build-stats',
-#         'symbols',
-#         'packages',
-#         'upload',
-#         'sendchanges',
-#         'pretty-names',
-#         'check-l10n',
-#         'check-test',
-#         'update',  # decided by query_is_nightly()
-#         'enable-ccache',
-#         ],
+    'default_actions': [
+        'clobber',
+        'pull',
+        'setup-mock',
+        'build',
+        'generate-build-props',
+        # 'generate-build-stats',
+        'symbols',
+        'packages',
+        'upload',
+        'sendchanges',
+        'pretty-names',
+        'check-l10n',
+        'check-test',
+        'update',  # decided by query_is_nightly()
+        'enable-ccache',
+    ],
     'exes': {
         "buildbot": "/tools/buildbot/bin/buildbot",
         "make": ["python", "%(abs_work_dir)s/source/build/pymake/make.py"]
@@ -83,20 +83,21 @@ config = {
 #     'platform': 'linux',
 #     'stage_platform': 'linux',
 #     'platform_ftp_name': 'linux-i686.complete.mar',
-     'env': {
-         'BINSCOPE': 'C:\\Program Files (x86)\\Microsoft\\SDL BinScope\\BinScope.exe',
-         'HG_SHARE_BASE_DIR': 'c:/builds/hg-shared',
-         'MOZ_CRASHREPORTER_NO_REPORT': '1',
-         'MOZ_OBJDIR': 'obj-firefox',
-         'PATH': '${MOZILLABUILD}nsis-2.46u;${MOZILLABUILD}python27;${MOZILLABUILD}buildbotve\\scripts;${PATH}',
-         'PDBSTR_PATH': '/c/Program Files (x86)/Windows Kits/8.0/Debuggers/x64/srcsrv/pdbstr.exe',
-         'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
-         'SYMBOL_SERVER_HOST': 'symbolpush.mozilla.org',
-         'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
-         'SYMBOL_SERVER_SSH_KEY': '/c/Users/cltbld/.ssh/ffxbld_dsa',
-         'SYMBOL_SERVER_USER': 'ffxbld',
-         'TINDERBOX_OUTPUT': '1'
-     },
+    'enable_installer': True,
+    'env': {
+        'BINSCOPE': 'C:\\Program Files (x86)\\Microsoft\\SDL BinScope\\BinScope.exe',
+        'HG_SHARE_BASE_DIR': 'c:/builds/hg-shared',
+        'MOZ_CRASHREPORTER_NO_REPORT': '1',
+        'MOZ_OBJDIR': 'obj-firefox',
+        'PATH': '${MOZILLABUILD}nsis-2.46u;${MOZILLABUILD}python27;${MOZILLABUILD}buildbotve\\scripts;${PATH}',
+        'PDBSTR_PATH': '/c/Program Files (x86)/Windows Kits/8.0/Debuggers/x64/srcsrv/pdbstr.exe',
+        'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
+        'SYMBOL_SERVER_HOST': 'symbolpush.mozilla.org',
+        'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
+        'SYMBOL_SERVER_SSH_KEY': '/c/Users/cltbld/.ssh/ffxbld_dsa',
+        'SYMBOL_SERVER_USER': 'ffxbld',
+        'TINDERBOX_OUTPUT': '1'
+    },
 #     'purge_minsize': 12,
 #     'mock_packages': [
 #         'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',
@@ -146,10 +147,8 @@ config = {
 #         ######## 32 bit specific ###########
 #     ],
     'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',
-#
-#     'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/\
-# releng.manifest",
-#     'package_filename': '*.linux-i686*.tar.bz2',
+    'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/releng.manifest",
+    'package_filename': '*.win32.zip',
 #
 #     "check_test_env": {
 #         'MINIDUMP_STACKWALK': 'breakpad/linux/minidump_stackwalk',

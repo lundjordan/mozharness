@@ -1523,22 +1523,20 @@ or run without that action (ie: --no-{action})"
             )
 
     def packages(self):
-        self._assert_cfg_valid_for_action(['package_filename'], 'make-packages')
         c = self.config
         cwd = self.query_abs_dirs()['abs_obj_dir']
 
-        # make package-tests
-        if c.get('enable_package_tests'):
-            self.run_command_m(
-                command='%s package-tests' % (self.query_exe('make'),),
-                cwd=cwd,
-                env=self.query_build_env()
-            )
+        if c.get('package_targets'):
+            for package_target in c['package_targets']:
+                cmd = '%s %s' % (self.query_exe('make'),
+                                 package_target)
+                self.run_command_m(
+                    command=cmd, cwd=cwd, env=self.query_build_env()
+                )
+        else:
+            self.warning("No package targets to make. Please add them to "
+                         "'package_targets' in your config.")
 
-        # make package
-        self.run_command_m(command='%s package' % (self.query_exe('make'),),
-                           cwd=cwd,
-                           env=self.query_build_env())
 
     def upload(self):
         self._assert_cfg_valid_for_action(
@@ -1617,7 +1615,9 @@ or run without that action (ie: --no-{action})"
                             branch=talos_branch,
                             username='sendchange',
                             sendchange_props=sendchange_props)
-        if c.get('enable_package_tests'):  # do unittest sendchange
+        if 'package-tests' in c.get('pretty_package_targets', []):
+            # do unittest sendchange
+
             # we need a way to make opt builds use pgo branch sendchanges.
             # if the branch supports is per_checkin and this platform is a
             # pgo platform: see branch_specifics.py, use pgo instead of opt.
@@ -1659,13 +1659,8 @@ or run without that action (ie: --no-{action})"
         #                  command=self.makeCmd + [
         #                  '-f', 'client.mk', 'postflight_all'],
 
-        package_targets = ['package']
-        # TODO  port below from process/factory.py line 1543
-        # WINDOWS IMPLEMENTATION
-        # if self.enableInstaller:
-        #     pkg_targets.append('installer')
-        for target in package_targets:
-            self.run_command(command=base_cmd % (target,),
+        for package_target in c.get('package_targets', []):
+            self.run_command(command=base_cmd % (package_target,),
                              cwd=dirs['abs_obj_dir'],
                              env=env)
         update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],

@@ -29,7 +29,7 @@ class FxDesktopBuild(BuildScript, object):
             'config_options': BUILD_BASE_CONFIG_OPTIONS,
             'all_actions': [
                 'clobber',
-                'pull',
+                'clone-tools',
                 'setup-mock',
                 'build',
                 'generate-build-props',
@@ -83,7 +83,7 @@ class FxDesktopBuild(BuildScript, object):
                 'default_vcs': 'hgtool',
                 'clone_with_purge': False,  # eg: try will impl this
                 'clone_by_revision': False,  # eg: try will impl this
-                "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
+                "tools_repo": "https://hg.mozilla.org/build/tools",
                 "repo_base": "https://hg.mozilla.org",
 
                 "graph_selector": "/server/collect.cgi",

@@ -3,7 +3,7 @@ MOZ_OBJDIR = 'obj-firefox'
 config = {
     'default_actions': [
         'clobber',
-        'pull',
+        'clone-tools',
         'setup-mock',
         'build',
         'generate-build-props',

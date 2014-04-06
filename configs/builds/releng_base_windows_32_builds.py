@@ -19,7 +19,7 @@ config = {
 #     "buildbot_json_path": "buildprops.json",
     'default_actions': [
         'clobber',
-        'pull',
+        'clone-tools',
         'setup-mock',
         'build',
         'generate-build-props',

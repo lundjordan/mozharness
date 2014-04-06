@@ -19,7 +19,7 @@ config = {
     "buildbot_json_path": "buildprops.json",
     'default_actions': [
         'clobber',
-        'pull',
+        'clone-tools',
         'setup-mock',
         'build',
         'generate-build-props',
@@ -35,6 +35,7 @@ config = {
         'enable-ccache',
     ],
     'exes': {
+        'hgtool.py': '%(abs_work_dir)s/tools/buildfarm/utils/hgtool.py',
         "buildbot": "/tools/buildbot/bin/buildbot",
     },
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],

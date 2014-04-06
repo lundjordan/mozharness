@@ -883,10 +883,10 @@ or run without that action (ie: --no-{action})"
         vcs_checkout_kwargs = {
             'repo': repo,
             'dest': dirs['abs_src_dir'],
+            'revision': self.query_revision(),
         }
         if c.get('clone_by_revision'):
             vcs_checkout_kwargs['clone_by_revision'] = True
-            vcs_checkout_kwargs['revision'] = self.query_revision()
 
         if c.get('clone_with_purge'):
             vcs_checkout_kwargs['clone_with_purge'] = True
@@ -1396,6 +1396,18 @@ or run without that action (ie: --no-{action})"
                 'fatal_exit_code': 3,
             }
         )
+    def clone_tools(self):
+        """clones the tools repo."""
+        self._assert_cfg_valid_for_action(['tools_repo'], 'clone_tools')
+        c = self.config
+        dirs = self.query_abs_dirs()
+        repo = {
+            'repo': c['tools_repo'],
+            'vcs': 'hg',
+            'dest': dirs['abs_tools_dir'],
+            'output_timeout': 1200,
+        }
+        self.vcs_checkout(**repo)
 
     def preflight_build(self):
         """set up machine state for a complete build."""

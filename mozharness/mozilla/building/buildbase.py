@@ -1614,7 +1614,7 @@ or run without that action (ie: --no-{action})"
         # if not self.uploadMulti when we introduce a platform/build that uses
         # uploadMulti
 
-        if c.get('enable_talos_sendchange'):  # do talos sendchange
+        if c.get('enable_talos_sendchange'):
             if c.get('pgo_build'):
                 build_type = 'pgo-'
             else:  # we don't do talos sendchange for debug so no need to check
@@ -1627,12 +1627,12 @@ or run without that action (ie: --no-{action})"
                             branch=talos_branch,
                             username='sendchange',
                             sendchange_props=sendchange_props)
-        if 'package-tests' in c.get('pretty_package_targets', []):
+        if 'package-tests' in c.get('package_targets', []):
             # do unittest sendchange
 
             # we need a way to make opt builds use pgo branch sendchanges.
-            # if the branch supports is per_checkin and this platform is a
-            # pgo platform: see branch_specifics.py, use pgo instead of opt.
+            # if the branch supports per_checkin and this platform is in
+            # pgo platforms (see branch_specifics.py), use pgo instead of opt.
             override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
                                    c.get('branch_uses_per_checkin_strategy'))
             if c.get('pgo_build') or override_opt_branch:

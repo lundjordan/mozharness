@@ -63,9 +63,7 @@ config = {
     'tooltool_bootstrap': "setup.sh",
     # in linux we count ctors
     'enable_count_ctors': True,
-    'enable_package_tests': True,
     'package_targets': ['package', 'package-tests'],
-    'pretty_package_targets': [],
     'stage_product': STAGE_PRODUCT,
     "enable_talos_sendchange": True,
     "do_pretty_name_l10n_check": True,

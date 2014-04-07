@@ -26,7 +26,7 @@ config = {
     ],
     "enable_talos_sendchange": False,  # stat debug doesn't do talos sendchange
     # stat debug doesn't do unittest sendchange or make package-tests
-    'enable_package_tests': False,
+    'package_targets': ['package'],
     'enable_signing': False,
     'purge_minsize': 12,
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\

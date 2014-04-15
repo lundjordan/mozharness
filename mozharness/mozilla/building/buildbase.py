@@ -388,7 +388,7 @@ class BuildOptionParser(object):
                          str(cls.build_variants.keys()),
                          str(cls.config_file_search_path)))
         parser.values.config_files.append(valid_variant_cfg_path)
-        option.dest = valid_variant_cfg_path
+        setattr(parser.values, option.dest, value)  # the pool
 
     @classmethod
     def set_build_pool(cls, option, opt, value, parser):
@@ -525,15 +525,21 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
     def _pre_config_lock(self, rw_config):
         c = self.config
         build_pool = c.get('build_pool', '')
+        build_variant = c.get('build_variant', '')
+        build_variant_cfg = ''
+        if build_variant:
+            build_variant_cfg = BuildOptionParser.build_variants[build_variant] % (
+                BuildOptionParser.platform, BuildOptionParser.bits
+            )
         cfg_match_msg = "Script was ran with '%(option)s %(type)s' and \
-%(type)s matches a key in '%(type_config_file)s'. Updating self.config with \
+'%(type)s' matches a key in '%(type_config_file)s'. Updating self.config with \
 items from that key's value."
         pf_override_msg = "The branch '%(branch)s' has custom behavior for the \
 platform '%(platform)s'. Updating self.config with the following from \
 'platform_overrides' found in '%(pf_cfg_file)s':"
         cfg_files_and_dicts = rw_config.all_cfg_files_and_dicts
         for i, (target_file, target_dict) in enumerate(cfg_files_and_dicts):
-            if BuildOptionParser.branch_cfg_file == target_file:
+            if BuildOptionParser.branch_cfg_file in target_file:
                 self.info(
                     cfg_match_msg % {
                         'option': '--branch',
@@ -541,26 +547,36 @@ platform '%(platform)s'. Updating self.config with the following from \
                         'type_config_file': BuildOptionParser.branch_cfg_file
                     }
                 )
-            if target_file == BuildOptionParser.build_pools.get(build_pool):
+            if BuildOptionParser.build_pools.get(build_pool) in target_file:
                 self.info(
                     cfg_match_msg % {
                         'option': '--build-pool',
-                        'type': c['build_pool'],
+                        'type': build_pool,
                         'type_config_file': BuildOptionParser.build_pools[
-                            c['build_pool']
+                            build_pool
                         ]
                     }
                 )
+            if build_variant_cfg and build_variant_cfg in target_file:
+                self.info(
+                    cfg_match_msg % {
+                        'option': '--custom-build-variant-cfg',
+                        'type': build_variant,
+                        'type_config_file': build_variant_cfg,
+                    }
+                )
         if c.get("platform_overrides"):
-            if c['platform'] in c['platform_overrides'].keys():
+            if c['stage_platform'] in c['platform_overrides'].keys():
                 self.info(
                     pf_override_msg % {
                         'branch': c['branch'],
-                        'platform': c['platform'],
+                        'platform': c['stage_platform'],
                         'pf_cfg_file': BuildOptionParser.branch_cfg_file
                     }
                 )
-                branch_pf_overrides = c['platform_overrides'][c['platform']]
+                branch_pf_overrides = c['platform_overrides'][
+                    c['stage_platform']
+                ]
                 self.info(pprint.pformat(branch_pf_overrides))
                 c.update(branch_pf_overrides)
         self.info('To generate a config file based upon options passed and '

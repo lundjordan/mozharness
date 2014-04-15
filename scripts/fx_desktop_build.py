@@ -42,7 +42,7 @@ class FxDesktopBuild(BuildScript, object):
                 'check-l10n',
                 'check-test',
                 'update',
-                'enable-ccache',
+                'ccache-stats',
             ],
             'require_config_file': True,
             # Default configuration

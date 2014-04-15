@@ -77,7 +77,7 @@ class FxDesktopBuild(BuildScript, object):
                 'aus2_user': 'ffxbld',
                 'aus2_base_upload_dir': '/opt/aus2/incoming/2/Firefox',
                 'balrog_credentials_file': 'oauth.txt',
-                'periodic_clobber': 168,  # default anyway but can be overwritten
+                'periodic_clobber': 168,
 
                 # hg tool stuff
                 'default_vcs': 'hgtool',
@@ -97,6 +97,14 @@ class FxDesktopBuild(BuildScript, object):
                 'to_tinderbox_dated': True,  # eg: try will False this
                 'release_to_try_builds': False,  # eg: try will True this
                 'include_post_upload_builddir': False,
+                "buildbot_json_path": "buildprops.json",
+                'old_packages': [
+                    "%(objdir)s/dist/firefox-*",
+                    "%(objdir)s/dist/fennec*",
+                    "%(objdir)s/dist/seamonkey*",
+                    "%(objdir)s/dist/thunderbird*",
+                    "%(objdir)s/dist/install/sea/*.exe"
+                ],
             },
             'ConfigClass': BuildingConfig,
         }

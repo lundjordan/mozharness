@@ -11,12 +11,6 @@ config = {
     # code block and also make sure this is synced with
     # releng_base_linux_64_builds.py
 
-    'periodic_clobber': 168,  # default anyway but can be overwritten
-
-    'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
-    # decides whether we want to use moz_sign_cmd in env
-    'enable_signing': True,
-    "buildbot_json_path": "buildprops.json",
     'default_actions': [
         'clobber',
         'clone-tools',
@@ -32,12 +26,15 @@ config = {
         'check-l10n',
         'check-test',
         'update',  # decided by query_is_nightly()
-        'enable-ccache',
+        'ccache-stats',
     ],
     'exes': {
         'hgtool.py': '%(abs_work_dir)s/tools/buildfarm/utils/hgtool.py',
         "buildbot": "/tools/buildbot/bin/buildbot",
     },
+    'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
+    # decides whether we want to use moz_sign_cmd in env
+    'enable_signing': True,
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
     'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
     # mock shtuff
@@ -52,13 +49,6 @@ config = {
     'enable_ccache': True,
     'vcs_share_base': '/builds/hg-shared',
     'objdir': 'obj-firefox',
-    'old_packages': [
-        "%(objdir)s/dist/firefox-*",
-        "%(objdir)s/dist/fennec*",
-        "%(objdir)s/dist/seamonkey*",
-        "%(objdir)s/dist/thunderbird*",
-        "%(objdir)s/dist/install/sea/*.exe"
-    ],
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
     # in linux we count ctors
@@ -169,8 +159,8 @@ releng.manifest",
     'package_filename': '*.linux-i686*.tar.bz2',
 
     "check_test_env": {
-        'MINIDUMP_STACKWALK': 'breakpad/linux/minidump_stackwalk',
-        'MINIDUMP_SAVE_PATH': 'minidumps',
+        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',
+        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
     },
     'base_name': 'Linux_%(branch)s',
     'update_platform': 'Linux_x86-gcc3',

@@ -16,10 +16,10 @@ config = {
         # 'check-l10n', debug skips this action
         'check-test',
         'update',  # decided by query_is_nightly()
-        'enable-ccache',
+        'ccache-stats',
     ],
     'stage_platform': 'linux-debug',
-    'purge_minsize': 14,
+    'purge_minsize': 15,
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),

@@ -1706,12 +1706,9 @@ or run without that action (ie: --no-{action})"
             self.info("Skipping action because this is a nightly run...")
             return
         dirs = self.query_abs_dirs()
-        abs_check_test_env = {}
-        for env_var, env_value in c['check_test_env'].iteritems():
-            abs_check_test_env[env_var] = os.path.join(dirs['abs_tools_dir'],
-                                                       env_value)
         env = self.query_build_env()
-        env.update(abs_check_test_env)
+        for env_var, env_value in c['check_test_env'].iteritems():
+            env[env_var] = env_value % dirs
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
         self.run_command_m(
@@ -1833,7 +1830,8 @@ or run without that action (ie: --no-{action})"
             self._submit_balrog_updates()
             #####
 
-    def enable_ccache(self):
+    def ccache_stats(self):
+        """print ccache stats. only done for unix like platforms"""
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
         cmd = ['ccache', '-s']

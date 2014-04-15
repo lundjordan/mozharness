@@ -16,7 +16,7 @@ config = {
         # 'check-l10n', asan_and_debug skips this action
         'check-test',
         'update',  # decided by query_is_nightly()
-        'enable-ccache',
+        'ccache-stats',
     ],
     'stage_platform': 'linux64-asan-debug',
     'purge_minsize': 12,

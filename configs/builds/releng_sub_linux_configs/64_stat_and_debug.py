@@ -16,7 +16,7 @@ config = {
         # 'check-l10n', stat debug skips this action
         # 'check-test', stat debug skips this action
         'update',  # decided by query_is_nightly()
-        'enable-ccache',
+        'ccache-stats',
     ],
     'stage_platform': 'linux64-st-an-debug',
     'mock_files': [

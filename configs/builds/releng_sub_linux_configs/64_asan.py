@@ -16,7 +16,7 @@ config = {
         # 'check-l10n', asan skips this action
         'check-test',
         'update',  # decided by query_is_nightly()
-        'enable-ccache',
+        'ccache-stats',
     ],
     'stage_platform': 'linux64-asan',
     'purge_minsize': 12,

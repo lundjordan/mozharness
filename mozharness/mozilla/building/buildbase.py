@@ -920,6 +920,20 @@ or run without that action (ie: --no-{action})"
                                        rev[:12],
                                        write_to_file=True)
 
+    def _count_vsize(self):
+        """gets linker vsize and sets it to testresults."""
+        dirs = self.query_abs_dirs()
+        vsize_path = os.path.join(
+            dirs['abs_obj_dir'], 'toolkit', 'library', 'linker-vsize'
+        )
+        cmd = ['cat', vsize_path]
+        vsize = int(self.get_output_from_command(cmd, cwd=dirs['abs_src_dir']))
+        testresults = [('libxul_link', 'libxul_link', vsize, str(vsize))]
+        self.set_buildbot_property('vsize', vsize, write_to_file=True)
+        self.set_buildbot_property('testresults',
+                                   testresults,
+                                   write_to_file=True)
+
     def _count_ctors(self):
         """count num of ctors and set testresults."""
         dirs = self.query_abs_dirs()
@@ -1483,31 +1497,30 @@ or run without that action (ie: --no-{action})"
     def generate_build_stats(self):
         """grab build stats following a compile.
 
-        This action handles all statitics from a build:
-        count_ctors and graph_server_post.
-        We only count_ctors for linux platforms and we only post to
-        graph_server if this is not a nightly build
+        This action handles all statitics from a build: 'count_ctors' and
+        'vsize' and then posts to graph server the results.
+        We only post to graph server for non nightly build
         """
-
-        # NOTE: before this implementation, we would only tinderboxprint the
-        # num_ctors to the log if this was a nightly build. I don't think
-        # it's any harm doing so even if this is not nightly for the
-        # benefit of making a simpler logic flow like below.
         c = self.config
-        if not self.query_is_nightly() or c.get('enable_count_ctors'):
+        # enable_max_vsize will be True for builds like pgo win32 builds
+        enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
+        if not enable_max_vsize or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
+                self.info("counting ctors...")
                 self._count_ctors()
                 num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
                 self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
+            if enable_max_vsize:
+                self.info("getting vsize...")
+                self._count_vsize()
             if not self.query_is_nightly():
                 self._graph_server_post()
             else:
                 self.info("We are not posting to graph server as this is a "
                           "nightly build.")
         else:
-            self.info("Nothing to do for this action since we disabled "
-                      "count_ctors and we don't post to graph server for "
-                      "nightlies")
+            self.info("Nothing to do for this action since ctors and vsize "
+                      "counts are disabled for this build.")
 
     def symbols(self):
         c = self.config

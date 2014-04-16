@@ -76,6 +76,7 @@ config = {
     # TODO -- nightly
 #     'platform_ftp_name': '',
 #     'update_platform': '',
+    'enable_max_vsize': True,
     'env': {
         'BINSCOPE': 'C:\\Program Files (x86)\\Microsoft\\SDL BinScope\\BinScope.exe',
         'HG_SHARE_BASE_DIR': 'c:/builds/hg-shared',

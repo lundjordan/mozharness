@@ -19,6 +19,7 @@ config = {
         'ccache-stats',
     ],
     'stage_platform': 'linux64-asan-debug',
+    'debug_build': True,
     'purge_minsize': 12,
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),

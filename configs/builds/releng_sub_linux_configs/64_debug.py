@@ -19,6 +19,7 @@ config = {
         'ccache-stats',
     ],
     'stage_platform': 'linux64-debug',
+    'debug_build': True,
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),

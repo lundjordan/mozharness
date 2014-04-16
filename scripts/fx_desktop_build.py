@@ -49,6 +49,7 @@ class FxDesktopBuild(BuildScript, object):
             'config': {
                 'is_automation': True,
                 "pgo_build": False,
+                "debug_build": False,
                 "pgo_platforms": ['linux', 'linux64', 'win32'],
 
                 # nightly stuff

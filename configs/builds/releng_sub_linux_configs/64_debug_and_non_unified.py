@@ -17,7 +17,8 @@ config = {
         'check-test',
         'update',  # decided by query_is_nightly()
         'ccache-stats',
-        ],
+    ],
+    'debug_build': True,
     'stage_platform': 'linux64-debug-nonunified',
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),

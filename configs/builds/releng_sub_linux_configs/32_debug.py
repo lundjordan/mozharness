@@ -18,6 +18,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'ccache-stats',
     ],
+    'debug_build': True,
     'stage_platform': 'linux-debug',
     'purge_minsize': 15,
     'mock_files': [

@@ -207,7 +207,6 @@ config = {
     # 'graphics': {}
     # 'gum': {},
     # 'holly': {},
-    # 'ionmonkey': {},
     # 'jamun': {},
     # 'larch': {},
     # 'maple': {},

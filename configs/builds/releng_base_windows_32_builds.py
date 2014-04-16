@@ -1,5 +1,4 @@
 STAGE_PRODUCT = 'firefox'
-# TODO Reminder, stage_username and stage_ssh_key differ on Try
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 

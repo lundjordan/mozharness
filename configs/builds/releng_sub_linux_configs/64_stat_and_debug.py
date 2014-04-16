@@ -20,11 +20,6 @@ config = {
     ],
     'debug_build': True,
     'stage_platform': 'linux64-st-an-debug',
-    'mock_files': [
-        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
-    ],
     "enable_talos_sendchange": False,  # stat debug doesn't do talos sendchange
     # stat debug doesn't do unittest sendchange or make package-tests
     'package_targets': ['package'],

@@ -20,11 +20,6 @@ config = {
     ],
     'stage_platform': 'linux64-asan',
     'purge_minsize': 12,
-    'mock_files': [
-        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
-    ],
     "enable_talos_sendchange": False,  # asan does not fire a talos sendchange
     'enable_signing': False,  # asan has no MOZ_SIGN_CMD
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\

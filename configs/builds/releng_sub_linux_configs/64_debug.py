@@ -20,11 +20,6 @@ config = {
     ],
     'stage_platform': 'linux64-debug',
     'debug_build': True,
-    'mock_files': [
-        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
-    ],
     "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
     'enable_signing': False,
     'upload_symbols': False,
@@ -46,6 +41,7 @@ config = {
 /tools/python27-mercurial/bin:/home/cltbld/bin',
         'LD_LIBRARY_PATH': '/tools/gcc-4.3.3/installed/lib64:\
 %s/dist/bin' % (MOZ_OBJDIR,),
+        'TINDERBOX_OUTPUT': '1',
     },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/debug',
     'base_name': 'Linux x86-64 %(branch)s leak test',

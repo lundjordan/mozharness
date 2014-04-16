@@ -791,7 +791,6 @@ or run without that action (ie: --no-{action})"
 
     def _ccache_z(self):
         """clear ccache stats."""
-        c = self.config
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
         if os.path.exists(dirs['abs_src_dir']):
@@ -1426,6 +1425,7 @@ or run without that action (ie: --no-{action})"
                 'fatal_exit_code': 3,
             }
         )
+
     def clone_tools(self):
         """clones the tools repo."""
         self._assert_cfg_valid_for_action(['tools_repo'], 'clone_tools')
@@ -1578,7 +1578,6 @@ or run without that action (ie: --no-{action})"
             self.warning("No package targets to make. Please add them to "
                          "'package_targets' in your config.")
 
-
     def upload(self):
         self._assert_cfg_valid_for_action(
             ['upload_env', 'create_snippets',
@@ -1605,9 +1604,6 @@ or run without that action (ie: --no-{action})"
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)
         cwd = self.query_abs_dirs()['abs_obj_dir']
-        # TODO find out if we need this and impl it for win
-        # if self.platform.startswith('win'):
-        #     objdir = '%s/%s' % (self.baseWorkDir, self.objdir)
         self.retry(
             self.run_command_m, kwargs={
                 'command': '%s upload' % (self.query_exe('make'),),
@@ -1716,7 +1712,6 @@ or run without that action (ie: --no-{action})"
                                env=env)
 
     def check_l10n(self):
-        c = self.config
         dirs = self.query_abs_dirs()
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
@@ -1884,6 +1879,3 @@ or run without that action (ie: --no-{action})"
             )
         self.buildbot_status(self.worst_buildbot_status)
         self.summary()
-
-
-

@@ -1,5 +1,4 @@
 STAGE_PRODUCT = 'firefox'
-# TODO Reminder, stage_username and stage_ssh_key differ on Try
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
@@ -43,6 +42,7 @@ config = {
     'mock_files': [
         ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
+        ('/home/cltbld/.boto', '/builds/.boto'),
         ('/builds/gapi.data', '/builds/gapi.data'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],

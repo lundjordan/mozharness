@@ -20,11 +20,6 @@ config = {
     ],
     'debug_build': True,
     'stage_platform': 'linux64-debug-nonunified',
-    'mock_files': [
-        ('/home/cltbld/.ssh', '/home/mock_mozilla/.ssh'),
-        ('/home/cltbld/.hgrc', '/builds/.hgrc'),
-        ('/builds/gapi.data', '/builds/gapi.data'),
-    ],
     "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
     'enable_signing': False,
     'upload_symbols': False,

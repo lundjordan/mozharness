@@ -74,6 +74,7 @@ class PurgeMixin(object):
 
     def clobberer(self):
         c = self.config
+        dirs = self.query_abs_dirs()
         if not self.buildbot_config:
             self.fatal("clobberer requires self.buildbot_config (usually from $PROPERTIES_FILE)")
 
@@ -103,9 +104,10 @@ class PurgeMixin(object):
             'explanation': 'Error contacting server for clobberer information.'
         }]
 
-        retval = self.retry(self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
-                 kwargs={'cwd':os.path.dirname(self.buildbot_config['properties']['basedir']),
-                         'error_list':error_list})
+        retval = self.retry(
+            self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
+            kwargs={'cwd': dirs['base_work_dir'], 'error_list': error_list}
+        )
         if retval != 0:
             self.fatal("failed to clobber build", exit_code=2)
 

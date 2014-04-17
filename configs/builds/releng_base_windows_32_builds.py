@@ -36,7 +36,7 @@ config = {
     # decides whether we want to use moz_sign_cmd in env
     'enable_signing': True,
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
-    'purge_basedirs':  ["/mock/users/cltbld/home/cltbld/build"],
+    'purge_basedirs':  [],
     'enable_ccache': False,
     'vcs_share_base': 'c:/builds/hg-shared',
     'objdir': 'obj-firefox',

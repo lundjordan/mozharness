@@ -27,6 +27,7 @@ config = {
         'update',  # decided by query_is_nightly()
         'ccache-stats',
     ],
+    "buildbot_json_path": "buildprops.json",
     'exes': {
         'hgtool.py': '%(abs_work_dir)s/tools/buildfarm/utils/hgtool.py',
         "buildbot": "/tools/buildbot/bin/buildbot",

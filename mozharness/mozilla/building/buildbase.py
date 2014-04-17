@@ -524,6 +524,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
 
     def _pre_config_lock(self, rw_config):
         c = self.config
+        cfg_files_and_dicts = rw_config.all_cfg_files_and_dicts
         build_pool = c.get('build_pool', '')
         build_variant = c.get('build_variant', '')
         build_variant_cfg = ''
@@ -531,15 +532,18 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
             build_variant_cfg = BuildOptionParser.build_variants[build_variant] % (
                 BuildOptionParser.platform, BuildOptionParser.bits
             )
+        build_pool_cfg = BuildOptionParser.build_pools.get(build_pool)
+        branch_cfg = BuildOptionParser.branch_cfg_file
+
         cfg_match_msg = "Script was ran with '%(option)s %(type)s' and \
 '%(type)s' matches a key in '%(type_config_file)s'. Updating self.config with \
 items from that key's value."
         pf_override_msg = "The branch '%(branch)s' has custom behavior for the \
 platform '%(platform)s'. Updating self.config with the following from \
 'platform_overrides' found in '%(pf_cfg_file)s':"
-        cfg_files_and_dicts = rw_config.all_cfg_files_and_dicts
+
         for i, (target_file, target_dict) in enumerate(cfg_files_and_dicts):
-            if BuildOptionParser.branch_cfg_file in target_file:
+            if branch_cfg and branch_cfg in target_file:
                 self.info(
                     cfg_match_msg % {
                         'option': '--branch',
@@ -547,7 +551,7 @@ platform '%(platform)s'. Updating self.config with the following from \
                         'type_config_file': BuildOptionParser.branch_cfg_file
                     }
                 )
-            if BuildOptionParser.build_pools.get(build_pool) in target_file:
+            if build_pool_cfg and build_pool_cfg in target_file:
                 self.info(
                     cfg_match_msg % {
                         'option': '--build-pool',

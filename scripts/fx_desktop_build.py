@@ -98,7 +98,6 @@ class FxDesktopBuild(BuildScript, object):
                 'to_tinderbox_dated': True,  # eg: try will False this
                 'release_to_try_builds': False,  # eg: try will True this
                 'include_post_upload_builddir': False,
-                "buildbot_json_path": "buildprops.json",
                 'old_packages': [
                     "%(objdir)s/dist/firefox-*",
                     "%(objdir)s/dist/fennec*",

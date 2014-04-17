@@ -27,6 +27,7 @@ config = {
         'update',  # decided by query_is_nightly()
         # 'ccache-stats',
     ],
+    "buildbot_json_path": "buildprops.json",
     'exes': {
         "buildbot": "/tools/buildbot/bin/buildbot",
         "make": ["python", "%(abs_work_dir)s/source/build/pymake/make.py"]

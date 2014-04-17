@@ -23,9 +23,12 @@ from mozharness.base.log import ERROR
 # Depends on ScriptMixin for self.run_command,
 # and BuildbotMixin for self.buildbot_config and self.query_is_nightly()
 class PurgeMixin(object):
-    purge_tool = os.path.join(external_tools_path, 'purge_builds.py')
-    clobber_tool = os.path.join(external_tools_path, 'clobberer.py')
-
+    purge_tool = [
+        'python', os.path.join(external_tools_path, 'purge_builds.py')
+    ]
+    clobber_tool = [
+        'python', os.path.join(external_tools_path, 'clobberer.py')
+    ]
     default_skips = ['info', 'rel-*', 'tb-rel-*']
     default_maxage = 14
     default_periodic_clobber = 7 * 24
@@ -50,9 +53,7 @@ class PurgeMixin(object):
                 basedirs.extend(self.config.get('purge_basedirs'))
 
         # Add --dry-run if you don't want to do this for realz
-        cmd = [self.purge_tool,
-               '-s', str(min_size),
-               ]
+        cmd = self.purge_tool + ['-s', str(min_size)]
 
         if max_age:
             cmd.extend(['--max-age', str(max_age)])
@@ -88,7 +89,7 @@ class PurgeMixin(object):
         master = self.buildbot_config['properties']['master']
 
         # Add --dry-run if you don't want to do this for realz
-        cmd = [self.clobber_tool]
+        cmd = self.clobber_tool
         # TODO configurable list
         cmd.extend(['-s', 'scripts'])
         cmd.extend(['-s', 'logs'])

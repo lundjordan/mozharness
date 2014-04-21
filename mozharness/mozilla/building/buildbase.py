@@ -1701,7 +1701,7 @@ or run without that action (ie: --no-{action})"
         #                  '-f', 'client.mk', 'postflight_all'],
 
         for package_target in c.get('package_targets', []):
-            self.run_command(command=base_cmd % (package_target,),
+            self.run_command_m(command=base_cmd % (package_target,),
                              cwd=dirs['abs_obj_dir'],
                              env=env)
         update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],

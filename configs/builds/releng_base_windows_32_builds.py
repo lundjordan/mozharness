@@ -13,7 +13,7 @@ config = {
     'default_actions': [
         'clobber',
         'clone-tools',
-        'setup-mock',
+        # 'setup-mock', windows do not use mock
         'build',
         'generate-build-props',
         # 'generate-build-stats',

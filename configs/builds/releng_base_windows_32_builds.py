@@ -32,12 +32,14 @@ config = {
     "buildbot_json_path": "buildprops.json",
     'exes': {
         'hgtool.py': os.path.join(
-            os.getcwd(), 'tools,' 'buildfarm', 'utils', 'hgtool.py'
+            os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),
         "buildbot": "/tools/buildbot/bin/buildbot",
         "make": [
             "python",
-            os.path.join(os.getcwd(), 'source', 'build', 'pymake', 'make.py')
+            os.path.join(
+                os.getcwd(), 'build', 'source', 'build', 'pymake', 'make.py'
+            )
         ]
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',

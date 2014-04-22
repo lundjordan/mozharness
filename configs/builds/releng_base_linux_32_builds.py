@@ -32,7 +32,7 @@ config = {
     "buildbot_json_path": "buildprops.json",
     'exes': {
         'hgtool.py': os.path.join(
-            os.getcwd(), 'tools,' 'buildfarm', 'utils', 'hgtool.py'
+            os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),
         "buildbot": "/tools/buildbot/bin/buildbot",
     },

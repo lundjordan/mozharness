@@ -1,3 +1,5 @@
+import os
+
 STAGE_PRODUCT = 'firefox'
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
@@ -29,8 +31,14 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
+        'hgtool.py': os.path.join(
+            os.getcwd(), 'tools,' 'buildfarm', 'utils', 'hgtool.py'
+        ),
         "buildbot": "/tools/buildbot/bin/buildbot",
-        "make": ["python", "%(abs_work_dir)s/source/build/pymake/make.py"]
+        "make": [
+            "python",
+            os.path.join(os.getcwd(), 'source', 'build', 'pymake', 'make.py')
+        ]
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
     # decides whether we want to use moz_sign_cmd in env

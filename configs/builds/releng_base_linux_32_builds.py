@@ -1,3 +1,5 @@
+import os
+
 STAGE_PRODUCT = 'firefox'
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
@@ -29,7 +31,9 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
-        'hgtool.py': '%(abs_work_dir)s/tools/buildfarm/utils/hgtool.py',
+        'hgtool.py': os.path.join(
+            os.getcwd(), 'tools,' 'buildfarm', 'utils', 'hgtool.py'
+        ),
         "buildbot": "/tools/buildbot/bin/buildbot",
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',

@@ -903,6 +903,7 @@ or run without that action (ie: --no-{action})"
             'repo': repo,
             'dest': dirs['abs_src_dir'],
             'revision': self.query_revision(),
+            'env': self.query_build_env()
         }
         if c.get('clone_by_revision'):
             vcs_checkout_kwargs['clone_by_revision'] = True

@@ -1,4 +1,5 @@
 import os
+import sys
 
 STAGE_PRODUCT = 'firefox'
 STAGE_USERNAME = 'ffxbld'
@@ -31,15 +32,16 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
+        'python': sys.executable,
         'hgtool.py': [
-            'python',
+            sys.executable,
             os.path.join(
                 os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
             )
         ],
         "buildbot": "/tools/buildbot/bin/buildbot",
         "make": [
-            "python",
+            sys.executable,
             os.path.join(
                 os.getcwd(), 'build', 'source', 'build', 'pymake', 'make.py'
             )
@@ -53,7 +55,7 @@ config = {
     'enable_ccache': False,
     'vcs_share_base': 'c:/builds/hg-shared',
     'objdir': 'obj-firefox',
-    'tooltool_script': ['python', '/c/mozilla-build/tooltool.py'],
+    'tooltool_script': [sys.executable, '/c/mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
     # only linux counts ctors
     'enable_count_ctors': False,

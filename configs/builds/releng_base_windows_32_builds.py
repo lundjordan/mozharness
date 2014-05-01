@@ -55,7 +55,8 @@ config = {
     'enable_ccache': False,
     'vcs_share_base': 'c:/builds/hg-shared',
     'objdir': 'obj-firefox',
-    'tooltool_script': [sys.executable, '/c/mozilla-build/tooltool.py'],
+    'tooltool_script': [sys.executable,
+                        'C:\\mozilla-build\\mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
     # only linux counts ctors
     'enable_count_ctors': False,
@@ -97,7 +98,9 @@ config = {
         'HG_SHARE_BASE_DIR': 'c:/builds/hg-shared',
         'MOZ_CRASHREPORTER_NO_REPORT': '1',
         'MOZ_OBJDIR': 'obj-firefox',
-        'PATH': '${MOZILLABUILD}nsis-2.46u;${MOZILLABUILD}python27;${MOZILLABUILD}buildbotve\\scripts;${PATH}',
+        'PATH': 'C:\\mozilla-build\\nsis-2.46u;C:\\mozilla-build\\python27;'
+                'C:\\mozilla-build\\buildbotve\\scripts;'
+                '%s' % (os.environ.get('path')),
         'PDBSTR_PATH': '/c/Program Files (x86)/Windows Kits/8.0/Debuggers/x64/srcsrv/pdbstr.exe',
         'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
         'PROPERTIES_FILE': os.path.join(os.getcwd(), 'buildprops.json'),

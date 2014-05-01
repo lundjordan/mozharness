@@ -479,7 +479,6 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "dest": "pgo_build",
         "default": False,
         "help": "Sets the build to run in PGO mode"}],
-
     [['--enable-nightly'], {
         "action": "store_true",
         "dest": "nightly_build",

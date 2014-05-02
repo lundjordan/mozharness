@@ -1730,7 +1730,7 @@ or run without that action (ie: --no-{action})"
             ['check_test_env', 'enable_checktests'], 'check-test'
         )
         c = self.config
-        if self.query_is_nightly() or not c['enable_checktests']:
+        if not c['enable_checktests']:
             self.info("Skipping action because this is a nightly run...")
             return
         dirs = self.query_abs_dirs()

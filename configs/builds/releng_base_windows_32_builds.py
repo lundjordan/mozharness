@@ -56,7 +56,7 @@ config = {
     'vcs_share_base': 'c:/builds/hg-shared',
     'objdir': 'obj-firefox',
     'tooltool_script': [sys.executable,
-                        'C:\\mozilla-build\\mozilla-build/tooltool.py'],
+                        'c:\\mozilla-build\\mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
     # only linux counts ctors
     'enable_count_ctors': False,

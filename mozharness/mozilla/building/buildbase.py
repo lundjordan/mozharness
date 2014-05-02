@@ -853,6 +853,7 @@ or run without that action (ie: --no-{action})"
         tooltool_manifest_path = os.path.join(dirs['abs_src_dir'],
                                               c['tooltool_manifest_src'])
         cmd = [
+            'sh',
             fetch_script_path,
             tooltool_manifest_path,
             c['tooltool_url'],

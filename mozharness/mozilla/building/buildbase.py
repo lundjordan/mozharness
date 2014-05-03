@@ -526,10 +526,11 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
         cfg_files_and_dicts = rw_config.all_cfg_files_and_dicts
         build_pool = c.get('build_pool', '')
         build_variant = c.get('build_variant', '')
-        build_variant_cfg = ''
+        variant_cfg = ''
         if build_variant:
-            build_variant_cfg = BuildOptionParser.build_variants[build_variant] % (
-                BuildOptionParser.platform, BuildOptionParser.bits
+            variant_cfg = BuildOptionParser.build_variants[build_variant] % (
+                BuildOptionParser.platform,
+                BuildOptionParser.bits
             )
         build_pool_cfg = BuildOptionParser.build_pools.get(build_pool)
         branch_cfg = BuildOptionParser.branch_cfg_file
@@ -560,12 +561,12 @@ platform '%(platform)s'. Updating self.config with the following from \
                         ]
                     }
                 )
-            if build_variant_cfg and build_variant_cfg in target_file:
+            if variant_cfg and variant_cfg in target_file:
                 self.info(
                     cfg_match_msg % {
                         'option': '--custom-build-variant-cfg',
                         'type': build_variant,
-                        'type_config_file': build_variant_cfg,
+                        'type_config_file': variant_cfg,
                     }
                 )
         if c.get("platform_overrides"):
@@ -887,10 +888,10 @@ or run without that action (ie: --no-{action})"
 
         # Look at what we have checked out
         if os.path.exists(source_path):
-             hg = self.query_exe('hg', return_type='list')
-             return self.get_output_from_command(
-                 hg + ['parent', '--template', '{node|short}'], cwd=source_path
-             )
+            hg = self.query_exe('hg', return_type='list')
+            return self.get_output_from_command(
+                hg + ['parent', '--template', '{node|short}'], cwd=source_path
+            )
 
         return None
 
@@ -986,10 +987,12 @@ or run without that action (ie: --no-{action})"
         update_pkging_path = os.path.join(dirs['abs_obj_dir'],
                                           'tools',
                                           'update-packaging')
-        self.run_command_m(command='%s -C %s' % (self.query_exe('make'),
-                                                 update_pkging_path,),
-                           cwd=dirs['abs_src_dir'],
-                           env=env)
+        self.run_command_m(
+            command='%s -C %s' % (self.query_exe('make', return_type='string'),
+                                  update_pkging_path,),
+            cwd=dirs['abs_src_dir'],
+            env=env
+        )
         self._set_file_properties(file_name=c['complete_mar_pattern'],
                                   find_dir=dist_update_dir,
                                   prop_type='completeMar')
@@ -1094,7 +1097,7 @@ or run without that action (ie: --no-{action})"
             'DST_BUILD_ID': self.query_buildid()
         })
         cmd = '%s -C tools/update-packaging partial-patch' % (
-            self.query_exe('make')
+            self.query_exe('make', return_type='string')
         )
         self.run_command_m(command=cmd,
                            cwd=dirs['abs_obj_dir'],
@@ -1461,7 +1464,9 @@ or run without that action (ie: --no-{action})"
     def build(self):
         """build application."""
         # dependencies in config see _pre_config_lock
-        base_cmd = '%s -f client.mk build' % (self.query_exe('make'),)
+        base_cmd = '%s -f client.mk build' % (
+            self.query_exe('make', return_type='string'),
+        )
         cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
         if self.config.get('pgo_build'):
             cmd += ' MOZ_PGO=1'
@@ -1532,7 +1537,8 @@ or run without that action (ie: --no-{action})"
         cwd = self.query_abs_dirs()['abs_obj_dir']
         env = self.query_build_env()
         self.run_command_m(
-            command='%s buildsymbols' % (self.query_exe('make'),),
+            command='%s buildsymbols' % (self.query_exe('make',
+                                                        return_type='string'),),
             cwd=cwd, env=env
         )
         # TODO this condition might be extended with xul, valgrind, etc as more
@@ -1562,7 +1568,9 @@ or run without that action (ie: --no-{action})"
             self.retry(
                 self.run_command_m,
                 kwargs={
-                    'command': '%s uploadsymbols' % (self.query_exe('make'),),
+                    'command': '%s uploadsymbols' % (
+                        self.query_exe('make', return_type='string'),
+                    ),
                     'cwd': cwd,
                     'env': env
                 }
@@ -1574,7 +1582,7 @@ or run without that action (ie: --no-{action})"
 
         if c.get('package_targets'):
             for package_target in c['package_targets']:
-                cmd = '%s %s' % (self.query_exe('make'),
+                cmd = '%s %s' % (self.query_exe('make', return_type='string'),
                                  package_target)
                 self.run_command_m(
                     command=cmd, cwd=cwd, env=self.query_build_env()
@@ -1611,7 +1619,8 @@ or run without that action (ie: --no-{action})"
         cwd = self.query_abs_dirs()['abs_obj_dir']
         self.retry(
             self.run_command_m, kwargs={
-                'command': '%s upload' % (self.query_exe('make'),),
+                'command': '%s upload' % (self.query_exe('make',
+                                                         return_type='string'),),
                 'cwd': cwd,
                 'env': upload_env,
                 'output_parser': parser
@@ -1689,7 +1698,7 @@ or run without that action (ie: --no-{action})"
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
         base_cmd = '%s %%s MOZ_PKG_PRETTYNAMES=1' % (
-            self.query_exe('make'),
+            self.query_exe('make', return_type='string'),
         )
 
         # TODO  port below from process/factory.py line 1526 if we end up
@@ -1703,8 +1712,8 @@ or run without that action (ie: --no-{action})"
 
         for package_target in c.get('package_targets', []):
             self.run_command_m(command=base_cmd % (package_target,),
-                             cwd=dirs['abs_obj_dir'],
-                             env=env)
+                               cwd=dirs['abs_obj_dir'],
+                               env=env)
         update_package_cmd = '-C %s' % (os.path.join(dirs['abs_obj_dir'],
                                                      'tools',
                                                      'update-packaging'),)
@@ -1721,7 +1730,8 @@ or run without that action (ie: --no-{action})"
         # we want the env without MOZ_SIGN_CMD
         env = self.query_build_env(skip_keys=['MOZ_SIGN_CMD'])
         self.run_command_m(
-            command='%s l10n-check' % (self.query_exe('make'),),
+            command='%s l10n-check' % (self.query_exe('make',
+                                                      return_type='string'),),
             cwd=dirs['abs_obj_dir'],
             env=env
         )
@@ -1741,7 +1751,8 @@ or run without that action (ie: --no-{action})"
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
         self.run_command_m(
-            command='%s -k check' % (self.query_exe('make'),),
+            command='%s -k check' % (self.query_exe('make',
+                                                    return_type='string'),),
             cwd=dirs['abs_obj_dir'], env=env, output_parser=parser
         )
         parser.evaluate_parser()

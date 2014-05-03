@@ -1477,7 +1477,9 @@ or run without that action (ie: --no-{action})"
             cmd += ' MOZ_PGO=1'
         self.run_command_m(command=cmd,
                            cwd=self.query_abs_dirs()['abs_src_dir'],
-                           env=self.query_build_env())
+                           env=self.query_build_env(),
+                           halt_on_failure=True,
+                           output_timeout=2 * 3600)
 
     def generate_build_props(self):
         """set buildid, sourcestamp, appVersion, and appName."""

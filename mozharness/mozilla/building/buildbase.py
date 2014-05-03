@@ -834,6 +834,11 @@ or run without that action (ie: --no-{action})"
                 self.fatal(ERROR_MSGS['src_mozconfig_path_not_found'])
             self.copyfile(abs_src_mozconfig,
                           os.path.join(dirs['abs_src_dir'], '.mozconfig'))
+            self.info("mozconfig content:")
+            with open(abs_src_mozconfig) as mozconfig:
+                next(mozconfig)
+                for line in mozconfig:
+                    self.info(line)
         else:
             self.fatal("To build, you must supply a mozconfig from inside the "
                        "tree to use use. Please provide the path in your "

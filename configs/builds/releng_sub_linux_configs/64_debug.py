@@ -6,24 +6,10 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
-        'generate-build-props',
-        # 'generate-build-stats', debug skips this action
-        'symbols',
-        'packages',
-        'upload',
-        'sendchanges',
-        # 'pretty-names', debug skips this action
-        # 'check-l10n', debug skips this action
-        'check-test',
         'update',  # decided by query_is_nightly()
-        'ccache-stats',
     ],
     'stage_platform': 'linux64-debug',
     'debug_build': True,
-    "enable_talos_sendchange": False,  # debug does not fire a talos sendchange
-    'enable_signing': False,
-    'upload_symbols': False,
-
     #### 64 bit build specific #####
     'env': {
         'DISPLAY': ':2',
@@ -44,6 +30,5 @@ config = {
         'TINDERBOX_OUTPUT': '1',
     },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/debug',
-    'base_name': 'Linux x86-64 %(branch)s leak test',
     #######################
 }

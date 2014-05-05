@@ -18,17 +18,7 @@ config = {
         'clone-tools',
         # 'setup-mock', windows do not use mock
         'build',
-        'generate-build-props',
-        # 'generate-build-stats',
-        'symbols',
-        'packages',
-        'upload',
-        'sendchanges',
-        'pretty-names',
-        'check-l10n',
-        'check-test',
         'update',  # decided by query_is_nightly()
-        # 'ccache-stats',
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
@@ -58,40 +48,13 @@ config = {
     'tooltool_script': [sys.executable,
                         'C:/mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
-    # only linux counts ctors
-    'enable_count_ctors': False,
-    'package_targets': ['package', 'package-tests', 'installer'],
-    'stage_product': STAGE_PRODUCT,
-    "enable_talos_sendchange": True,
-    "do_pretty_name_l10n_check": True,
-    'upload_symbols': True,
-    'stage_username': STAGE_USERNAME,
-    'stage_ssh_key': STAGE_SSH_KEY,
-    'upload_env': {
-        # stage_server is dictated from build_pool_specifics.py
-        'UPLOAD_HOST': "%(stage_server)s",
-        'UPLOAD_USER': STAGE_USERNAME,
-        'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
-    },
-    # TODO -- nightly
-#     'update_env': {
-#         'MAR': '../dist/host/bin/mar',
-#         'MBSDIFF': '../dist/host/bin/mbsdiff'
-#     },
-    # TODO -- nightly
-#     'latest_mar_dir': '/pub/mozilla.org/%s/nightly/latest-%%(branch)s' % (
-#         STAGE_PRODUCT,),
-#     #########################################################################
-#
-#
-#     #########################################################################
-#     ###### 32 bit specific ######
+     #########################################################################
+
+
+     #########################################################################
+     ###### 32 bit specific ######
     'platform': 'win32',
     'stage_platform': 'win32',
-    # TODO -- nightly
-#     'platform_ftp_name': '',
-#     'update_platform': '',
     'enable_max_vsize': True,
     'env': {
         'BINSCOPE': 'C:/Program Files (x86)/Microsoft/SDL BinScope/BinScope.exe',
@@ -113,11 +76,5 @@ config = {
     'purge_minsize': 12,
     'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/releng.manifest",
-    'package_filename': '*.win32.zip',
-
-    "check_test_env": {
-        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/win32/minidump_stackwalk.exe',
-        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
-    },
     #########################################################################
 }

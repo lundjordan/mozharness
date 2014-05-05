@@ -17,17 +17,7 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
-        'generate-build-props',
-        'generate-build-stats',
-        'symbols',
-        'packages',
-        'upload',
-        'sendchanges',
-        'pretty-names',
-        'check-l10n',
-        'check-test',
         'update',  # decided by query_is_nightly()
-        'ccache-stats',
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
@@ -56,29 +46,6 @@ config = {
     'objdir': 'obj-firefox',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
-    # in linux we count ctors
-    'enable_count_ctors': True,
-    'package_targets': ['package', 'package-tests'],
-    'stage_product': STAGE_PRODUCT,
-    "enable_talos_sendchange": True,
-    "do_pretty_name_l10n_check": True,
-    'upload_symbols': True,
-
-    'stage_username': STAGE_USERNAME,
-    'stage_ssh_key': STAGE_SSH_KEY,
-    'upload_env': {
-        # stage_server is dictated from build_pool_specifics.py
-        'UPLOAD_HOST': "%(stage_server)s",
-        'UPLOAD_USER': STAGE_USERNAME,
-        'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
-    },
-    'update_env': {
-        'MAR': '../dist/host/bin/mar',
-        'MBSDIFF': '../dist/host/bin/mbsdiff'
-    },
-    'latest_mar_dir': '/pub/mozilla.org/%s/nightly/latest-%%(branch)s' % (
-        STAGE_PRODUCT,),
     #########################################################################
 
 
@@ -86,7 +53,7 @@ config = {
     ###### 32 bit specific ######
     'platform': 'linux',
     'stage_platform': 'linux',
-    'platform_ftp_name': 'linux-i686.complete.mar',
+    'enable_max_vsize': False,
     'env': {
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
@@ -160,16 +127,7 @@ config = {
         ######## 32 bit specific ###########
     ],
     'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
-
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",
-    'package_filename': '*.linux-i686*.tar.bz2',
-
-    "check_test_env": {
-        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',
-        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
-    },
-    'base_name': 'Linux_%(branch)s',
-    'update_platform': 'Linux_x86-gcc3',
     #########################################################################
 }

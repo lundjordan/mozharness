@@ -32,9 +32,7 @@ config = {
     ### release branches
     "mozilla-central": {
         "update_channel": "nightly",
-        "graph_server_branch_name": "Firefox",
         "repo_path": 'mozilla-central',
-        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-release': {
         'repo_path': 'releases/mozilla-release',
@@ -65,11 +63,6 @@ config = {
     },
     'mozilla-b2g28_v1_3': {
         'repo_path': 'releases/mozilla-b2g28_v1_3',
-        'update_channel': 'nightly-b2g28',
-        # in automation we will run this branch with nightly but we do not
-        # create snippets or partials
-        "create_snippets": False,
-        "create_partial": False
     },
     'mozilla-b2g28_v1_3t': {
         'repo_path': 'releases/mozilla-b2g28_v1_3t',
@@ -142,45 +135,11 @@ config = {
         'repo_path': 'try',
         'clone_by_revision': True,
         'clone_with_purge': True,
-        'tinderbox_build_dir': '%(who)s-%(got_revision)s',
-        'to_tinderbox_dated': False,
-        'include_post_upload_builddir': True,
-        'release_to_try_builds': True,
-        'upload_env': {
-            # stage_server is dictated from build_pool_specifics.py
-            'UPLOAD_HOST': "%(stage_server)s",
-            'UPLOAD_USER': "trybld",
-            'UPLOAD_TO_TEMP': '1',
-            'UPLOAD_SSH_KEY': '~/.ssh/%s' % ("trybld_dsa",),
-        },
     },
 
     ### project branches
     'b2g-inbound': {
         'repo_path': 'integration/b2g-inbound',
-        'platform_overrides': {
-            'win32': {
-                'enable_checktests': False,
-            },
-            'win32-debug': {
-                'enable_checktests': False,
-            },
-            'macosx64': {
-                'enable_checktests': False,
-            },
-            'macosx64-debug': {
-                'enable_checktests': False,
-            },
-        },
-    },
-    'date': {
-        'platform_overrides': {
-            # Bug 950206 - Enable 32-bit Windows builds on Date, test those
-            # builds on tst-w64-ec2-XXXX
-            'win32': {
-                'unittest_platform': 'win64',
-            },
-        },
     },
     'fx-team': {
         'repo_path': 'integration/fx-team',
@@ -191,9 +150,8 @@ config = {
     'services-central': {
         'repo_path': 'services/services-central',
     },
-    'ux': {
-        "graph_server_branch_name": "UX",
-    },
+    # 'date': {},
+    # 'ux': {},
 
     ### other branches that do not require anything special:
     # 'alder': {},

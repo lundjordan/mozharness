@@ -6,29 +6,12 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
-        'generate-build-props',
-        # 'generate-build-stats', asan skips this action
-        'symbols',
-        'packages',
-        'upload',
-        'sendchanges',
-        # 'pretty-names', asan skips this action
-        # 'check-l10n', asan skips this action
-        'check-test',
         'update',  # decided by query_is_nightly()
-        'ccache-stats',
     ],
     'stage_platform': 'linux64-asan',
     'purge_minsize': 12,
-    "enable_talos_sendchange": False,  # asan does not fire a talos sendchange
-    'enable_signing': False,  # asan has no MOZ_SIGN_CMD
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 asan.manifest",
-    'upload_symbols': False,
-    "platform_supports_snippets": False,
-    "platform_supports_partial": False,
-    'platform_supports_post_upload_to_latest': False,
-
     #### 64 bit build specific #####
     'env': {
         'DISPLAY': ':2',
@@ -54,6 +37,5 @@ asan.manifest",
 /tools/python27-mercurial/bin:/home/cltbld/bin',
     },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly-asan',
-    'base_name': 'Linux x86-64 %(branch)s asan',
     #######################
 }

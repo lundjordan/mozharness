@@ -55,6 +55,7 @@ config = {
     'stage_platform': 'linux64',
     'enable_max_vsize': False,
     'env': {
+        'MOZ_AUTOMATION': '1',
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',

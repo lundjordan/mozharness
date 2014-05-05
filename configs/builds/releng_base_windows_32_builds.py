@@ -57,6 +57,7 @@ config = {
     'stage_platform': 'win32',
     'enable_max_vsize': True,
     'env': {
+        'MOZ_AUTOMATION': '1',
         'BINSCOPE': 'C:/Program Files (x86)/Microsoft/SDL BinScope/BinScope.exe',
         'HG_SHARE_BASE_DIR': 'C:/builds/hg-shared',
         'MOZ_CRASHREPORTER_NO_REPORT': '1',

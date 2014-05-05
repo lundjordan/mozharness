@@ -13,6 +13,7 @@ config = {
     'purge_minsize': 15,
     #### 32 bit build specific #####
     'env': {
+        'MOZ_AUTOMATION': '1',
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': MOZ_OBJDIR,

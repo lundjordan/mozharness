@@ -10,6 +10,7 @@ provides a base class for fx desktop builds
 author: Jordan Lund
 
 """
+import json
 
 import os
 import pprint
@@ -631,6 +632,9 @@ or run without that action (ie: --no-{action})"
                 else:  # let's just give the generic channel based on branch
                     env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
 
+        if self.config.get('pgo_build'):
+            env['IS_PGO'] = '1'
+
         if c.get('enable_signing') and 'MOZ_SIGN_CMD' not in skip_keys:
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
@@ -868,15 +872,22 @@ or run without that action (ie: --no-{action})"
 
     def build(self):
         """build application."""
-        base_cmd = '%s -f client.mk build' % (
-            self.query_exe('make', return_type='string'),
+        self.return_code = self.run_command_m(
+            command=['mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
+            env=self.query_build_env()
         )
-        cmd = base_cmd + ' MOZ_BUILD_DATE=%s' % (self.query_buildid(),)
-        if self.config.get('pgo_build'):
-            cmd += ' MOZ_PGO=1'
-        self.run_command_m(command=cmd,
-                           cwd=self.query_abs_dirs()['abs_src_dir'],
-                           env=self.query_build_env())
+
+    def postflight_build(self, console_output=True):
+        """grab properties set by mach build."""
+        mach_properties_path = os.path.join(dirs['abs_work_dir'],
+                                            'build_properties.json')
+        with open(mach_properties_path) as build_property_file:
+            build_props = json.load(build_property_file)
+            if console_output:
+                self.info("Properties set from 'mach build'")
+                pprint.pformat(build_props)
+        for key, prop in build_props.iteritems():
+            self.set_buildbot_property(key, prop, write_to_file=True)
 
     def update(self):
         """ submit balrog update steps. """

@@ -879,8 +879,9 @@ or run without that action (ie: --no-{action})"
 
     def postflight_build(self, console_output=True):
         """grab properties set by mach build."""
-        mach_properties_path = os.path.join(dirs['abs_work_dir'],
-                                            'build_properties.json')
+        mach_properties_path = os.path.join(
+            self.query_abs_dirs()['abs_work_dir'], 'build_properties.json'
+        )
         with open(mach_properties_path) as build_property_file:
             build_props = json.load(build_property_file)
             if console_output:

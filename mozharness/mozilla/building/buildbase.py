@@ -861,8 +861,7 @@ or run without that action (ie: --no-{action})"
             env = self.query_build_env()
             mozbuild_path = env.get('MOZBUILD_STATE_PATH')
         if mozbuild_path:
-            self.mkdir_p(os.path.join(self.query_abs_dirs()['abs_src_dir'],
-                                      '.mozbuild'))
+            self.mkdir_p(mozbuild_path)
         else:
             self.warning("mozbuild_path could not be determined. skipping "
                          "creating it.")

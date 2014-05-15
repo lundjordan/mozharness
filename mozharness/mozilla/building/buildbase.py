@@ -856,6 +856,17 @@ or run without that action (ie: --no-{action})"
         }
         self.vcs_checkout(**repo)
 
+    def _create_mozbuild_dir(self, mozbuild_path=None):
+        if not mozbuild_path:
+            env = self.query_build_env()
+            mozbuild_path = env.get('MOZBUILD_STATE_PATH')
+        if mozbuild_path:
+            self.mkdir_p(os.path.join(self.query_abs_dirs()['abs_src_dir'],
+                                      '.mozbuild'))
+        else:
+            self.warning("mozbuild_path could not be determined. skipping "
+                         "creating it.")
+
     def preflight_build(self):
         """set up machine state for a complete build."""
         c = self.config
@@ -869,12 +880,12 @@ or run without that action (ie: --no-{action})"
         self._checkout_source()
         self._get_mozconfig()
         self._run_tooltool()
+        self._create_mozbuild_dir()
 
     def build(self):
         """build application."""
         self.return_code = self.run_command_m(
-            command=['./mach', 'build'], cwd=self.query_abs_dirs()[
-                'abs_src_dir'],
+            command=['./mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
             env=self.query_build_env()
         )
 

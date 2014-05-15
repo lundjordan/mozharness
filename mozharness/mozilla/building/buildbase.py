@@ -882,13 +882,16 @@ or run without that action (ie: --no-{action})"
         mach_properties_path = os.path.join(
             self.query_abs_dirs()['abs_work_dir'], 'build_properties.json'
         )
-        with open(mach_properties_path) as build_property_file:
-            build_props = json.load(build_property_file)
-            if console_output:
-                self.info("Properties set from 'mach build'")
-                pprint.pformat(build_props)
-        for key, prop in build_props.iteritems():
-            self.set_buildbot_property(key, prop, write_to_file=True)
+        if os.path.exists(mach_properties_path):
+            with open(mach_properties_path) as build_property_file:
+                build_props = json.load(build_property_file)
+                if console_output:
+                    self.info("Properties set from 'mach build'")
+                    pprint.pformat(build_props)
+            for key, prop in build_props.iteritems():
+                self.set_buildbot_property(key, prop, write_to_file=True)
+        else:
+            self.warning("'mach build' did not set any properties from build.")
 
     def update(self):
         """ submit balrog update steps. """

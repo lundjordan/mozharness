@@ -50,7 +50,7 @@ class FxDesktopBuild(BuildScript, object):
                 'clone_with_purge': False,  # eg: try will impl this
                 'clone_by_revision': False,  # eg: try will impl this
                 "tools_repo": "https://hg.mozilla.org/build/tools",
-                "repo_base": "https://hg.mozilla.org",
+                "repo_base": "https://hg.mozilla.org/users/mshal_mozilla.com",
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
                                 '.org/tooltool',
                 # only used for make uploadsymbols

@@ -898,8 +898,9 @@ or run without that action (ie: --no-{action})"
                       "nightlies...")
             return
 
-        if c['balrog_api_root']:
-            self._submit_balrog_updates()
+        self.info("SKIPPING UNTIL WE ADD MAR GEN LOGIC")
+        # if c['balrog_api_root']:
+        #     self._submit_balrog_updates()
 
     def _post_fatal(self, message=None, exit_code=None):
         # until this script has more defined return_codes, let's make sure

@@ -873,7 +873,8 @@ or run without that action (ie: --no-{action})"
     def build(self):
         """build application."""
         self.return_code = self.run_command_m(
-            command=['mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
+            command=['./mach', 'build'], cwd=self.query_abs_dirs()[
+                'abs_src_dir'],
             env=self.query_build_env()
         )
 

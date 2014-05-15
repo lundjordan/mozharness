@@ -80,6 +80,13 @@ config = {
 /tools/python27/bin:/tools/python27-mercurial/bin:/home/cltbld/bin',
         'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib",
     },
+    'upload_env': {
+        # UPLOAD_HOST is set to stage_server
+        # stage_server is dictated from build_pool_specifics.py
+        'UPLOAD_USER': STAGE_USERNAME,
+        'UPLOAD_TO_TEMP': '1',
+        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
+    },
     'purge_minsize': 12,
     'mock_packages': [
         'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',

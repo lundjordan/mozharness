@@ -75,6 +75,13 @@ config = {
         'SYMBOL_SERVER_USER': 'ffxbld',
         'TINDERBOX_OUTPUT': '1'
     },
+    'upload_env': {
+        # UPLOAD_HOST is set to stage_server
+        # stage_server is dictated from build_pool_specifics.py
+        'UPLOAD_USER': STAGE_USERNAME,
+        'UPLOAD_TO_TEMP': '1',
+        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
+    },
     'purge_minsize': 12,
     'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/releng.manifest",

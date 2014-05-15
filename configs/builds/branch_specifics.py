@@ -135,6 +135,13 @@ config = {
         'repo_path': 'try',
         'clone_by_revision': True,
         'clone_with_purge': True,
+        'upload_env': {
+            # stage_server is dictated from build_pool_specifics.py
+            'UPLOAD_HOST': "%(stage_server)s",
+            'UPLOAD_USER': "trybld",
+            'UPLOAD_TO_TEMP': '1',
+            'UPLOAD_SSH_KEY': '~/.ssh/%s' % ("trybld_dsa",),
+        },
     },
 
     ### project branches

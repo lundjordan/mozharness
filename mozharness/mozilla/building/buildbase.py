@@ -623,6 +623,9 @@ or run without that action (ie: --no-{action})"
                                                **kwargs)
         )
 
+        # first grab the buildid
+        env['MOZ_BUILD_DATE'] = self.query_buildid()
+
         if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
             if c["create_snippets"] and c['platform_supports_snippets']:
@@ -649,6 +652,15 @@ or run without that action (ie: --no-{action})"
         # we can't make env an attribute of self because env can change on
         # every call for reasons like MOZ_SIGN_CMD
         return env
+
+    def query_build_upload_env(self):
+        c = self.config
+        upload_env = {}
+        if c.get('upload_env'):
+            upload_env.update(c['upload_env'])
+        if not upload_env.get("UPLOAD_HOST") and c.get('stage_server'):
+            upload_env['UPLOAD_HOST'] = c['stage_server']
+        return upload_env
 
     def _ccache_z(self):
         """clear ccache stats."""
@@ -882,14 +894,16 @@ or run without that action (ie: --no-{action})"
         self._create_mozbuild_dir()
 
     def build(self):
-        """build application."""
+        """builds application."""
+        env = self.query_build_env()
+        env.update(self.query_build_upload_env())
         self.return_code = self.run_command_m(
             command=['./mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
             env=self.query_build_env()
         )
 
     def postflight_build(self, console_output=True):
-        """grab properties set by mach build."""
+        """grabs properties set by mach build."""
         mach_properties_path = os.path.join(
             self.query_abs_dirs()['abs_work_dir'], 'build_properties.json'
         )

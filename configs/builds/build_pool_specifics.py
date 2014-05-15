@@ -17,6 +17,7 @@ config = {
             '.org/firefox/bundles',
         ],
         'symbol_server_host': "dev-stage01.srv.releng.scl3.mozilla.com",
+        'stage_server': 'dev-stage01.srv.releng.scl3.mozilla.com',
     },
     "production": {
         'balrog_api_root': 'https://aus4-admin.mozilla.org',
@@ -29,5 +30,6 @@ config = {
             'https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'
         ],
         'symbol_server_host': "symbolpush.mozilla.org",
+        'stage_server': 'stage.mozilla.org',
     },
 }

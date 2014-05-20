@@ -43,6 +43,7 @@ from mozharness.mozilla.repo_manifest import (load_manifest, rewrite_remotes,
                                               remove_project, get_project,
                                               get_remote, map_remote, add_project)
 from mozharness.mozilla.mapper import MapperMixin
+from mozharness.mozilla.updates.balrog import BalrogMixin
 
 # B2G builds complain about java...but it doesn't seem to be a problem
 # Let's turn those into WARNINGS instead
@@ -54,7 +55,7 @@ B2GMakefileErrorList.insert(0, {'substr': r'/bin/bash: java: command not found',
 
 class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                TooltoolMixin, TransferMixin, BuildbotMixin, GaiaLocalesMixin,
-               SigningMixin, MapperMixin):
+               SigningMixin, MapperMixin, BalrogMixin):
     config_options = [
         [["--repo"], {
             "dest": "repo",
@@ -124,6 +125,14 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             "action": "store_true",
             "help": "Set B2G_DEBUG=1 (debug build)",
         }],
+        [["--repotool-repo"], {
+            "dest": "repo_repo",
+            "help": "where to pull repo tool source from",
+        }],
+        [["--repotool-revision"], {
+            "dest": "repo_rev",
+            "help": "which revision of repo tool to use",
+        }],
     ]
 
     def __init__(self, require_config_file=False):
@@ -150,13 +159,13 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                                 'build',
                                 'build-symbols',
                                 'make-updates',
-                                'build-update-testdata',
                                 'prep-upload',
                                 'upload',
                                 'make-update-xml',
                                 'upload-updates',
                                 'make-socorro-json',
                                 'upload-source-manifest',
+                                'submit-to-balrog',
                             ],
                             default_actions=[
                                 'checkout-sources',
@@ -184,8 +193,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                                 'compare_locales_rev': 'RELEASE_AUTOMATION',
                                 'compare_locales_vcs': 'hgtool',
                                 'repo_repo': "https://git.mozilla.org/external/google/gerrit/git-repo.git",
+                                'repo_rev': 'stable',
                                 'repo_remote_mappings': {},
                                 'update_channel': 'default',
+                                'balrog_credentials_file': 'oauth.txt',
                             },
                             )
 
@@ -237,10 +248,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         dirs = {
             'src': os.path.join(c['work_dir'], 'gecko'),
             'work_dir': abs_dirs['abs_work_dir'],
-            'testdata_dir': os.path.join(abs_dirs['abs_work_dir'], 'testdata'),
             'gaia_l10n_base_dir': os.path.join(abs_dirs['abs_work_dir'], 'gaia-l10n'),
             'compare_locales_dir': os.path.join(abs_dirs['abs_work_dir'], 'compare-locales'),
             'abs_public_upload_dir': os.path.join(abs_dirs['abs_work_dir'], 'upload-public'),
+            'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
         }
 
         abs_dirs.update(dirs)
@@ -480,7 +491,28 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             output_dir = self.query_device_outputdir()
             return "%s/fota-update.mar" % output_dir
         else:
-            return "%s/dist/b2g-update/b2g-gecko-update.mar" % self.objdir
+            mardir = "%s/dist/b2g-update" % self.objdir
+            files = os.listdir(mardir)
+            if len(files) != 1:
+                self.fatal("Found none or too many marfiles, don't know what to do.", exit_code=1)
+            return "%s/%s" % (mardir, files[0])
+
+    def checkout_repotool(self, repo_dir):
+        self.info("Checking out repo tool")
+        repo_repo = self.config['repo_repo']
+        repo_rev = self.config['repo_rev']
+        repos = [
+            {'vcs': 'gittool', 'repo': repo_repo, 'dest': repo_dir, 'revision': repo_rev},
+        ]
+
+        # self.vcs_checkout already retries, so no need to wrap it in
+        # self.retry. We set the error_level to ERROR to prevent it going fatal
+        # so we can do our own handling here.
+        retval = self.vcs_checkout_repos(repos, error_level=ERROR)
+        if not retval:
+            self.rmtree(repo_dir)
+            self.fatal("Automation Error: couldn't clone repo", exit_code=4)
+        return retval
 
     # Actions {{{2
     def clobber(self):
@@ -490,7 +522,6 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             always_clobber_dirs=[
                 dirs['abs_upload_dir'],
                 dirs['abs_public_upload_dir'],
-                dirs['testdata_dir'],
             ],
         )
 
@@ -551,7 +582,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             manifest.writexml(manifest_file)
             manifest_file.close()
 
-            # Check it out!
+            # Set up repo
             repo_link = os.path.join(dirs['work_dir'], '.repo')
             if 'repo_mirror_dir' in self.config:
                 # Make our local .repo directory a symlink to the shared repo
@@ -564,6 +595,17 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                     self.info("Creating link from %s to %s" % (repo_link, repo_mirror_dir))
                     os.symlink(repo_mirror_dir, repo_link)
 
+            # Checkout the repo tool
+            if 'repo_repo' in self.config:
+                repo_dir = os.path.join(dirs['work_dir'], '.repo', 'repo')
+                self.checkout_repotool(repo_dir)
+
+                cmd = ['./repo', '--version']
+                if not self.run_command(cmd, cwd=dirs['work_dir']) == 0:
+                    # Set return code to RETRY
+                    self.fatal("repo is broken", exit_code=4)
+
+            # Check it out!
             max_tries = 5
             sleep_time = 60
             max_sleep_time = 300
@@ -576,9 +618,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                     cmd = ['./repo', 'forall', '-c', 'git show-ref -q --head HEAD || rm -rfv $PWD']
                     self.run_command(cmd, cwd=dirs['work_dir'])
 
+                # timeout after 55 minutes of no output
                 config_result = self.run_command([
                     './config.sh', '-q', self.config['target'], manifest_filename,
-                ], cwd=dirs['work_dir'], output_timeout=45 * 60)  # timeout after 45 minutes of no output
+                ], cwd=dirs['work_dir'], output_timeout=55 * 60)
 
                 # TODO: Check return code from these? retry?
                 # Run git reset --hard to make sure we're in a clean state
@@ -593,6 +636,12 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                 if config_result == 0:
                     break
                 else:
+                    # We may have died due to left-over lock files. Make sure
+                    # we clean those up before trying again.
+                    self.info("Deleting stale lock files")
+                    cmd = ['find', '.repo/', '-name', '*.lock', '-print', '-delete']
+                    self.run_command(cmd, cwd=dirs['work_dir'])
+
                     # Try again in a bit. Broken clones should be deleted and
                     # re-tried above
                     self.info("config.sh failed; sleeping %i and retrying" % sleep_time)
@@ -896,7 +945,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         else:
             if self.config['ccache']:
                 self.run_command('ccache -z', cwd=dirs['work_dir'], env=env)
-            retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+            for cmd in cmds:
+                retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+                if retval != 0:
+                    break
             if self.config['ccache']:
                 self.run_command('ccache -s', cwd=dirs['work_dir'], env=env)
 
@@ -959,52 +1011,6 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
 
         # Sign the updates
         self.sign_updates()
-
-    def build_update_testdata(self):
-        # only run for nightlies, if target is in the smoketest_config
-        if not self.query_is_nightly():
-            self.info("Not a nightly build. Skipping...")
-            return
-        smoketest_config = self.config.get('smoketest_config')
-        if not smoketest_config:
-            self.fatal("failed to find smoketest_config")
-        target = self.config['target']
-        if target not in smoketest_config['devices']:
-            self.info("%s not in smoketest_config. Skipping...")
-            return
-
-        # create testdata for update testing
-        dirs = self.query_abs_dirs()
-        gecko_config = self.load_gecko_config()
-        cmd = ['./build.sh', 'fs_config']
-        env = self.query_build_env()
-
-        retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-        if retval != 0:
-            self.fatal("failed to build fs_config", exit_code=2)
-
-        self.mkdir_p(dirs['testdata_dir'])
-        self.write_to_file(os.path.join(dirs['testdata_dir'], 'smoketest-config.json'),
-                           json.dumps(smoketest_config))
-        gecko_smoketest_dir = os.path.join(dirs['work_dir'], 'gecko/testing/marionette/update-smoketests')
-
-        stage_update = os.path.join(gecko_smoketest_dir, 'stage-update.py')
-        python = self.query_exe("python", return_type="list")
-        cmd = python + [stage_update, target, dirs['testdata_dir']]
-        retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env)
-        if retval != 0:
-            self.fatal("failed to stage b2g update testdata", exit_code=2)
-
-        # copy to upload_dir
-        buildid = self.query_buildid()
-        upload_testdata_dir = os.path.join(dirs['abs_upload_dir'], 'update-testdata')
-        target_testdata_dir = os.path.join(dirs['testdata_dir'], target, buildid)
-        self.mkdir_p(upload_testdata_dir)
-
-        for f in ('flash.zip', 'flash.sh'):
-            self.copy_to_upload_dir(
-                os.path.join(target_testdata_dir, f),
-                os.path.join(upload_testdata_dir, f))
 
     def sign_updates(self):
         if 'MOZ_SIGNING_SERVERS' not in os.environ:
@@ -1533,6 +1539,51 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             else:
                 self.info("Upload successful")
 
+    def submit_to_balrog(self):
+        if not self.query_is_nightly():
+            self.info("Not a nightly build, skipping balrog submission.")
+            return
+
+        if not self.config.get("balrog_api_root"):
+            self.info("balrog_api_root not set; skipping balrog submission.")
+            return
+
+        dirs = self.query_abs_dirs()
+
+        self.info("Checking out tools")
+        repos = [{
+            'repo': self.config['tools_repo'],
+            'vcs': "hgtool",
+            'dest': dirs['abs_tools_dir'],
+        }]
+        rev = self.vcs_checkout(**repos[0])
+        self.set_buildbot_property("tools_revision", rev, write_to_file=True)
+
+        marfile = self.query_marfile_path()
+        # Need to update the base url to point at FTP, or better yet, read post_upload.py output?
+        mar_url = self.config["update"]["mar_base_url"] + os.path.basename(marfile)
+        mar_url = mar_url.format(
+            branch=self.query_branch()
+        )
+
+        # Set other necessary properties for Balrog submission. None need to
+        # be passed back to buildbot, so we won't write them to the properties
+        # files.
+        # Locale is hardcoded to en-US, for silly reasons
+        self.set_buildbot_property("locale", "en-US")
+        self.set_buildbot_property("appVersion", self.query_version())
+        # The Balrog submitter translates this platform into a build target
+        # via https://github.com/mozilla/build-tools/blob/master/lib/python/release/platforms.py#L23
+        self.set_buildbot_property("platform", self.buildbot_config["properties"]["platform"])
+        # TODO: Is there a better way to get this?
+        self.set_buildbot_property("appName", "B2G")
+        # TODO: don't hardcode
+        self.set_buildbot_property("hashType", "sha512")
+        self.set_buildbot_property("completeMarSize", self.query_filesize(marfile))
+        self.set_buildbot_property("completeMarHash", self.query_sha512sum(marfile))
+        self.set_buildbot_property("completeMarUrl", mar_url)
+
+        self.submit_balrog_updates()
 
 # main {{{1
 if __name__ == '__main__':

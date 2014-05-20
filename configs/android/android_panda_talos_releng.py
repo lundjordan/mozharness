@@ -17,7 +17,6 @@ config = {
     "install_app_path":  "/builds/sut_tools/installApp.py",
     "talos_from_code_url": "https://hg.mozilla.org/%s/raw-file/%s/testing/talos/talos_from_code.py",
     "talos_json_url": "https://hg.mozilla.org/%s/raw-file/%s/testing/talos/talos.json",
-    "use_talos_json": True,
     "datazilla_urls": ["https://datazilla.mozilla.org/talos"],
     "datazilla_authfile": os.path.join(os.getcwd(), "oauth.txt"),
     #remotePerfConfigurator.py options
@@ -41,31 +40,30 @@ config = {
         "local.yml"
     ],
     "all_talos_suites": {
-        "remote-troboprovider":  [],
-        "remote-ts":  [],
-        "remote-tsvg":  [],
+        "remote-troboprovider":  ["--activeTests=tprovider", "--noChrome", "--fennecIDs=../fennec_ids.txt"],
+        "remote-ts":  ["--activeTests=ts", "--mozAfterPaint", "--noChrome"],
         #currently disabled
-        "remote-tsvgx":  [],
-        "remote-tcanvasmark":  [],
-        "remote-tsspider":  [],
+        "remote-tsvgx":  ["--activeTests=tsvgx", "--noChrome", '--tppagecycles', '10'],
+        "remote-tcanvasmark":  ["--activeTests=tcanvasmark", "--noChrome"],
+        "remote-tsspider":  ["--activeTests=tsspider", "--noChrome"],
         #end currently disabled
-        "remote-trobopan":  [],
-        "remote-tp4m_nochrome":  [],
-        "remote-trobocheck2":  [],
-        "remote-tspaint": []
+        "remote-trobopan":  ["--activeTests=trobopan", "--noChrome", "--fennecIDs=../fennec_ids.txt"],
+        "remote-tsvg":  ["--activeTests=tsvg", "--noChrome"],
+        "remote-tp4m_nochrome":  ["--activeTests=tp4m", "--noChrome", "--rss"],
+        "remote-trobocheck2":  ["--activeTests=tcheck2", "--noChrome", "--fennecIDs=../fennec_ids.txt"],
+        "remote-tspaint": ["--activeTests=ts_paint", "--mozAfterPaint"],
     },
     "find_links": [
         "http://pypi.pvt.build.mozilla.org/pub",
         "http://pypi.pub.build.mozilla.org/pub",
     ],
     "buildbot_json_path": "buildprops.json",
-    "mobile_imaging_format": "http://mobile-imaging-%03i.p%i.releng.scl1.mozilla.com",
+    "mobile_imaging_format": "http://mobile-imaging",
     "mozpool_assignee": socket.gethostname(),
     "default_actions": [
         'clobber',
         'read-buildbot-config',
         'download-and-extract',
-        'clone-talos',
         'create-virtualenv',
         'request-device',
         'run-test',

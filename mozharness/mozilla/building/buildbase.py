@@ -628,12 +628,11 @@ or run without that action (ie: --no-{action})"
 
         if self.query_is_nightly():
             env["IS_NIGHTLY"] = "yes"
-            if c["create_snippets"] and c['platform_supports_snippets']:
-                # in branch_specifics.py we might set update_channel explicitly
-                if c.get('update_channel'):
-                    env["MOZ_UPDATE_CHANNEL"] = c['update_channel']
-                else:  # let's just give the generic channel based on branch
-                    env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
+            # in branch_specifics.py we might set update_channel explicitly
+            if c.get('update_channel'):
+                env["MOZ_UPDATE_CHANNEL"] = c['update_channel']
+            else:  # let's just give the generic channel based on branch
+                env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
 
         if self.config.get('pgo_build'):
             env['IS_PGO'] = '1'

@@ -18,6 +18,7 @@ config = {
         'clone-tools',
         # 'setup-mock', windows do not use mock
         'build',
+        'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
     "buildbot_json_path": "buildprops.json",
@@ -48,11 +49,14 @@ config = {
     'tooltool_script': [sys.executable,
                         'C:/mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
-     #########################################################################
+    'enable_max_vsize': True,
+    'enable_count_ctors': False,
+    #########################################################################
 
 
      #########################################################################
      ###### 32 bit specific ######
+    'base_name': 'WINNT 5.2 %(branch)s',
     'platform': 'win32',
     'stage_platform': 'win32',
     'enable_max_vsize': True,

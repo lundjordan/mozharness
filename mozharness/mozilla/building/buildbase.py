@@ -25,14 +25,17 @@ from itertools import chain
 import sys
 from datetime import datetime
 from mozharness.base.config import BaseConfig, parse_config_file
+from mozharness.base.log import ERROR
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
-from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT
+from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
+    TBPL_EXCEPTION
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 from mozharness.mozilla.buildbot import TBPL_FAILURE
+from mozharness.mozilla.updates.balrog import BalrogMixin
 
 MISSING_CFG_KEY_MSG = "The key '%s' could not be determined \
 Please add this to your config."
@@ -798,61 +801,145 @@ or run without that action (ie: --no-{action})"
                                        rev[:12],
                                        write_to_file=True)
 
-    def _submit_balrog_updates(self, balrog_type='nightly'):
+    def _count_ctors(self):
+        """count num of ctors and set testresults."""
+        dirs = self.query_abs_dirs()
+        abs_count_ctors_path = os.path.join(dirs['abs_tools_dir'],
+                                            'buildfarm',
+                                            'utils',
+                                            'count_ctors.py')
+        abs_libxul_path = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'bin',
+                                       'libxul.so')
+
+        cmd = ['python', abs_count_ctors_path, abs_libxul_path]
+        output = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
+        output = output.split("\t")
+        num_ctors = int(output[0])
+        testresults = [('num_ctors', 'num_ctors', num_ctors, str(num_ctors))]
+        self.set_buildbot_property('num_ctors',
+                                   num_ctors,
+                                   write_to_file=True)
+        self.set_buildbot_property('testresults',
+                                   testresults,
+                                   write_to_file=True)
+
+    def _count_vsize(self):
+        """gets linker vsize and sets it to testresults."""
+        dirs = self.query_abs_dirs()
+        vsize_path = os.path.join(
+            dirs['abs_obj_dir'], 'toolkit', 'library', 'linker-vsize'
+        )
+        cmd = ['cat', vsize_path]
+        vsize = int(self.get_output_from_command(cmd, cwd=dirs['abs_src_dir']))
+        testresults = [('libxul_link', 'libxul_link', vsize, str(vsize))]
+        self.set_buildbot_property('vsize', vsize, write_to_file=True)
+        self.set_buildbot_property('testresults',
+                                   testresults,
+                                   write_to_file=True)
+
+    def _graph_server_post(self):
+        """graph server post results."""
+        self._assert_cfg_valid_for_action(
+            ['base_name', 'graph_server', 'graph_selector'],
+            'generate-build-stats'
+        )
         c = self.config
         dirs = self.query_abs_dirs()
-        # first download buildprops_balrog.json this should be all the
-        # buildbot properties we got initially (buildbot_config) and what
-        # we have updated with since the script ran (buildbot_properties)
+        graph_server_post_path = os.path.join(dirs['abs_tools_dir'],
+                                              'buildfarm',
+                                              'utils',
+                                              'graph_server_post.py')
+        graph_server_path = os.path.join(dirs['abs_tools_dir'],
+                                         'lib',
+                                         'python')
+        # graph server takes all our build properties we had initially
+        # (buildbot_config) and what we updated to since
+        # the script ran (buildbot_properties)
         # TODO it would be better to grab all the properties that were
-        # persisted to file rather than use whats in the
-        # buildbot_properties live object. However, this should work for
-        # now and balrog may be removing the buildprops cli arg once we no
-        # longer use buildbot
-        balrog_props_path = os.path.join(c['base_work_dir'],
-                                         "balrog_props.json")
-        balrog_submitter_path = os.path.join(dirs['abs_tools_dir'],
-                                             'scripts',
-                                             'updates',
-                                             'balrog-submitter.py')
-        self.set_buildbot_property(
-            'hashType', c.get('hash_type', 'sha512'), write_to_file=True
-        )
+        # persisted to file rather than use whats in the buildbot_properties
+        # live object so we become less action dependant.
+        graph_props_path = os.path.join(c['base_work_dir'],
+                                        "graph_props.json")
         all_current_props = dict(
             chain(self.buildbot_config['properties'].items(),
                   self.buildbot_properties.items())
         )
-        self.info("Dumping buildbot properties to %s." % balrog_props_path)
-        balrog_props = dict(properties=all_current_props)
-        self.dump_config(balrog_props_path, balrog_props)
-        cmd = [
-            self.query_exe('python'),
-            balrog_submitter_path,
-            '--build-properties', balrog_props_path,
-            '--api-root', c['balrog_api_root'],
-            '--username', c['balrog_username'],
-            '-t', balrog_type, '--verbose',
-        ]
-        if c['balrog_credentials_file']:
-            self.info("Using Balrog credential file...")
-            abs_balrog_cred_file = os.path.join(
-                c['base_work_dir'], c['balrog_credentials_file']
+        # graph_server_post.py expects a file with 'properties' key
+        graph_props = dict(properties=all_current_props)
+        self.dump_config(graph_props_path, graph_props)
+
+        gs_env = self.query_build_env()
+        gs_env.update({'PYTHONPATH': graph_server_path})
+        resultsname = c['base_name'] % {'branch': self.branch}
+        cmd = ['python', graph_server_post_path]
+        cmd.extend(['--server', c['graph_server']])
+        cmd.extend(['--selector', c['graph_selector']])
+        cmd.extend(['--branch', self._query_graph_server_branch_name()])
+        cmd.extend(['--buildid', self.query_buildid()])
+        cmd.extend(['--sourcestamp',
+                    self.query_buildbot_property('sourcestamp')])
+        cmd.extend(['--resultsname', resultsname])
+        cmd.extend(['--properties-file', graph_props_path])
+        cmd.extend(['--timestamp', str(self.epoch_timestamp)])
+
+        self.info("Obtaining graph server post results")
+        result_code = self.retry(self.run_command,
+                                 args=(cmd,),
+                                 kwargs={'cwd': dirs['abs_src_dir'],
+                                         'env': gs_env})
+        if result_code != 0:
+            self.add_summary('Automation Error: failed graph server post',
+                             level=ERROR)
+            self.worst_buildbot_status = self.worst_level(
+                TBPL_EXCEPTION, self.worst_buildbot_status,
+                TBPL_STATUS_DICT.keys()
             )
-            if not abs_balrog_cred_file:
-                self.fatal("credential file given but doesn't exist!"
-                           " Path given: %s" % abs_balrog_cred_file)
-            cmd.extend(['--credentials-file', abs_balrog_cred_file])
+
         else:
-            self.fatal("Balrog requires a credential file. Pease add the"
-                       " path to your config via: 'balrog_credentials_file'")
-        self.info("Submitting Balrog updates...")
-        self.retry(
-            self.run_command, args=(cmd,),
-            kwargs={
-                'halt_on_failure': True,
-                'fatal_exit_code': 3,
-            }
-        )
+            self.info("graph server post ok")
+
+    def _query_graph_server_branch_name(self):
+        c = self.config
+        if c.get('graph_server_branch_name'):
+            return c['graph_server_branch_name']
+        else:
+            # capitalize every word in between '-'
+            branch_list = self.branch.split('-')
+            branch_list = [elem.capitalize() for elem in branch_list]
+            return '-'.join(branch_list)
+
+    def _generate_build_props(self):
+        """set buildid, sourcestamp, appVersion, and appName."""
+        dirs = self.query_abs_dirs()
+        print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
+                                               'config',
+                                               'printconfigsetting.py')
+        if (not os.path.exists(print_conf_setting_path) or
+                not os.path.exists(dirs['abs_app_ini_path'])):
+            self.error("Can't set the following properties: "
+                       "buildid, sourcestamp, appVersion, and appName. "
+                       "Required paths missing. Verify both %s and %s "
+                       "exist. These paths require the 'build' action to be "
+                       "run prior to this" % (print_conf_setting_path,
+                                              dirs['abs_app_ini_path']))
+        self.info("Setting properties found in: %s" % dirs['abs_app_ini_path'])
+        base_cmd = [
+            'python', print_conf_setting_path, dirs['abs_app_ini_path'], 'App'
+        ]
+        properties_needed = [
+            {'ini_name': 'SourceStamp', 'prop_name': 'sourcestamp'},
+            {'ini_name': 'Version', 'prop_name': 'appVersion'},
+            {'ini_name': 'Name', 'prop_name': 'appName'}
+        ]
+        for prop in properties_needed:
+            prop_val = self.get_output_from_command(
+                base_cmd + [prop['ini_name']], cwd=dirs['base_work_dir']
+            )
+            self.set_buildbot_property(prop['prop_name'],
+                                       prop_val,
+                                       write_to_file=True)
 
     def clone_tools(self):
         """clones the tools repo."""
@@ -904,8 +991,10 @@ or run without that action (ie: --no-{action})"
     def postflight_build(self, console_output=True):
         """grabs properties set by mach build."""
         mach_properties_path = os.path.join(
-            self.query_abs_dirs()['abs_work_dir'], 'build_properties.json'
+            self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
         )
+        self.info("setting properties set by mach build. Looking in path: %s"
+                  % mach_properties_path)
         if os.path.exists(mach_properties_path):
             with open(mach_properties_path) as build_property_file:
                 build_props = json.load(build_property_file)
@@ -915,19 +1004,52 @@ or run without that action (ie: --no-{action})"
             for key, prop in build_props.iteritems():
                 self.set_buildbot_property(key, prop, write_to_file=True)
         else:
-            self.warning("'mach build' did not set any properties from build.")
+            self.error("Could not find any properties set from mach build. "
+                       "Path does not exist: %s" % mach_properties_path)
+        # now set the additional properties that mach did not set...
+        self._generate_build_props()
+
+    def generate_build_stats(self):
+        """grab build stats following a compile.
+
+        This action handles all statitics from a build: 'count_ctors' and
+        'vsize' and then posts to graph server the results.
+        We only post to graph server for non nightly build
+        """
+        c = self.config
+        # enable_max_vsize will be True for builds like pgo win32 builds
+        enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
+        if not enable_max_vsize or c.get('enable_count_ctors'):
+            if c.get('enable_count_ctors'):
+                self.info("counting ctors...")
+                self._count_ctors()
+                num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
+                self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
+            if enable_max_vsize:
+                self.info("getting vsize...")
+                self._count_vsize()
+            if not self.query_is_nightly():
+                self._graph_server_post()
+            else:
+                self.info("We are not posting to graph server as this is a "
+                          "nightly build.")
+        else:
+            self.info("Nothing to do for this action since ctors and vsize "
+                      "counts are disabled for this build.")
 
     def update(self):
         """ submit balrog update steps. """
         c = self.config
         if not self.query_is_nightly():
-            self.info("Skipping action because this action is only done for "
-                      "nightlies...")
+            self.info("Not a nightly build, skipping balrog submission.")
             return
 
-        self.info("SKIPPING UNTIL WE ADD MAR GEN LOGIC")
-        # if c['balrog_api_root']:
-        #     self._submit_balrog_updates()
+        if not self.config.get("balrog_api_root"):
+            self.info("balrog_api_root not set; skipping balrog submission.")
+            return
+
+        if c['balrog_api_root']:
+            self.submit_balrog_updates()
 
     def _post_fatal(self, message=None, exit_code=None):
         # until this script has more defined return_codes, let's make sure

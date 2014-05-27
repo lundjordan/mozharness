@@ -33,6 +33,7 @@ config = {
     "mozilla-central": {
         "update_channel": "nightly",
         "repo_path": 'mozilla-central',
+        "graph_server_branch_name": "Firefox",
     },
     'mozilla-release': {
         'repo_path': 'releases/mozilla-release',
@@ -157,8 +158,10 @@ config = {
     'services-central': {
         'repo_path': 'services/services-central',
     },
+    'ux': {
+         "graph_server_branch_name": "UX",
+     },
     # 'date': {},
-    # 'ux': {},
 
     ### other branches that do not require anything special:
     # 'alder': {},

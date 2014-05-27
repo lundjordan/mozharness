@@ -32,6 +32,7 @@ class FxDesktopBuild(BuildScript, object):
                 'clone-tools',
                 'setup-mock',
                 'build',
+                'generate-build-stats',
                 'update',
             ],
             'require_config_file': True,
@@ -53,6 +54,7 @@ class FxDesktopBuild(BuildScript, object):
                 "repo_base": "https://hg.mozilla.org/users/mshal_mozilla.com",
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
                                 '.org/tooltool',
+                "graph_selector": "/server/collect.cgi",
                 # only used for make uploadsymbols
                 'old_packages': [
                     "%(objdir)s/dist/firefox-*",

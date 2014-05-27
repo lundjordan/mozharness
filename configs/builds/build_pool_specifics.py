@@ -12,6 +12,8 @@ config = {
         # staging we should use MozillaTest
         # but in production we let the self.branch decide via
         # self._query_graph_server_branch_name()
+        "graph_server_branch_name": "MozillaTest",
+        'graph_server': 'graphs.allizom.org',
         "hgtool_base_bundle_urls": [
             'http://dev-stage01.build.mozilla.org/pub/mozilla'
             '.org/firefox/bundles',
@@ -26,6 +28,7 @@ config = {
         # if true: possibly clobber, clobberer, and purge_builds
         # see PurgeMixin for clobber() conditions
         'clobberer_url': 'http://clobberer.pvt.build.mozilla.org/index.php',
+        'graph_server': 'graphs.mozilla.org',
         "hgtool_base_bundle_urls": [
             'https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'
         ],

@@ -4,6 +4,7 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
+        'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
     'stage_platform': 'linux64-nonunified',

@@ -17,6 +17,7 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
+        'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
     "buildbot_json_path": "buildprops.json",
@@ -46,11 +47,13 @@ config = {
     'objdir': 'obj-firefox',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
+    'enable_count_ctors': True,
     #########################################################################
 
 
     #########################################################################
     ###### 32 bit specific ######
+    'base_name': 'Linux_%(branch)s',
     'platform': 'linux',
     'stage_platform': 'linux',
     'enable_max_vsize': False,

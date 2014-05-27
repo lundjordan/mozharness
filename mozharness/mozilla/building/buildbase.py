@@ -367,7 +367,7 @@ BUILD_BASE_CONFIG_OPTIONS = [
 ]
 
 
-class BuildScript(BuildbotMixin, PurgeMixin, MockMixin,
+class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
                   SigningMixin, MercurialScript):
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
@@ -1004,7 +1004,7 @@ or run without that action (ie: --no-{action})"
             for key, prop in build_props.iteritems():
                 self.set_buildbot_property(key, prop, write_to_file=True)
         else:
-            self.error("Could not find any properties set from mach build. "
+            self.fatal("Could not find any properties set from mach build. "
                        "Path does not exist: %s" % mach_properties_path)
         # now set the additional properties that mach did not set...
         self._generate_build_props()

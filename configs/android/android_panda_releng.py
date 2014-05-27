@@ -20,7 +20,7 @@ config = {
         "jittest": "jit_test.py",
         "cppunittest": "remotecppunittests.py"
     },
-    "hostutils_url":  "http://bm-remote.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
+    "hostutils_url":  "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
     "verify_path":  "/builds/sut_tools/verify.py",
     "install_app_path":  "/builds/sut_tools/installApp.py",
     "logcat_path":  "/builds/sut_tools/logcat.py",
@@ -77,7 +77,7 @@ config = {
     ],
     "pip_index": False,
     "buildbot_json_path": "buildprops.json",
-    "mobile_imaging_format": "http://mobile-imaging-%03i.p%i.releng.scl1.mozilla.com",
+    "mobile_imaging_format": "http://mobile-imaging",
     "mozpool_assignee": socket.gethostname(),
     "default_actions": [
         'clobber',

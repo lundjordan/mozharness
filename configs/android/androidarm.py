@@ -2,7 +2,7 @@ import os
 
 config = {
     "buildbot_json_path": "buildprops.json",
-    "host_utils_url": "http://bm-remote.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
+    "host_utils_url": "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
     "robocop_package_name": "org.mozilla.roboexample.test",
     "device_ip": "127.0.0.1",
     "default_sut_port1": "20701",
@@ -115,129 +115,108 @@ config = {
         },
         "mochitest-1": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "1", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "1", "--run-only-tests", "android23.json"],
         },
         "mochitest-2": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "2", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "2", "--run-only-tests", "android23.json"],
         },
         "mochitest-3": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "3", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "3", "--run-only-tests", "android23.json"],
         },
         "mochitest-4": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "4", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "4", "--run-only-tests", "android23.json"],
         },
         "mochitest-5": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "5", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "5", "--run-only-tests", "android23.json"],
         },
         "mochitest-6": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "6", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "6", "--run-only-tests", "android23.json"],
         },
         "mochitest-7": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "7", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "7", "--run-only-tests", "android23.json"],
         },
         "mochitest-8": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "8", "--run-only-tests", "android23.json"],
-        },
-        "mochitest-9": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "9", "--run-only-tests", "android23.json"],
-        },
-        "mochitest-10": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "10", "--run-only-tests", "android23.json"],
-        },
-        "mochitest-11": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "11", "--run-only-tests", "android23.json"],
-        },
-        "mochitest-12": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks", "12", "--this-chunk", "12", "--run-only-tests", "android23.json"],
+            "extra_args": ["--total-chunks", "8", "--this-chunk", "8", "--run-only-tests", "android23.json"],
         },
         "mochitest-gl": {
             "category": "mochitest",
-            "extra_args": ["--test-path", "content/canvas/test/webgl"],
+            "extra_args": ["--test-manifest", "gl.json"],
         },
         "reftest-1": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "1",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "1",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-2": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "2",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "2",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-3": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "3",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "3",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-4": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "4",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "4",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-5": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "5",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "5",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-6": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "6",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "6",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-7": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "7",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "7",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-8": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "8",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "8",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-9": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "9",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "9",
                 "tests/layout/reftests/reftest.list"]
         },
         "reftest-10": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "10", "--this-chunk", "10",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "10",
+                "tests/layout/reftests/reftest.list"]
+        },
+        "reftest-11": {
+            "category": "reftest",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "11",
+                "tests/layout/reftests/reftest.list"]
+        },
+        "reftest-12": {
+            "category": "reftest",
+            "extra_args": ["--total-chunks", "12", "--this-chunk", "12",
                 "tests/layout/reftests/reftest.list"]
         },
         "crashtest-1": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "5", "--this-chunk", "1",
+            "extra_args": ["--total-chunks", "2", "--this-chunk", "1",
                 "tests/testing/crashtest/crashtests.list"]
         },
         "crashtest-2": {
             "category": "reftest",
-            "extra_args": ["--total-chunks", "5", "--this-chunk", "2",
-                "tests/testing/crashtest/crashtests.list"]
-        },
-        "crashtest-3": {
-            "category": "reftest",
-            "extra_args": ["--total-chunks", "5", "--this-chunk", "3",
-                "tests/testing/crashtest/crashtests.list"]
-        },
-        "crashtest-4": {
-            "category": "reftest",
-            "extra_args": ["--total-chunks", "5", "--this-chunk", "4",
-                "tests/testing/crashtest/crashtests.list"]
-        },
-        "crashtest-5": {
-            "category": "reftest",
-            "extra_args": ["--total-chunks", "5", "--this-chunk", "5",
+            "extra_args": ["--total-chunks", "2", "--this-chunk", "2",
                 "tests/testing/crashtest/crashtests.list"]
         },
         "xpcshell-1": {

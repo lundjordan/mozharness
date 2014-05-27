@@ -15,6 +15,7 @@ config = {
         'upload-updates',
         'make-socorro-json',
         'upload-source-manifest',
+        'submit-to-balrog',
     ],
     "upload": {
         "default": {
@@ -32,7 +33,7 @@ config = {
             "ssh_user": "ffxbld",
             "upload_remote_host": "stage.mozilla.org",
             "post_upload_cmd": "post_upload.py --tinderbox-builds-dir %(branch)s-%(target)s -p b2g -i %(buildid)s --revision %(revision)s --release-to-tinderbox-dated-builds",
-            "post_upload_nightly_cmd": "post_upload.py --tinderbox-builds-dir %(branch)s-%(target)s -b %(branch)s -p b2g -i %(buildid)s --revision %(revision)s --release-to-tinderbox-dated-builds --release-to-latest --release-to-dated",
+            "post_upload_nightly_cmd": "post_upload.py --tinderbox-builds-dir %(branch)s-%(target)s -b %(branch)s-%(target)s -p b2g -i %(buildid)s --revision %(revision)s --release-to-tinderbox-dated-builds --release-to-latest --release-to-dated",
         },
     },
     "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
@@ -58,8 +59,8 @@ config = {
             'mozilla-b2g26_v1_2f': '1.2.1',
             'mozilla-b2g28_v1_3': '1.3.0',
             'mozilla-b2g28_v1_3t': '1.3.0t',
-            'mozilla-aurora': '1.4.0',
-            'mozilla-central': '1.5.0',
+            'mozilla-b2g30_v1_4': '1.4.0',
+            'mozilla-central': '2.0.0',
         },
         "translate_hg_to_git": True,
         "translate_base_url": "http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}",
@@ -93,6 +94,8 @@ config = {
     },
     "update_type": "fota",
     "update": {
+        "mar_base_url": "http://ftp.mozilla.org/pub/mozilla.org/b2g/nightly/latest-{branch}/",
+        # TODO: remove these after bug 918068 is fixed
         "upload_remote_host": "update.boot2gecko.org",
         "upload_remote_basepath": "/data/update-channels/{target}/{version}/{publish_channel}",
         "base_url": "http://update.boot2gecko.org/{target}/{version}/{update_channel}/",

@@ -6,9 +6,9 @@ config = {
         "hgtool.py": ["/usr/local/bin/hgtool.py"],
         "gittool.py": ["/usr/local/bin/gittool.py"],
     },
-    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-aurora',
-    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-aurora',
-    'gecko_local_dir': 'mozilla-aurora',
+    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-b2g30_v1_4',
+    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-b2g30_v1_4',
+    'gecko_local_dir': 'mozilla-b2g30_v1_4',
 
     'manifests_repo': 'https://git.mozilla.org/b2g/b2g-manifest.git',
     'manifests_revision': 'origin/v1.4',
@@ -28,6 +28,10 @@ config = {
     'mapper_url': 'http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}',
 
     'devices': {
+        'dolphin': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'emulator-kk': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -48,6 +52,10 @@ config = {
             'ignore_groups': ['darwin'],
             'manifest_file': 'emulator.xml',
         },
+        'flame': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'hamachi': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -64,6 +72,10 @@ config = {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
             'manifest_file': 'nexus-4.xml',
+        },
+        'nexus-4': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
         },
         'inari': {
             'ignore_projects': ['gecko'],
@@ -87,5 +99,6 @@ config = {
         'https://git.mozilla.org/external/caf': 'https://git.mozilla.org/external/caf',
         'https://git.mozilla.org/b2g': 'https://git.mozilla.org/b2g',
         'https://git.mozilla.org/external/apitrace': 'https://git.mozilla.org/external/apitrace',
+        'http://sprdsource.spreadtrum.com:8085/b2g/android': 'https://git.mozilla.org/external/sprd-aosp',
     },
 }

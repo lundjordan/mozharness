@@ -28,6 +28,10 @@ config = {
     'mapper_url': 'http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}',
 
     'devices': {
+        'dolphin': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'emulator-kk': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -69,6 +73,10 @@ config = {
             'ignore_groups': ['darwin'],
             'manifest_file': 'nexus-4.xml',
         },
+        'nexus-4': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'inari': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -91,5 +99,6 @@ config = {
         'https://git.mozilla.org/external/caf': 'https://git.mozilla.org/external/caf',
         'https://git.mozilla.org/b2g': 'https://git.mozilla.org/b2g',
         'https://git.mozilla.org/external/apitrace': 'https://git.mozilla.org/external/apitrace',
+        'http://sprdsource.spreadtrum.com:8085/b2g/android': 'https://git.mozilla.org/external/sprd-aosp',
     },
 }

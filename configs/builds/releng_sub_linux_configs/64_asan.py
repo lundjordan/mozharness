@@ -13,6 +13,7 @@ config = {
     'purge_minsize': 12,
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 asan.manifest",
+    'platform_supports_post_upload_to_latest': False,
     #### 64 bit build specific #####
     'env': {
         'MOZ_AUTOMATION': '1',

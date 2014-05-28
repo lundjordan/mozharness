@@ -1,6 +1,5 @@
 import os
 
-STAGE_PRODUCT = 'firefox'
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 

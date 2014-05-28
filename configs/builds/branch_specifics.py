@@ -136,6 +136,10 @@ config = {
         'repo_path': 'try',
         'clone_by_revision': True,
         'clone_with_purge': True,
+        'tinderbox_build_dir': '%(who)s-%(got_revision)s',
+        'to_tinderbox_dated': False,
+        'include_post_upload_builddir': True,
+        'release_to_try_builds': True,
         'upload_env': {
             # stage_server is dictated from build_pool_specifics.py
             'UPLOAD_HOST': "%(stage_server)s",

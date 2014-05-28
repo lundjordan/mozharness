@@ -662,7 +662,81 @@ or run without that action (ie: --no-{action})"
             upload_env.update(c['upload_env'])
         if not upload_env.get("UPLOAD_HOST") and c.get('stage_server'):
             upload_env['UPLOAD_HOST'] = c['stage_server']
+
+        # _query_post_upload_cmd returns a list (a cmd list), for env sake here
+        # let's make it a string
+        pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
+        upload_env['POST_UPLOAD_CMD'] = pst_up_cmd
+
         return upload_env
+
+
+    def _query_who(self):
+        """ looks for who triggered the build with a change.
+
+        This is used for things like try builds where the upload dir is
+        associated with who pushed to try. First it will look in self.config
+        and failing that, will poll buildbot_config
+        If nothing is found, it will default to returning "nobody@example.com"
+        """
+        _who = ''
+        if self.config.get('who'):
+            _who = self.config['who']
+        if self.buildbot_config and 'sourcestamp' in self.buildbot_config:
+            if self.buildbot_config['sourcestamp'].get('who'):
+                _who = self.buildbot_config['sourcestamp']['who']
+        if not _who:
+            _who = "nobody@example.com"
+        return _who
+
+    def _query_post_upload_cmd(self):
+        # TODO support more from postUploadCmdPrefix()
+        # as needed (as we introduce builds that use it)
+        # h.m.o/build/buildbotcustom/process/factory.py#l119
+
+        c = self.config
+        post_upload_cmd = ["post_upload.py"]
+        buildid = self.query_buildid()
+        revision = self.query_revision()
+        platform = self.stage_platform
+        who = self._query_who()
+        if c.get('pgo_build'):
+            platform += '-pgo'
+
+        if c.get('tinderbox_build_dir'):
+            # TODO find out if we should fail here like we are
+            if not who and revision:
+                self.fatal("post upload failed. --tinderbox-builds-dir could "
+                           "not be determined. 'who' and/or 'revision unknown")
+            # branches like try will use 'tinderbox_build_dir
+            tinderbox_build_dir = c['tinderbox_build_dir'] % {
+                'who': who,
+                'got_revision': revision
+            }
+        else:
+            # the default
+            tinderbox_build_dir = "%s-%s" % (self.branch, platform)
+
+        if who:
+            post_upload_cmd.extend(["--who", who])
+        if c.get('include_post_upload_builddir'):
+            post_upload_cmd.extend(
+                ["--builddir", "%s-%s" % (self.branch, platform)]
+            )
+        post_upload_cmd.extend(["--tinderbox-builds-dir", tinderbox_build_dir])
+        post_upload_cmd.extend(["-p", c['stage_product']])
+        post_upload_cmd.extend(['-i', buildid])
+        post_upload_cmd.extend(['--revision', revision])
+        if c.get('to_tinderbox_dated'):
+            post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+        if c.get('release_to_try_builds'):
+            post_upload_cmd.append('--release-to-try-builds')
+        if self.query_is_nightly():
+            post_upload_cmd.extend(['-b', self.branch])
+            post_upload_cmd.append('--release-to-dated')
+            if c['platform_supports_post_upload_to_latest']:
+                post_upload_cmd.append('--release-to-latest')
+        return post_upload_cmd
 
     def _ccache_z(self):
         """clear ccache stats."""

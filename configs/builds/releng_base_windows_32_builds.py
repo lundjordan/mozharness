@@ -1,7 +1,6 @@
 import os
 import sys
 
-STAGE_PRODUCT = 'firefox'
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
 
@@ -49,7 +48,6 @@ config = {
     'tooltool_script': [sys.executable,
                         'C:/mozilla-build/tooltool.py'],
     'tooltool_bootstrap': "setup.sh",
-    'enable_max_vsize': True,
     'enable_count_ctors': False,
     #########################################################################
 

@@ -50,6 +50,10 @@ class FxDesktopBuild(BuildScript, object):
                 'default_vcs': 'hgtool',
                 'clone_with_purge': False,  # eg: try will impl this
                 'clone_by_revision': False,  # eg: try will impl this
+                'tinderbox_build_dir': None, # eg: try will impl this
+                'to_tinderbox_dated': True,  # eg: try will False this
+                'release_to_try_builds': False,  # eg: try will True this
+                'include_post_upload_builddir': False,
                 "tools_repo": "https://hg.mozilla.org/build/tools",
                 "repo_base": "https://hg.mozilla.org/users/mshal_mozilla.com",
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
@@ -63,6 +67,8 @@ class FxDesktopBuild(BuildScript, object):
                     "%(objdir)s/dist/thunderbird*",
                     "%(objdir)s/dist/install/sea/*.exe"
                 ],
+                'stage_product': 'firefox',
+                'platform_supports_post_upload_to_latest': True,
             },
             'ConfigClass': BuildingConfig,
         }

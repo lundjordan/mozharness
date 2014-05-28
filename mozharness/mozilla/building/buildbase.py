@@ -1123,7 +1123,11 @@ or run without that action (ie: --no-{action})"
             return
 
         if c['balrog_api_root']:
-            self.submit_balrog_updates()
+            return_code = self.submit_balrog_updates()
+            if return_code:
+                self.worst_buildbot_status = self.worst_level(
+                    TBPL_EXCEPTION, self.worst_buildbot_status, TBPL_STATUS_DICT
+                )
 
     def _post_fatal(self, message=None, exit_code=None):
         # until this script has more defined return_codes, let's make sure

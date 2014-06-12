@@ -651,6 +651,9 @@ or run without that action (ie: --no-{action})"
             if env.get("MOZ_SIGN_CMD"):
                 del env["MOZ_SIGN_CMD"]
 
+        if c.get('sendchange_master'):
+            env['SENDCHANGE_MASTER'] = c['sendchange_master']
+
         # we can't make env an attribute of self because env can change on
         # every call for reasons like MOZ_SIGN_CMD
         return env

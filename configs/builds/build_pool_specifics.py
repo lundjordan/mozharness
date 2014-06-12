@@ -23,6 +23,7 @@ config = {
         ],
         'symbol_server_host': "dev-stage01.srv.releng.scl3.mozilla.com",
         'stage_server': 'dev-stage01.srv.releng.scl3.mozilla.com',
+        "sendchange_master": "dev-master1.srv.releng.scl3.mozilla.com:9038",
     },
     "production": {
         'balrog_api_root': 'https://aus4-admin.mozilla.org',
@@ -40,5 +41,6 @@ config = {
         ],
         'symbol_server_host': "symbolpush.mozilla.org",
         'stage_server': 'stage.mozilla.org',
+        "sendchange_master": "buildbot-master81.build.mozilla.org:9301",
     },
 }

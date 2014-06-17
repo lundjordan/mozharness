@@ -12,6 +12,7 @@ config = {
     'debug_build': True,
     'stage_platform': 'linux-debug',
     'purge_minsize': 15,
+    'enable_signing': False,
     #### 32 bit build specific #####
     'env': {
         'MOZ_AUTOMATION': '1',

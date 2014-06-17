@@ -15,6 +15,7 @@ config = {
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 clang.manifest",
     'platform_supports_post_upload_to_latest': False,
+    'enable_signing': False,
     #### 64 bit build specific #####
     'env': {
         'MOZ_AUTOMATION': '1',

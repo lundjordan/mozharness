@@ -11,6 +11,7 @@ config = {
     ],
     'stage_platform': 'linux64-debug',
     'debug_build': True,
+    'enable_signing': False,
     #### 64 bit build specific #####
     'env': {
         'MOZ_AUTOMATION': '1',

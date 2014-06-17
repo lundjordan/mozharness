@@ -57,6 +57,38 @@ B2GMakefileErrorList.insert(0, {'substr': r'/bin/bash: java: command not found',
 class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
                TooltoolMixin, TransferMixin, BuildbotMixin, GaiaLocalesMixin,
                SigningMixin, MapperMixin, BalrogMixin):
+    all_actions=[
+        'clobber',
+        'checkout-sources',
+        # Deprecated
+        'checkout-gecko',
+        'download-gonk',
+        'unpack-gonk',
+        'checkout-gaia',
+        'checkout-gaia-l10n',
+        'checkout-gecko-l10n',
+        'checkout-compare-locales',
+        # End deprecated
+        'get-blobs',
+        'update-source-manifest',
+        'build',
+        'build-symbols',
+        'make-updates',
+        'build-update-testdata',
+        'prep-upload',
+        'upload',
+        'make-update-xml',
+        'upload-updates',
+        'make-socorro-json',
+        'upload-source-manifest',
+        'submit-to-balrog',
+    ]
+    default_actions=[
+        'checkout-sources',
+        'get-blobs',
+        'build',
+    ]
+
     config_options = [
         [["--repo"], {
             "dest": "repo",
@@ -128,6 +160,11 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             "action": "store_true",
             "help": "Set B2G_DEBUG=1 (debug build)",
         }],
+        [["--non-unified"], {
+            "dest": "nonunified_build",
+            "action": "store_true",
+            "help": "Set MOZ_NON_UNIFIED=1 (non-unified build)",
+        }],
         [["--repotool-repo"], {
             "dest": "repo_repo",
             "help": "where to pull repo tool source from",
@@ -142,72 +179,48 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         }],
     ]
 
-    def __init__(self, require_config_file=False):
+    def __init__(self, require_config_file=False, config={},
+                 all_actions=all_actions,
+                 default_actions=default_actions):
+                                # XXX: Remove me after all devices/branches are switched to Balrog
+                                # XXX: Remove me after all devices/branches are switched to Balrog
+        # Default configuration
+        default_config = {
+            'default_vcs': 'hgtool',
+            'vcs_share_base': os.environ.get('HG_SHARE_BASE_DIR'),
+            'ccache': True,
+            'buildbot_json_path': os.environ.get('PROPERTIES_FILE'),
+            'tooltool_servers': None,
+            'tools_repo': 'https://hg.mozilla.org/build/tools',
+            'locales_dir': 'gecko/b2g/locales',
+            'l10n_dir': 'gecko-l10n',
+            'ignore_locales': ['en-US', 'multi'],
+            'locales_file': 'gecko/b2g/locales/all-locales',
+            'mozilla_dir': 'build/gecko',
+            'objdir': 'build/objdir-gecko',
+            'merge_locales': True,
+            'compare_locales_repo': 'https://hg.mozilla.org/build/compare-locales',
+            'compare_locales_rev': 'RELEASE_AUTOMATION',
+            'compare_locales_vcs': 'hgtool',
+            'repo_repo': "https://git.mozilla.org/external/google/gerrit/git-repo.git",
+                                'repo_rev': 'stable',
+            'repo_remote_mappings': {},
+                                # XXX: Remove me after all devices/branches are switched to Balrog
+            'update_channel': 'default',
+            'balrog_credentials_file': 'oauth.txt',
+        }
+        default_config.update(config)
+
         self.gecko_config = None
         self.buildid = None
         self.dotconfig = None
         LocalesMixin.__init__(self)
         BaseScript.__init__(self,
                             config_options=self.config_options,
-                            all_actions=[
-                                'clobber',
-                                'checkout-sources',
-                                # Deprecated
-                                'checkout-gecko',
-                                'download-gonk',
-                                'unpack-gonk',
-                                'checkout-gaia',
-                                'checkout-gaia-l10n',
-                                'checkout-gecko-l10n',
-                                'checkout-compare-locales',
-                                # End deprecated
-                                'get-blobs',
-                                'update-source-manifest',
-                                'build',
-                                'build-symbols',
-                                'make-updates',
-                                'prep-upload',
-                                'upload',
-                                # XXX: Remove me after all devices/branches are switched to Balrog
-                                'make-update-xml',
-                                # XXX: Remove me after all devices/branches are switched to Balrog
-                                'upload-updates',
-                                'make-socorro-json',
-                                'upload-source-manifest',
-                                'submit-to-balrog',
-                            ],
-                            default_actions=[
-                                'checkout-sources',
-                                'get-blobs',
-                                'build',
-                            ],
                             require_config_file=require_config_file,
-
-                            # Default configuration
-                            config={
-                                'default_vcs': 'hgtool',
-                                'vcs_share_base': os.environ.get('HG_SHARE_BASE_DIR'),
-                                'ccache': True,
-                                'buildbot_json_path': os.environ.get('PROPERTIES_FILE'),
-                                'tooltool_servers': None,
-                                'tools_repo': 'https://hg.mozilla.org/build/tools',
-                                'locales_dir': 'gecko/b2g/locales',
-                                'l10n_dir': 'gecko-l10n',
-                                'ignore_locales': ['en-US', 'multi'],
-                                'locales_file': 'gecko/b2g/locales/all-locales',
-                                'mozilla_dir': 'build/gecko',
-                                'objdir': 'build/objdir-gecko',
-                                'merge_locales': True,
-                                'compare_locales_repo': 'https://hg.mozilla.org/build/compare-locales',
-                                'compare_locales_rev': 'RELEASE_AUTOMATION',
-                                'compare_locales_vcs': 'hgtool',
-                                'repo_repo': "https://git.mozilla.org/external/google/gerrit/git-repo.git",
-                                'repo_rev': 'stable',
-                                'repo_remote_mappings': {},
-                                # XXX: Remove me after all devices/branches are switched to Balrog
-                                'update_channel': 'default',
-                                'balrog_credentials_file': 'oauth.txt',
-                            },
+                            config=default_config,
+                            all_actions=all_actions,
+                            default_actions=default_actions,
                             )
 
         dirs = self.query_abs_dirs()
@@ -215,9 +228,11 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         if self.config.get("update_type", "ota") == "fota":
             self.make_updates_cmd = ['./build.sh', 'gecko-update-fota']
             self.extra_update_attrs = 'isOsUpdate="true"'
+            self.isOSUpdate = True
         else:
             self.make_updates_cmd = ['./build.sh', 'gecko-update-full']
             self.extra_update_attrs = None
+            self.isOSUpdate = False
         self.package_urls = {}
 
     def _pre_config_lock(self, rw_config):
@@ -230,23 +245,6 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         if 'target' not in self.config:
             self.fatal("Must specify --target!")
 
-        # Override target for things with weird names
-        if self.config['target'] == 'mako':
-            self.info("Using target nexus-4 instead of mako")
-            self.config['target'] = 'nexus-4'
-            if self.config.get('b2g_config_dir') is None:
-                self.config['b2g_config_dir'] = 'mako'
-        elif self.config['target'] == 'generic':
-            if self.config.get('b2g_config_dir') == 'emulator':
-                self.info("Using target emulator instead of generic")
-                self.config['target'] = 'emulator'
-            elif self.config.get('b2g_config_dir') == 'emulator-jb':
-                self.info("Using target emulator-jb instead of generic")
-                self.config['target'] = 'emulator-jb'
-            elif self.config.get('b2g_config_dir') == 'emulator-kk':
-                self.info("Using target emulator-kk instead of generic")
-                self.config['target'] = 'emulator-kk'
-
         if not (self.buildbot_config and 'properties' in self.buildbot_config) and 'repo' not in self.config:
             self.fatal("Must specify --repo")
 
@@ -257,7 +255,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
 
         c = self.config
         dirs = {
-            'src': os.path.join(c['work_dir'], 'gecko'),
+            'gecko_src': os.path.join(c['work_dir'], 'gecko'),
             'work_dir': abs_dirs['abs_work_dir'],
             'gaia_l10n_base_dir': os.path.join(abs_dirs['abs_work_dir'], 'gaia-l10n'),
             'compare_locales_dir': os.path.join(abs_dirs['abs_work_dir'], 'compare-locales'),
@@ -291,7 +289,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         dirs = self.query_abs_dirs()
         conf_file = self.query_gecko_config_path()
         if not os.path.isabs(conf_file):
-            conf_file = os.path.abspath(os.path.join(dirs['src'], conf_file))
+            conf_file = os.path.abspath(os.path.join(dirs['gecko_src'], conf_file))
 
         if os.path.exists(conf_file):
             self.info("gecko_config file: %s" % conf_file)
@@ -363,7 +361,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         dirs = self.query_abs_dirs()
         hg = self.query_exe('hg', return_type='list')
         return self.get_output_from_command(
-            hg + ['parent', '--template', '{node|short}'], cwd=dirs['src']
+            hg + ['parent', '--template', '{node|short}'], cwd=dirs['gecko_src']
         )
 
     def get_hg_commit_time(self, repo_dir, rev):
@@ -398,6 +396,8 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             return True
         if self.config['target'] in self.config['upload']['default'].get('upload_dep_target_exclusions', []):
             return False
+        if self.config.get('nonunified_build'):
+            return False
         return True
 
     def query_build_env(self):
@@ -407,7 +407,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         env = self.query_env()
         for k, v in gecko_config.get('env', {}).items():
             v = v.format(workdir=dirs['abs_work_dir'],
-                         srcdir=os.path.abspath(dirs['src']))
+                         srcdir=os.path.abspath(dirs['gecko_src']))
             env[k] = v
         if self.config.get('variant'):
             v = str(self.config['variant'])
@@ -430,6 +430,8 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         env['B2G_UPDATER'] = '1'
         if self.config.get('debug_build'):
             env['B2G_DEBUG'] = '1'
+        if self.config.get('nonunified_build'):
+            env['MOZ_NON_UNIFIED'] = '1'
         return env
 
     def query_hgweb_url(self, repo, rev, filename=None):
@@ -575,7 +577,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
 
                 # Now checkout gecko inside the build directory
                 self.checkout_gecko()
-                conf_dir = os.path.join(dirs['src'], os.path.dirname(self.query_gecko_config_path()))
+                conf_dir = os.path.join(dirs['gecko_src'], os.path.dirname(self.query_gecko_config_path()))
                 manifest_filename = os.path.join(conf_dir, 'sources.xml')
                 self.info("Using manifest at %s" % manifest_filename)
                 have_gecko = True
@@ -730,17 +732,17 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
 
         # Make sure the parent directory to gecko exists so that 'hg share ...
         # build/gecko' works
-        self.mkdir_p(os.path.dirname(dirs['src']))
+        self.mkdir_p(os.path.dirname(dirs['gecko_src']))
 
         repo = self.query_repo()
         if "checkout_revision" in self.config:
-            rev = self.vcs_checkout(repo=repo, dest=dirs['src'], revision=self.config["checkout_revision"])
+            rev = self.vcs_checkout(repo=repo, dest=dirs['gecko_src'], revision=self.config["checkout_revision"])
             # in this case, self.query_revision() will be returning the "revision" that triggered the job
             # we know that it is not a gecko revision that did so
             self.set_buildbot_property('revision', self.query_revision(), write_to_file=True)
         else:
             # a gecko revision triggered this job; self.query_revision() will return it
-            rev = self.vcs_checkout(repo=repo, dest=dirs['src'], revision=self.query_revision())
+            rev = self.vcs_checkout(repo=repo, dest=dirs['gecko_src'], revision=self.query_revision())
             self.set_buildbot_property('revision', rev, write_to_file=True)
         self.set_buildbot_property('gecko_revision', rev, write_to_file=True)
 
@@ -749,7 +751,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         gecko_config = self.load_gecko_config()
         if 'tooltool_manifest' in gecko_config:
             # The manifest is relative to the gecko config
-            config_dir = os.path.join(dirs['src'], 'b2g', 'config',
+            config_dir = os.path.join(dirs['gecko_src'], 'b2g', 'config',
                                       self.config.get('b2g_config_dir', self.config['target']))
             manifest = os.path.abspath(os.path.join(config_dir, gecko_config['tooltool_manifest']))
             self.tooltool_fetch(manifest=manifest,
@@ -929,20 +931,23 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         self.write_to_file(sourcesfile, dom.toxml(), verbose=False)
         self.run_command(["diff", "-u", sourcesfile_orig, sourcesfile], success_codes=[1])
 
+    def generate_build_command(self, target=None):
+        cmd = ['./build.sh']
+        if target is not None:
+            # Workaround bug 984061
+            if target == 'package-tests':
+                cmd.append('-j1')
+            cmd.append(target)
+        return cmd;
+
     def build(self):
         dirs = self.query_abs_dirs()
         gecko_config = self.load_gecko_config()
         build_targets = gecko_config.get('build_targets', [])
         if not build_targets:
-            cmds = ['./build.sh']
+            cmds = [self.generate_build_command()]
         else:
-            cmds = []
-            for t in build_targets:
-                # Workaround bug 984061
-                if t == 'package-tests':
-                    cmds.append(['./build.sh', '-j1', t])
-                else:
-                    cmds.append(['./build.sh', t])
+            cmds = [self.generate_build_command(t) for t in build_targets]
         env = self.query_build_env()
         if self.config.get('gaia_languages_file'):
             env['LOCALE_BASEDIR'] = dirs['gaia_l10n_base_dir']
@@ -956,30 +961,25 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             env['PYTHONPATH'] = os.environ.get('PYTHONPATH', '')
             env['PYTHONPATH'] += ':%s' % os.path.join(dirs['compare_locales_dir'], 'lib')
 
-        if 'mock_target' in gecko_config:
-            # initialize mock
+        self.enable_mock(config=gecko_config)
+        if self.active_mock_target:
             self.setup_mock(gecko_config['mock_target'], gecko_config['mock_packages'], gecko_config.get('mock_files'))
-            if self.config['ccache']:
-                self.run_mock_command(gecko_config['mock_target'], 'ccache -z', cwd=dirs['work_dir'], env=env)
 
-            for cmd in cmds:
-                retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-                if retval != 0:
-                    break
-            if self.config['ccache']:
-                self.run_mock_command(gecko_config['mock_target'], 'ccache -s', cwd=dirs['work_dir'], env=env)
-        else:
-            if self.config['ccache']:
-                self.run_command('ccache -z', cwd=dirs['work_dir'], env=env)
-            for cmd in cmds:
-                retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-                if retval != 0:
-                    break
-            if self.config['ccache']:
-                self.run_command('ccache -s', cwd=dirs['work_dir'], env=env)
+        if self.config['ccache']:
+            self.run_command('ccache -z', cwd=dirs['work_dir'], env=env)
+
+        for cmd in cmds:
+            retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+            if retval != 0:
+                break
+
+        if self.config['ccache']:
+            self.run_command('ccache -s', cwd=dirs['work_dir'], env=env)
 
         if retval != 0:
             self.fatal("failed to build", exit_code=2)
+
+        self.disable_mock()
 
         buildid = self.query_buildid()
         self.set_buildbot_property('buildid', buildid, write_to_file=True)
@@ -994,12 +994,11 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         cmd = ['./build.sh', 'buildsymbols']
         env = self.query_build_env()
 
-        if 'mock_target' in gecko_config:
-            # initialize mock
+        self.enable_mock(config=gecko_config)
+        if self.active_mock_target:
             self.setup_mock(gecko_config['mock_target'], gecko_config['mock_packages'], gecko_config.get('mock_files'))
-            retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-        else:
-            retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+
+        retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
 
         if retval != 0:
             self.fatal("failed to build symbols", exit_code=2)
@@ -1008,13 +1007,12 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             # Upload symbols
             self.info("Uploading symbols")
             cmd = ['./build.sh', 'uploadsymbols']
-            if 'mock_target' in gecko_config:
-                retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-            else:
-                retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+            retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
 
             if retval != 0:
                 self.fatal("failed to upload symbols", exit_code=2)
+
+        self.disable_mock()
 
     def make_updates(self):
         if not self.query_is_nightly():
@@ -1025,15 +1023,16 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         cmd = self.make_updates_cmd[:]
         env = self.query_build_env()
 
-        if 'mock_target' in gecko_config:
-            # initialize mock
+        self.enable_mock(config=gecko_config)
+        if self.active_mock_target:
             self.setup_mock(gecko_config['mock_target'], gecko_config['mock_packages'], gecko_config.get('mock_files'))
-            retval = self.run_mock_command(gecko_config['mock_target'], cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
-        else:
-            retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
+
+        retval = self.run_command(cmd, cwd=dirs['work_dir'], env=env, error_list=B2GMakefileErrorList)
 
         if retval != 0:
             self.fatal("failed to create complete update", exit_code=2)
+
+        self.disable_mock()
 
         # Sign the updates
         self.sign_updates()
@@ -1082,7 +1081,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
             else:
                 pattern, target = item, None
 
-            pattern = pattern.format(objdir=self.objdir, workdir=dirs['work_dir'], srcdir=dirs['src'])
+            pattern = pattern.format(objdir=self.objdir, workdir=dirs['work_dir'], srcdir=dirs['gecko_src'])
             for f in glob.glob(pattern):
                 files.append((f, target))
 
@@ -1133,7 +1132,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
 
         upload_patterns = gecko_config.get('upload_files', [])
         for base_pattern in upload_patterns + public_upload_patterns:
-            pattern = base_pattern.format(objdir=self.objdir, workdir=dirs['work_dir'], srcdir=dirs['src'])
+            pattern = base_pattern.format(objdir=self.objdir, workdir=dirs['work_dir'], srcdir=dirs['gecko_src'])
             for f in glob.glob(pattern):
                 if base_pattern in upload_patterns:
                     files.append(f)
@@ -1484,7 +1483,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         dated_application_ini = "application_%s.ini" % suffix
         dated_sources_xml = "b2g_update_source_%s.xml" % suffix
         mar_url = self.config['update']['base_url'] + dated_mar
-        update_channel = self.query_update_channel()
+        if self.query_is_nightly() and 'nightly_update_channel' in self.config:
+            update_channel = self.config['nightly_update_channel']
+        else:
+            update_channel = self.config['update_channel']
         publish_channel = self.config.get('publish_channel', update_channel)
         mar_url = mar_url.format(
             update_channel=update_channel,
@@ -1531,7 +1533,10 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         upload_dir = dirs['abs_upload_dir'] + '-updates'
         # upload dated files first to be sure that update.xml doesn't
         # point to not existing files
-        update_channel = self.query_update_channel()
+        if self.query_is_nightly() and 'nightly_update_channel' in self.config:
+            update_channel = self.config['nightly_update_channel']
+        else:
+            update_channel = self.config['update_channel']
         publish_channel = self.config.get('publish_channel', update_channel)
         if publish_channel is None:
             publish_channel = update_channel
@@ -1612,6 +1617,7 @@ class B2GBuild(LocalesMixin, MockMixin, PurgeMixin, BaseScript, VCSMixin,
         self.set_buildbot_property("completeMarSize", self.query_filesize(marfile))
         self.set_buildbot_property("completeMarHash", self.query_sha512sum(marfile))
         self.set_buildbot_property("completeMarUrl", mar_url)
+        self.set_buildbot_property("isOSUpdate", self.isOSUpdate)
 
         self.submit_balrog_updates()
 

@@ -58,6 +58,7 @@ class ScriptMixin(object):
     """
 
     env = None
+    script_obj = None
 
     # Simple filesystem commands {{{2
     def mkdir_p(self, path, error_level=ERROR):
@@ -585,10 +586,10 @@ class ScriptMixin(object):
             default = exe_name
         exe = self.config.get(exe_dict, {}).get(exe_name, default)
         repl_dict = {}
-        if hasattr(self, 'query_abs_dirs'):
+        if hasattr(self.script_obj, 'query_abs_dirs'):
             # allow for 'make': '%(abs_work_dir)s/...' etc.
-            dirs = self.query_abs_dirs()
-            repl_dict['abs_work_dir'] = dirs['abs_work_dir']
+            dirs = self.script_obj.query_abs_dirs()
+            repl_dict.update(dirs)
         if isinstance(exe, list) or isinstance(exe, tuple):
             exe = [x % repl_dict for x in exe]
         elif isinstance(exe, str):
@@ -731,7 +732,8 @@ class ScriptMixin(object):
                                 silent=False, log_level=INFO,
                                 tmpfile_base_path='tmpfile',
                                 return_type='output', save_tmpfiles=False,
-                                throw_exception=False, fatal_exit_code=2):
+                                throw_exception=False, fatal_exit_code=2,
+                                ignore_errors=False):
         """Similar to run_command, but where run_command is an
         os.system(command) analog, get_output_from_command is a `command`
         analog.
@@ -744,6 +746,10 @@ class ScriptMixin(object):
         every N seconds?
         TODO: optionally only keep the first or last (N) line(s) of output?
         TODO: optionally only return the tmp_stdout_filename?
+
+        ignore_errors=True is for the case where a command might produce standard
+        error output, but you don't particularly care; setting to True will
+        cause standard error to be logged at DEBUG rather than ERROR
         """
         if cwd:
             if not os.path.isdir(cwd):
@@ -809,16 +815,17 @@ class ScriptMixin(object):
                     self.log(' %s' % line, level=log_level)
                 output = '\n'.join(output_lines)
         if os.path.exists(tmp_stderr_filename) and os.path.getsize(tmp_stderr_filename):
-            return_level = ERROR
-            self.error("Errors received:")
+            if not ignore_errors:
+                return_level = ERROR
+            self.log("Errors received:", level=return_level)
             errors = self.read_from_file(tmp_stderr_filename,
                                          verbose=False)
             for line in errors.rstrip().splitlines():
                 if not line or line.isspace():
                     continue
                 line = line.decode("utf-8")
-                self.error(' %s' % line)
-        elif p.returncode:
+                self.log(' %s' % line, level=return_level)
+        elif p.returncode and not ignore_errors:
             return_level = ERROR
         # Clean up.
         if not save_tmpfiles:
@@ -1001,6 +1008,7 @@ class BaseScript(ScriptMixin, LogMixin, object):
         self.all_actions = tuple(rw_config.all_actions)
         self.env = None
         self.new_log_obj(default_log_level=default_log_level)
+        self.script_obj = self
 
         # Set self.config to read-only.
         #

@@ -6,12 +6,12 @@ config = {
         "hgtool.py": ["/usr/local/bin/hgtool.py"],
         "gittool.py": ["/usr/local/bin/gittool.py"],
     },
-    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-b2g28_v1_3',
-    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-b2g28_v1_3',
-    'gecko_local_dir': 'mozilla-b2g28_v1_3',
+    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-aurora',
+    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-aurora',
+    'gecko_local_dir': 'mozilla-aurora',
 
     'manifests_repo': 'https://git.mozilla.org/b2g/b2g-manifest.git',
-    'manifests_revision': 'origin/v1.3',
+    'manifests_revision': 'origin/v2.0',
 
     'hg_user': 'B2G Bumper Bot <release+b2gbumper@mozilla.com>',
     "ssh_key": "~/.ssh/ffxbld_dsa",
@@ -19,15 +19,19 @@ config = {
 
     'hgtool_base_bundle_urls': ['https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'],
 
-    'gaia_repo_url': 'https://hg.mozilla.org/integration/gaia-1_3',
+    'gaia_repo_url': 'https://hg.mozilla.org/integration/gaia-2_0',
     'gaia_revision_file': 'b2g/config/gaia.json',
     'gaia_max_revisions': 5,
     # Which git branch this hg repo corresponds to
-    'gaia_git_branch': 'v1.3',
+    'gaia_git_branch': 'v2.0',
     'gaia_mapper_project': 'gaia',
     'mapper_url': 'http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}',
 
     'devices': {
+        'emulator-kk': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'emulator-jb': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -43,6 +47,10 @@ config = {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
             'manifest_file': 'emulator.xml',
+        },
+        'flame': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
         },
         'hamachi': {
             'ignore_projects': ['gecko'],

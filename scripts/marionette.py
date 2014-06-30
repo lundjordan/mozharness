@@ -141,10 +141,10 @@ class MarionetteTest(TestingMixin, TooltoolMixin,
     error_list = [
         {'substr': 'FAILED (errors=', 'level': WARNING},
         {'substr': r'''Could not successfully complete transport of message to Gecko, socket closed''', 'level': ERROR},
-        {'substr': r'''Could not communicate with Marionette server. Is the Gecko process still running''', 'level': ERROR},
         {'substr': r'''Connection to Marionette server is lost. Check gecko''', 'level': ERROR},
         {'substr': 'Timeout waiting for marionette on port', 'level': ERROR},
-        {'regex': re.compile(r'''(Timeout|NoSuchAttribute|Javascript|NoSuchElement|XPathLookup|NoSuchWindow|StaleElement|ScriptTimeout|ElementNotVisible|NoSuchFrame|InvalidElementState|NoAlertPresent|InvalidCookieDomain|UnableToSetCookie|InvalidSelector|MoveTargetOutOfBounds)Exception'''), 'level': ERROR},
+        {'regex': re.compile(r'''(TEST-UNEXPECTED|PROCESS-CRASH)'''), 'level': ERROR},
+        {'regex': re.compile(r'''(\b((?!Marionette|TestMarionette|NoSuchElement|XPathLookup|NoSuchWindow|StaleElement|ScriptTimeout|ElementNotVisible|NoSuchFrame|InvalidResponse|Javascript|Timeout|InvalidElementState|NoAlertPresent|InvalidCookieDomain|UnableToSetCookie|InvalidSelector|MoveTargetOutOfBounds)\w*)Exception)'''), 'level': ERROR},
     ]
 
     repos = []
@@ -362,10 +362,15 @@ class MarionetteTest(TestingMixin, TooltoolMixin,
 
         if self.config.get('gaiatest'):
             # make the gaia profile
+            build_config = os.path.join(dirs['abs_gaia_dir'], 'tests',
+                                        'python', 'gaia-ui-tests',
+                                        'build_config.json')
+
             self.make_gaia(dirs['abs_gaia_dir'],
                            self.config.get('xre_path'),
                            debug=False,
-                           noftu=False)
+                           noftu=False,
+                           build_config_path=build_config)
 
         # build the marionette command arguments
         python = self.query_python_path('python')

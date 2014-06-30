@@ -64,20 +64,7 @@ config = {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },
-        'leo': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
-        'mako': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-            'manifest_file': 'nexus-4.xml',
-        },
         'nexus-4': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
-        'inari': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },
@@ -93,12 +80,14 @@ config = {
         'git://github.com/mozilla/': 'https://git.mozilla.org/b2g',
         'https://git.mozilla.org/releases': 'https://git.mozilla.org/releases',
         'http://android.git.linaro.org/git-ro/': 'https://git.mozilla.org/external/linaro',
+        'http://sprdsource.spreadtrum.com:8085/b2g/android': 'https://git.mozilla.org/external/sprd-aosp',
         'git://github.com/apitrace/': 'https://git.mozilla.org/external/apitrace',
+        'git://github.com/t2m-foxfone/': 'https://git.mozilla.org/external/t2m-foxfone',
         # Some mappings to ourself, we want to leave these as-is!
         'https://git.mozilla.org/external/aosp': 'https://git.mozilla.org/external/aosp',
         'https://git.mozilla.org/external/caf': 'https://git.mozilla.org/external/caf',
         'https://git.mozilla.org/b2g': 'https://git.mozilla.org/b2g',
         'https://git.mozilla.org/external/apitrace': 'https://git.mozilla.org/external/apitrace',
-        'http://sprdsource.spreadtrum.com:8085/b2g/android': 'https://git.mozilla.org/external/sprd-aosp',
+        'https://git.mozilla.org/external/t2m-foxfone': 'https://git.mozilla.org/external/t2m-foxfone',
     },
 }

@@ -2,21 +2,24 @@ HG_SHARE_BASE_DIR = "/builds/hg-shared"
 
 PYTHON_DIR = "/tools/python27"
 SRCDIR = "source"
-ANALYSIS_SCRIPTDIR = SRCDIR + "/js/src/devtools/rootAnalysis"
 
 config = {
-    "log_name": "spidermonkey",
+    "log_name": "hazards",
     "shell-objdir": "obj-opt-js",
     "analysis-dir": "analysis",
     "analysis-objdir": "obj-analyzed",
     "srcdir": SRCDIR,
+    "analysis-scriptdir": "js/src/devtools/rootAnalysis",
 
-    "sixgill": SRCDIR + "/sixgill/usr/libexec/sixgill",
-    "sixgill_bin": SRCDIR + "/sixgill/usr/bin",
+    # These paths are relative to the tooltool checkout location
+    "sixgill": "sixgill/usr/libexec/sixgill",
+    "sixgill_bin": "sixgill/usr/bin",
+
     "python": PYTHON_DIR + "/bin/python2.7",
 
     "exes": {
-        'hgtool.py': 'tools/buildfarm/utils/hgtool.py',
+        'hgtool.py': '%(abs_tools_dir)s/buildfarm/utils/hgtool.py',
+        'gittool.py': '%(abs_tools_dir)s/buildfarm/utils/gittool.py',
         'tooltool.py': '/tools/tooltool.py',
     },
 
@@ -33,9 +36,10 @@ config = {
     "upload_remote_baseuri": 'https://ftp-ssl.mozilla.org/',
 
     'tools_dir': "/tools",
-    'compiler_manifest': ANALYSIS_SCRIPTDIR + "/build/gcc.manifest",
+    'compiler_manifest': "build/gcc.manifest",
+    'b2g_compiler_manifest': "build/gcc-b2g.manifest",
     'compiler_setup': "setup.sh.gcc",
-    'sixgill_manifest': ANALYSIS_SCRIPTDIR + "/build/sixgill.manifest",
+    'sixgill_manifest': "build/sixgill.manifest",
     'sixgill_setup': "setup.sh.sixgill",
 
     # Mock.
@@ -75,8 +79,8 @@ config = {
     ],
     "env_replacements": {
         "pythondir": PYTHON_DIR,
-        "gccdir": "%(abs_work_dir)s/" + SRCDIR + "/gcc",
-        "sixgilldir": "%(abs_work_dir)s/" + SRCDIR + "/sixgill",
+        "gccdir": "%(abs_work_dir)s/gcc",
+        "sixgilldir": "%(abs_work_dir)s/sixgill",
     },
     "partial_env": {
         "PATH": "%(pythondir)s/bin:%(gccdir)s/bin:%(PATH)s",

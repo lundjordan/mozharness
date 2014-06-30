@@ -2,6 +2,7 @@
 Module for performing gaia-specific tasks
 """
 
+import json
 import os
 
 from mozharness.base.errors import HgErrorList, BaseErrorList
@@ -103,13 +104,9 @@ class GaiaMixin(object):
                              fatal_exit_code=3)
 
             # verify
-            cmd = [git_cmd]
-            if revision:
-                cmd += ['log', '-1']
-            else:
-                cmd += ['branch']
-            self.run_command(cmd, cwd=dest, halt_on_failure=True,
-                             fatal_exit_code=3)
+            for cmd in ([git_cmd, 'log', '-1'], [git_cmd, 'branch']):
+                self.run_command(cmd, cwd=dest, halt_on_failure=True,
+                                 fatal_exit_code=3)
 
         else:
             # purge the repo if it already exists
@@ -135,17 +132,35 @@ class GaiaMixin(object):
 
             self.vcs_checkout_repos([repo], parent_dir=os.path.dirname(dest))
 
-    def make_gaia(self, gaia_dir, xre_dir, debug=False, noftu=True):
-        make = self.query_exe('make', return_type="list")
-        self.run_command(make,
+    def make_gaia(self, gaia_dir, xre_dir, debug=False, noftu=True,
+                  build_config_path=None):
+        env = {'DEBUG': '1' if debug else '0',
+               'NOFTU': '1' if noftu else '0',
+               'DESKTOP': '0',
+               'DESKTOP_SHIMS': '1',
+               'USE_LOCAL_XULRUNNER_SDK': '1',
+               'XULRUNNER_DIRECTORY': xre_dir
+              }
+
+        # if tbpl_build_config.json exists, load it
+        if build_config_path:
+            if os.path.exists(build_config_path):
+                with self.opened(build_config_path) as (f, err):
+                    if err:
+                        self.fatal("Error while reading %s, aborting" %
+                                   build_config_path)
+                    else:
+                        contents = f.read()
+                        config = json.loads(contents)
+                        env.update(config.get('env', {}))
+
+        self.info('Sending environment as make vars because of bug 1028816')
+
+        cmd = self.query_exe('make', return_type="list")
+        for key, value in env.iteritems():
+            cmd.append('%s=%s' % (key, value))
+        self.run_command(cmd,
                          cwd=gaia_dir,
-                         env={'DEBUG': '1' if debug else '0',
-                              'NOFTU': '1' if noftu else '0',
-                              'DESKTOP': '0',
-                              'DESKTOP_SHIMS': '1',
-                              'USE_LOCAL_XULRUNNER_SDK': '1',
-                              'XULRUNNER_DIRECTORY': xre_dir
-                              },
                          halt_on_failure=True)
 
     def make_node_modules(self):

@@ -1,3 +1,5 @@
+import os
+
 MOZ_OBJDIR = 'obj-firefox'
 
 config = {
@@ -15,6 +17,7 @@ config = {
     'enable_signing': False,
     #### 32 bit build specific #####
     'env': {
+        'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
         'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',

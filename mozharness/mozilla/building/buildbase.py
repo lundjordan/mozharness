@@ -750,6 +750,13 @@ or run without that action (ie: --no-{action})"
                              cwd=dirs['abs_src_dir'],
                              env=env)
 
+    def _ccache_s(self):
+        """print ccache stats. only done for unix like platforms"""
+        dirs = self.query_abs_dirs()
+        env = self.query_build_env()
+        cmd = ['ccache', '-s']
+        self.run_command(cmd, cwd=dirs['abs_src_dir'], env=env)
+
     def _rm_old_package(self):
         """rm the old package."""
         c = self.config
@@ -1085,6 +1092,8 @@ or run without that action (ie: --no-{action})"
                        "Path does not exist: %s" % mach_properties_path)
         # now set the additional properties that mach did not set...
         self._generate_build_props()
+        if self.config.get('enable_ccache'):
+            self._ccache_s()
 
     def generate_build_stats(self):
         """grab build stats following a compile.

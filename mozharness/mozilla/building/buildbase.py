@@ -642,9 +642,6 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
 
-        if c.get('sendchange_master'):
-            env['SENDCHANGE_MASTER'] = c['sendchange_master']
-
         # we can't make env an attribute of self because env can change on
         # every call for reasons like MOZ_SIGN_CMD
         return env

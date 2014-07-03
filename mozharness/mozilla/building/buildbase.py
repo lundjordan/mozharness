@@ -608,10 +608,8 @@ or run without that action (ie: --no-{action})"
         self.info("Skipping......")
         return
 
-    def query_build_env(self, skip_keys=None, replace_dict=None, **kwargs):
+    def query_build_env(self, replace_dict=None, **kwargs):
         c = self.config
-        if skip_keys is None:
-            skip_keys = []
 
         if not replace_dict:
             replace_dict = {}
@@ -640,16 +638,9 @@ or run without that action (ie: --no-{action})"
         if self.config.get('pgo_build'):
             env['IS_PGO'] = '1'
 
-        if c.get('enable_signing') and 'MOZ_SIGN_CMD' not in skip_keys:
+        if c.get('enable_signing'):
             moz_sign_cmd = self.query_moz_sign_cmd()
             env["MOZ_SIGN_CMD"] = subprocess.list2cmdline(moz_sign_cmd)
-        else:
-            # so SigningScriptFactory (what calls mozharness script
-            # from buildbot) assigns  MOZ_SIGN_CMD but does so incorrectly
-            # for desktop builds. Also, sometimes like for make l10n check,
-            # we don't actually want it in the env
-            if env.get("MOZ_SIGN_CMD"):
-                del env["MOZ_SIGN_CMD"]
 
         if c.get('sendchange_master'):
             env['SENDCHANGE_MASTER'] = c['sendchange_master']
@@ -1122,6 +1113,64 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("Nothing to do for this action since ctors and vsize "
                       "counts are disabled for this build.")
+
+
+    def sendchanges(self):
+        c = self.config
+
+        installer_url = self.query_buildbot_property('packageUrl')
+        tests_url = self.query_buildbot_property('testsUrl')
+        sendchange_props = {
+            'buildid': self.query_buildid(),
+            'builduid': self.query_builduid(),
+            'nightly_build': self.query_is_nightly(),
+            'pgo_build': c.get('pgo_build', False),
+        }
+        # TODO insert check for uploadMulti factory 2526
+        # if not self.uploadMulti when we introduce a platform/build that uses
+        # uploadMulti
+
+        if c.get('enable_talos_sendchange'):
+            if c.get('pgo_build'):
+                build_type = 'pgo-'
+            else:  # we don't do talos sendchange for debug so no need to check
+                build_type = ''  # leave 'opt' out of branch for talos
+            talos_branch = "%s-%s-%s%s" % (self.branch,
+                                           self.stage_platform,
+                                           build_type,
+                                           'talos')
+            self.sendchange(downloadables=[installer_url],
+                            branch=talos_branch,
+                            username='sendchange',
+                            sendchange_props=sendchange_props)
+
+        if c.get('enable_unittest_sendchange'):
+            # do unittest sendchange
+
+            # we need a way to make opt builds use pgo branch sendchanges.
+            # if the branch supports per_checkin and this platform is in
+            # pgo platforms (see branch_specifics.py), use pgo instead of opt.
+            override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
+                                   c.get('branch_uses_per_checkin_strategy'))
+            if c.get('debug_build'):
+                build_type = ''  # for debug builds we append nothing
+            elif c.get('pgo_build') or override_opt_branch:
+                build_type = '-pgo'
+            else:  # generic opt build
+                build_type = '-opt'
+
+            if c.get('unittest_platform'):
+                platform = c['unittest_platform']
+            else:
+                platform = self.stage_platform
+
+            platform_and_build_type = "%s%s" % (platform, build_type)
+            unittest_branch = "%s-%s-%s" % (self.branch,
+                                            platform_and_build_type,
+                                            'unittest')
+            self.sendchange(downloadables=[installer_url, tests_url],
+                            branch=unittest_branch,
+                            sendchange_props=sendchange_props)
 
     def update(self):
         """ submit balrog update steps. """

@@ -14,6 +14,8 @@ config = {
     'debug_build': True,
     'stage_platform': 'linux64-debug-nonunified',
     'enable_signing': False,
+    'enable_talos_sendchange': False,
+    'enable_unittest_sendchange': False,
     #### 64 bit build specific #####
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
@@ -33,7 +35,7 @@ config = {
 /tools/python27-mercurial/bin:/home/cltbld/bin',
         'LD_LIBRARY_PATH': '/tools/gcc-4.3.3/installed/lib64:\
 %s/dist/bin' % (MOZ_OBJDIR,),
-        },
+    },
     'src_mozconfig': 'browser/config/mozconfigs/linux64/debug-nonunified',
     #######################
 }

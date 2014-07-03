@@ -17,6 +17,7 @@ config = {
 asan.manifest",
     'platform_supports_post_upload_to_latest': False,
     'enable_signing': False,
+    'enable_talos_sendchange': False,
     #### 64 bit build specific #####
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),

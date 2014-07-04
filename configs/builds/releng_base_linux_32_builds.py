@@ -23,7 +23,6 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
-        'python': sys.executable,
         'hgtool.py': os.path.join(
             os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),
@@ -100,7 +99,7 @@ config = {
     },
     'purge_minsize': 12,
     'mock_packages': [
-        'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',
+        'autoconf213', 'python', 'mozilla-python27', 'zip', 'mozilla-python27-mercurial',
         'git', 'ccache', 'perl-Test-Simple', 'perl-Config-General',
         'yasm', 'wget',
         'mpfr',  # required for system compiler

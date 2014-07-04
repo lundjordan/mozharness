@@ -19,7 +19,7 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
-        'python': sys.executable,
+        'python2.7': sys.executable,
         'hgtool.py': os.path.join(
             os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),

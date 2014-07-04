@@ -1172,7 +1172,7 @@ or run without that action (ie: --no-{action})"
         self.copyfile(os.path.join(dirs['base_work_dir'], 'buildprops.json'),
                       os.path.join(dirs['abs_work_dir'], 'buildprops.json'))
 
-        python = self.query_exe('python')
+        python = self.query_exe('python2.7')
         self.return_code = self.run_command_m(
             command=[python, 'mach', 'build'], cwd=self.query_abs_dirs()[
                 'abs_src_dir'],

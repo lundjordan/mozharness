@@ -661,6 +661,36 @@ or run without that action (ie: --no-{action})"
 
         return upload_env
 
+    def query_check_test_env(self):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        check_test_env = {}
+        if c.get('check_test_env'):
+            for env_var, env_value in c['check_test_env'].iteritems():
+                check_test_env[env_var] = env_value % dirs
+        return check_test_env
+
+    def _query_moz_symbols_buildid(self):
+        # this is a bit confusing but every platform that make
+        # uploadsymbols may or may not include a
+        # MOZ_SYMBOLS_EXTRA_BUILDID in the env and the value of this
+        # varies.
+        # logic goes:
+        #   If it's the release branch, we only include it for
+        # 64bit platforms and we use just the platform as value.
+        #   If it's a project branch off m-c, we include only the branch
+        # for the value on 32 bit platforms and we include both the
+        # platform and branch for 64 bit platforms
+        c = self.config
+        moz_symbols_extra_buildid = ''
+        if c.get('use_platform_in_symbols_extra_buildid'):
+            moz_symbols_extra_buildid += self.stage_platform
+        if c.get('use_branch_in_symbols_extra_buildid'):
+            if moz_symbols_extra_buildid:
+                moz_symbols_extra_buildid += '-%s' % (self.branch,)
+            else:
+                moz_symbols_extra_buildid = self.branch
+        return moz_symbols_extra_buildid
 
     def _query_who(self):
         """ looks for who triggered the build with a change.
@@ -1055,6 +1085,11 @@ or run without that action (ie: --no-{action})"
         """builds application."""
         env = self.query_build_env()
         env.update(self.query_build_upload_env())
+        env.update(self.query_check_test_env())
+        symbols_extra_buildid = self._query_moz_symbols_buildid()
+        if symbols_extra_buildid:
+            env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid
+
         self.return_code = self.run_command_m(
             command=['./mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
             env=env
@@ -1110,7 +1145,6 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("Nothing to do for this action since ctors and vsize "
                       "counts are disabled for this build.")
-
 
     def sendchanges(self):
         c = self.config

@@ -58,6 +58,7 @@ config = {
     'platform': 'linux64',
     'stage_platform': 'linux64',
     'enable_max_vsize': False,
+    'use_platform_in_symbols_extra_buildid': True,
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
@@ -91,6 +92,10 @@ config = {
         'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
         'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
+    },
+    "check_test_env": {
+        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux64/minidump_stackwalk',
+        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
     },
     'purge_minsize': 14,
     'mock_packages': [

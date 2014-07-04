@@ -91,6 +91,10 @@ config = {
         'UPLOAD_TO_TEMP': '1',
         'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
     },
+    "check_test_env": {
+        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',
+        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
+    },
     'purge_minsize': 12,
     'mock_packages': [
         'autoconf213', 'python', 'zip', 'mozilla-python27-mercurial',

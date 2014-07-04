@@ -34,6 +34,7 @@ config = {
         "update_channel": "nightly",
         "repo_path": 'mozilla-central',
         "graph_server_branch_name": "Firefox",
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-release': {
         'repo_path': 'releases/mozilla-release',
@@ -41,6 +42,7 @@ config = {
         # nightlies for mozilla-release
         'update_channel': 'release',
         'branch_uses_per_checkin_strategy': True,
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-beta': {
         'repo_path': 'releases/mozilla-beta',
@@ -48,22 +50,27 @@ config = {
         # nightlies for mozilla-beta
         'update_channel': 'beta',
         'branch_uses_per_checkin_strategy': True,
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-aurora': {
         'repo_path': 'releases/mozilla-aurora',
         'update_channel': 'aurora',
         'branch_uses_per_checkin_strategy': True,
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-esr24': {
         'repo_path': 'releases/mozilla-esr24',
         'update_channel': 'nightly-esr24',
         'branch_uses_per_checkin_strategy': True,
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-b2g28_v1_3': {
         'repo_path': 'releases/mozilla-b2g28_v1_3',
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'mozilla-b2g28_v1_3t': {
         'repo_path': 'releases/mozilla-b2g28_v1_3t',
+        'use_branch_in_symbols_extra_buildid': False,
     },
     'try': {
         'repo_path': 'try',
@@ -80,6 +87,7 @@ config = {
             'UPLOAD_TO_TEMP': '1',
             'UPLOAD_SSH_KEY': '~/.ssh/%s' % ("trybld_dsa",),
         },
+        'use_branch_in_symbols_extra_buildid': False,
     },
 
     ### project branches

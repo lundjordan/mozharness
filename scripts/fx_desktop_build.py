@@ -69,6 +69,7 @@ class FxDesktopBuild(BuildScript, object):
                 ],
                 'stage_product': 'firefox',
                 'platform_supports_post_upload_to_latest': True,
+                'use_branch_in_symbols_extra_buildid': True,
             },
             'ConfigClass': BuildingConfig,
         }

@@ -77,7 +77,7 @@ config = {
         'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
         'SYMBOL_SERVER_SSH_KEY': '/c/Users/cltbld/.ssh/ffxbld_dsa',
         'SYMBOL_SERVER_USER': 'ffxbld',
-        'TINDERBOX_OUTPUT': '1'
+        'TINDERBOX_OUTPUT': '1',
     },
     'upload_env': {
         # UPLOAD_HOST is set to stage_server
@@ -85,6 +85,10 @@ config = {
         'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
         'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
+    },
+    "check_test_env": {
+        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/win32/minidump_stackwalk.exe',
+        'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
     },
     'purge_minsize': 12,
     'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',

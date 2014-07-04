@@ -1161,8 +1161,10 @@ or run without that action (ie: --no-{action})"
         if symbols_extra_buildid:
             env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid
 
+        python = self.query_exe('python')
         self.return_code = self.run_command_m(
-            command=['./mach', 'build'], cwd=self.query_abs_dirs()['abs_src_dir'],
+            command=[python, 'mach', 'build'], cwd=self.query_abs_dirs()[
+                'abs_src_dir'],
             env=env
         )
 

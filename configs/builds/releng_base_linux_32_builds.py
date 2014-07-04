@@ -1,4 +1,5 @@
 import os
+import sys
 
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_dsa'
@@ -22,6 +23,7 @@ config = {
     ],
     "buildbot_json_path": "buildprops.json",
     'exes': {
+        'python': sys.executable,
         'hgtool.py': os.path.join(
             os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),

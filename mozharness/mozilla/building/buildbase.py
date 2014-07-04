@@ -1161,6 +1161,11 @@ or run without that action (ie: --no-{action})"
         if symbols_extra_buildid:
             env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid
 
+        # XXX HACK DO NOT COMMIT
+        dirs = self.query_abs_dirs()
+        self.copyfile(os.path.join(dirs['base_work_dir'], 'buildprops.json'),
+                      os.path.join(dirs['abs_work_dir'], 'buildprops.json'))
+
         python = self.query_exe('python')
         self.return_code = self.run_command_m(
             command=[python, 'mach', 'build'], cwd=self.query_abs_dirs()[

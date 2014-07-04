@@ -1151,6 +1151,12 @@ or run without that action (ie: --no-{action})"
         self._get_mozconfig()
         self._run_tooltool()
         self._create_mozbuild_dir()
+        mach_props = os.path.join(
+            self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
+        )
+        if os.path.exists(mach_props):
+            self.info("Removing previous mach property file: %s" % mach_props)
+            self.rmtree(mach_props)
 
     def build(self):
         """builds application."""

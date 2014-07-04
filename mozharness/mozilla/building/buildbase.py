@@ -24,12 +24,13 @@ from itertools import chain
 # import the power of mozharness ;)
 import sys
 from datetime import datetime
+import re
 from mozharness.base.config import BaseConfig, parse_config_file
-from mozharness.base.log import ERROR
+from mozharness.base.log import ERROR, OutputParser
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
-    TBPL_EXCEPTION
+    TBPL_EXCEPTION, TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE, TBPL_RETRY
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
@@ -52,6 +53,76 @@ determined. Please make sure it is a valid path off of "abs_src_dir"',
 Skipping run_tooltool...',
 }
 ERROR_MSGS.update(MOCK_ERROR_MSGS)
+
+
+### Output Parsers
+
+TBPL_UPLOAD_ERRORS = [
+    {
+        'regex': re.compile("Connection timed out"),
+        'level': TBPL_RETRY,
+    },
+    {
+        'regex': re.compile("Connection reset by peer"),
+        'level': TBPL_RETRY,
+    },
+    {
+        'regex': re.compile("Connection refused"),
+        'level': TBPL_RETRY,
+    }
+]
+
+class MakeUploadOutputParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+    # let's create a switch case using name-spaces/dict
+    # rather than a long if/else with duplicate code
+    property_conditions = [
+        # key: property name, value: condition
+        ('symbolsUrl', "m.endswith('crashreporter-symbols.zip') or "
+                       "m.endswith('crashreporter-symbols-full.zip')"),
+        ('testsUrl', "m.endswith(('tests.tar.bz2', 'tests.zip'))"),
+        ('unsignedApkUrl', "m.endswith('apk') and "
+                           "'unsigned-unaligned' in m"),
+        ('robocopApkUrl', "m.endswith('apk') and 'robocop' in m"),
+        ('jsshellUrl', "'jsshell-' in m and m.endswith('.zip')"),
+        ('partialMarUrl', "m.endswith('.mar') and '.partial.' in m"),
+        ('completeMarUrl', "m.endswith('.mar')"),
+    ]
+
+    def __init__(self, **kwargs):
+        super(MakeUploadOutputParser, self).__init__(**kwargs)
+        self.matches = {}
+        self.tbpl_status = TBPL_SUCCESS
+
+    def parse_single_line(self, line):
+        prop_assigned = False
+        pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+        m = re.compile(pat).match(line)
+        if m:
+            m = m.group(1)
+            for prop, condition in self.property_conditions:
+                if eval(condition):
+                    self.matches[prop] = m
+                    prop_assigned = True
+                    break
+            if not prop_assigned:
+                # if we found a match but haven't identified the prop then this
+                # is the packageURL. Let's consider this the else block
+                self.matches['packageUrl'] = m
+
+        # now let's check for retry errors which will give log levels:
+        # tbpl status as RETRY and mozharness status as WARNING
+        for error_check in self.tbpl_error_list:
+            if error_check['regex'].search(line):
+                self.num_warnings += 1
+                self.warning(line)
+                self.tbpl_status = self.worst_level(
+                    error_check['level'], self.tbpl_status,
+                    levels=TBPL_WORST_LEVEL_TUPLE
+                )
+                break
+        else:
+            self.info(line)
 
 
 class BuildingConfig(BaseConfig):
@@ -532,7 +603,7 @@ or run without that action (ie: --no-{action})"
         if self.builduid:
             if c.get('is_automation') and not in_buildbot_props:
                 self.set_buildbot_property('builduid',
-                                           self.buildid,
+                                           self.builduid,
                                            write_to_file=True)
         else:
             # something went horribly wrong

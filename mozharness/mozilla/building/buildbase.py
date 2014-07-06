@@ -30,13 +30,16 @@ from mozharness.base.log import ERROR, OutputParser
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
-    TBPL_EXCEPTION, TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE, TBPL_RETRY
+    TBPL_EXCEPTION, TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE, TBPL_RETRY, \
+    EXIT_STATUS_DICT
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
-from mozharness.mozilla.buildbot import TBPL_FAILURE
 from mozharness.mozilla.updates.balrog import BalrogMixin
+
+AUTOMATION_EXIT_CODES = EXIT_STATUS_DICT.values()
+AUTOMATION_EXIT_CODES.sort()
 
 MISSING_CFG_KEY_MSG = "The key '%s' could not be determined \
 Please add this to your config."
@@ -1295,31 +1298,29 @@ or run without that action (ie: --no-{action})"
             return
 
         if not self.config.get("balrog_api_root"):
-            self.info("balrog_api_root not set; skipping balrog submission.")
+            self.fatal("balrog_api_root not set; skipping balrog submission.")
             return
 
         if c['balrog_api_root']:
-            return_code = self.submit_balrog_updates()
-            if return_code:
-                self.worst_buildbot_status = self.worst_level(
-                    TBPL_EXCEPTION, self.worst_buildbot_status, TBPL_STATUS_DICT
-                )
+            self.submit_balrog_updates()
 
     def _post_fatal(self, message=None, exit_code=None):
-        # until this script has more defined return_codes, let's make sure
-        # that we at least set the return_code to a failure for things like
-        # _summarize()
-        self.return_code = 2
+        if not self.return_code:  # only overwrite return_code if it's 0
+            self.error('setting return code to 2 because fatal was called')
+            self.return_code = 2
 
     @PostScriptRun
     def _summarize(self):
-        if self.return_code != 0:
-            # TODO this will need some work. Once we define various return
-            # codes and correlate tbpl levels against it, we can have more
-            # definitions for tbpl status
-            # bug 985068 should lay the plumbing down for this work
-            self.worst_buildbot_status = self.worst_level(
-                TBPL_FAILURE, self.worst_buildbot_status, TBPL_STATUS_DICT
-            )
-        self.buildbot_status(self.worst_buildbot_status)
+        """ If this is run in automation, ensure the return code is valid and
+        set it to one if it's not. Finally, log any summaries we collected
+        from the script run.
+        """
+        if self.config.get("is_automation"):
+            if self.return_code not in AUTOMATION_EXIT_CODES:
+                self.error(
+                    "Return code of this script is set to: %s and is outside "
+                    "of automation's known exit values. Setting to 2 (failure)."
+                    "Valid values %s" % (self.return_code, AUTOMATION_EXIT_CODES)
+                )
+                self.return_code = 2
         self.summary()

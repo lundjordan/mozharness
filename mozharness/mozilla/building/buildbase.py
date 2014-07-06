@@ -1319,11 +1319,10 @@ or run without that action (ie: --no-{action})"
             # let's ignore all mention of buildbot/tbpl status until this
             # point so it will be easier to manage
             if self.return_code not in AUTOMATION_EXIT_CODES:
-                self.error(
-                    "Return code of this script is set to: %s and is outside "
-                    "of automation's known exit values. Setting to 2 (failure)."
-                    "Valid values %s" % (self.return_code, AUTOMATION_EXIT_CODES)
-                )
+                self.error("Return code is set to: %s and is outside of "
+                           "automation's known values. Setting to 2(failure). "
+                           "Valid return codes %s" % (self.return_code,
+                                                      AUTOMATION_EXIT_CODES))
                 self.return_code = 2
             for status, return_code in EXIT_STATUS_DICT.iteritems():
                 if return_code == self.return_code:

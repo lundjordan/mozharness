@@ -42,6 +42,4 @@ class BalrogMixin(object):
             self.run_command, args=(cmd,),
         )
         if return_code not in [0]:
-            self.add_summary('Balrog failed with return code: %s' % return_code,
-                             level=ERROR)
             self.return_code = 3

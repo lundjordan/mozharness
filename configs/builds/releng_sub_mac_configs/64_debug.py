@@ -12,27 +12,16 @@ config = {
         # 'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
-    'stage_platform': 'linux64-asan',
-    'purge_minsize': 12,
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
-asan.manifest",
-    'platform_supports_post_upload_to_latest': False,
+    'stage_platform': 'macosx64-debug',
+    'debug_build': True,
     'enable_signing': False,
     'enable_talos_sendchange': False,
-    'enable_count_ctors': False,
     #### 64 bit build specific #####
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
-        'DISPLAY': ':2',
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',
-        # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
-        'SYMBOL_SERVER_HOST': "%(symbol_server_host)s",
-        'SYMBOL_SERVER_USER': 'ffxbld',
-        'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
-        'SYMBOL_SERVER_SSH_KEY': "/home/mock_mozilla/.ssh/ffxbld_dsa",
-        'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
         'TINDERBOX_OUTPUT': '1',
         'TOOLTOOL_CACHE': '/builds/tooltool_cache',
         'TOOLTOOL_HOME': '/builds',
@@ -41,11 +30,13 @@ asan.manifest",
         'CCACHE_COMPRESS': '1',
         'CCACHE_UMASK': '002',
         'LC_ALL': 'C',
+        'XPCOM_DEBUG_BREAK': 'stack-and-abort',
         ## 64 bit specific
-        'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:\
-/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:\
-/tools/python27-mercurial/bin:/home/cltbld/bin',
+        'PATH': '/tools/python/bin:/tools/buildbot/bin:/opt/local/bin:/usr/bin:'
+                '/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin',
+        ##
     },
-    'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly-asan',
+    'src_mozconfig': 'browser/config/mozconfigs/macosx64/debug',
+    'purge_minsize': 10,
     #######################
 }

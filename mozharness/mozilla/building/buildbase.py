@@ -240,6 +240,7 @@ class BuildOptionParser(object):
         'non-unified': 'builds/releng_sub_%s_configs/%s_non_unified.py',
         'debug-and-non-unified':
                 'builds/releng_sub_%s_configs/%s_debug_and_non_unified.py',
+        'mulet': 'builds/releng_sub_%s_configs/%s_mulet.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -1215,7 +1216,7 @@ or run without that action (ie: --no-{action})"
         c = self.config
         # enable_max_vsize will be True for builds like pgo win32 builds
         enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
-        if not enable_max_vsize or c.get('enable_count_ctors'):
+        if enable_max_vsize or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self.info("counting ctors...")
                 self._count_ctors()

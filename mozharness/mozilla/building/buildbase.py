@@ -714,7 +714,9 @@ or run without that action (ie: --no-{action})"
             env['IS_PGO'] = '1'
 
         if c.get('enable_signing'):
-            moz_sign_cmd = subprocess.list2cmdline(self.query_moz_sign_cmd())
+            moz_sign_cmd = subprocess.list2cmdline(
+                self.query_moz_sign_cmd(formats=None)
+            )
             # windows fix
             env['MOZ_SIGN_CMD'] = moz_sign_cmd.replace('\\', '\\\\\\\\')
 

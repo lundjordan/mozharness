@@ -44,7 +44,7 @@ config = {
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
     'enable_ccache': True,
-    # 'vcs_share_base': '/builds/hg-shared',
+    'vcs_share_base': '/builds/hg-shared',
     'objdir': 'obj-firefox',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",

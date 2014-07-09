@@ -44,7 +44,7 @@ config = {
     'purge_skip': ['info', 'rel-*:45d', 'tb-rel-*:45d'],
     'purge_basedirs':  [],
     'enable_ccache': False,
-    # 'vcs_share_base': 'C:/builds/hg-shared',
+    'vcs_share_base': 'C:/builds/hg-shared',
     'objdir': 'obj-firefox',
     'tooltool_script': [sys.executable,
                         'C:/mozilla-build/tooltool.py'],

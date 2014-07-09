@@ -44,7 +44,7 @@ config = {
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
     'enable_ccache': True,
-    # 'vcs_share_base': '/builds/hg-shared',
+    'vcs_share_base': '/builds/hg-shared',
     'objdir': 'obj-firefox',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
@@ -64,7 +64,7 @@ config = {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
         'DISPLAY': ':2',
-        # 'HG_SHARE_BASE_DIR': '/builds/hg-shared',
+        'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',
         # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
         'SYMBOL_SERVER_HOST': "%(symbol_server_host)s",

@@ -2,7 +2,7 @@ config = {
     'default_actions': [
         'clobber',
         'clone-tools',
-        'setup-mock',
+        # 'setup-mock',
         'build',
         # 'sendchanges',
         'generate-build-stats',

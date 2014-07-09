@@ -16,6 +16,7 @@ config = {
     'stage_platform': 'macosx64-debug-nonunified',
     'enable_talos_sendchange': False,
     'enable_unittest_sendchange': False,
+    'objdir': 'obj-firefox',
     #### 64 bit build specific #####
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),

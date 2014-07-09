@@ -1180,11 +1180,13 @@ or run without that action (ie: --no-{action})"
                       os.path.join(dirs['abs_work_dir'], 'buildprops.json'))
 
         python = self.query_exe('python2.7')
-        self.return_code = self.run_command_m(
+        return_code = self.run_command_m(
             command=[python, 'mach', 'build'], cwd=self.query_abs_dirs()[
                 'abs_src_dir'],
             env=env
         )
+        if return_code:
+            self.return_code = 2  # failure
 
     def postflight_build(self, console_output=True):
         """grabs properties set by mach build."""

@@ -26,7 +26,7 @@ import sys
 from datetime import datetime
 import re
 from mozharness.base.config import BaseConfig, parse_config_file
-from mozharness.base.log import ERROR, OutputParser
+from mozharness.base.log import ERROR, OutputParser, FATAL
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
@@ -1122,6 +1122,178 @@ or run without that action (ie: --no-{action})"
                                        prop_val,
                                        write_to_file=True)
 
+    def _set_file_properties(self, file_name, find_dir, prop_type,
+                             error_level=ERROR):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        error_msg = "Not setting props: %s{Filename, Size, Hash}" % prop_type
+        cmd = ["find", find_dir, "-maxdepth", "1", "-type",
+               "f", "-name", file_name]
+        file_path = self.get_output_from_command(cmd,
+                                                 dirs['abs_work_dir'])
+        if not file_path:
+            self.error(error_msg)
+            self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
+            return
+
+        cmd = [
+            self.query_exe('openssl'), 'dgst',
+            '-%s' % (c.get("hash_type", "sha512"),), file_path
+        ]
+        hash_prop = self.get_output_from_command(cmd, dirs['abs_work_dir'])
+        if not hash_prop:
+            self.log("undetermined hash_prop with cmd: %s" % (str(cmd),),
+                     level=error_level)
+            self.log(error_msg, level=error_level)
+            return
+        self.set_buildbot_property(prop_type + 'Filename',
+                                   os.path.split(file_path)[1],
+                                   write_to_file=True)
+        self.set_buildbot_property(prop_type + 'Size',
+                                   os.path.getsize(file_path),
+                                   write_to_file=True)
+        self.set_buildbot_property(prop_type + 'Hash',
+                                   hash_prop.strip().split(' ', 2)[1],
+                                   write_to_file=True)
+
+    def _query_previous_buildid(self):
+        dirs = self.query_abs_dirs()
+        previous_buildid = self.query_buildbot_property('previous_buildid')
+        if previous_buildid:
+            return previous_buildid
+        cmd = [
+            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
+            "application.ini"
+        ]
+        self.info("finding previous mar's inipath...")
+        prev_ini_path = self.get_output_from_command(cmd,
+                                                     cwd=dirs['abs_obj_dir'],
+                                                     halt_on_failure=True,
+                                                     fatal_exit_code=3)
+        print_conf_path = os.path.join(dirs['abs_src_dir'],
+                                       'config',
+                                       'printconfigsetting.py')
+        abs_prev_ini_path = os.path.join(dirs['abs_obj_dir'], prev_ini_path)
+        previous_buildid = self.get_output_from_command(['python',
+                                                         print_conf_path,
+                                                         abs_prev_ini_path,
+                                                         'App', 'BuildID'])
+        if not previous_buildid:
+            self.fatal("Could not determine previous_buildid. This property"
+                       "requires the upload action creating a partial mar.")
+        self.set_buildbot_property("previous_buildid",
+                                   previous_buildid,
+                                   write_to_file=True)
+        return previous_buildid
+
+    def _create_partial_mar(self):
+        # TODO use mar.py MIXINs and make this simpler
+        self._assert_cfg_valid_for_action(
+            ['update_env', 'platform_ftp_name', 'stage_server',
+             'stage_username', 'stage_ssh_key', 'partial_mar_pattern'],
+            'upload'
+        )
+        self.info('Creating a partial mar:')
+        c = self.config
+        dirs = self.query_abs_dirs()
+        generic_env = self.query_build_env()
+        update_env = dict(chain(generic_env.items(), c['update_env'].items()))
+        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
+                                              'tools',
+                                              'update-packaging',
+                                              'unwrap_full_update.pl')
+        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
+                                       'dist',
+                                       'update')
+        self.info('removing old unpacked dirs...')
+        for f in ['current', 'current.work', 'previous']:
+            self.rmtree(os.path.join(dirs['abs_obj_dir'], f),
+                        error_level=FATAL)
+        self.info('making unpacked dirs...')
+        for f in ['current', 'previous']:
+            self.mkdir_p(os.path.join(dirs['abs_obj_dir'], f),
+                         error_level=FATAL)
+        self.info('unpacking current mar...')
+        mar_file = self.query_buildbot_property('completeMarFilename')
+        cmd = '%s %s %s' % (self.query_exe('perl'),
+                            abs_unwrap_update_path,
+                            os.path.join(dist_update_dir, mar_file))
+        self.run_command_m(command=cmd,
+                           cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
+                           env=update_env,
+                           halt_on_failure=True,
+                           fatal_exit_code=3)
+        # The mar file name will be the same from one day to the next,
+        # *except* when we do a version bump for a release. To cope with
+        # this, we get the name of the previous complete mar directly
+        # from staging. Version bumps can also often involve multiple mars
+        # living in the latest dir, so we grab the latest one.
+        self.info('getting previous mar filename...')
+        latest_mar_dir = c['latest_mar_dir'] % {'branch': self.branch}
+        cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
+            c['stage_username'], c['stage_ssh_key'], c['stage_server'],
+            latest_mar_dir, c['platform_ftp_name']
+        )
+        previous_mar_name = self.get_output_from_command(cmd)
+        if re.search(r'\.mar$', previous_mar_name or ""):
+            previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
+                                                   latest_mar_dir,
+                                                   previous_mar_name)
+            self.info('downloading previous mar...')
+            previous_mar_file = self.download_file(previous_mar_url,
+                                                   file_name='previous.mar',
+                                                   parent_dir=dist_update_dir)
+            if not previous_mar_file:
+                # download_file will send error logs if this does not download
+                return
+        else:
+            self.warning('could not determine the previous complete mar file')
+            return
+        self.info('unpacking previous mar...')
+        cmd = '%s %s %s' % (self.query_exe('perl'),
+                            abs_unwrap_update_path,
+                            os.path.join(dist_update_dir, 'previous.mar'))
+        self.run_command_m(command=cmd,
+                           cwd=os.path.join(dirs['abs_obj_dir'], 'previous'),
+                           env=update_env)
+        # Extract the build ID from the unpacked previous complete mar.
+        previous_buildid = self._query_previous_buildid()
+        self.info('removing pgc files from previous and current dirs')
+        for mar_dir in ['current', 'previous']:
+            target_path = os.path.join(dirs['abs_obj_dir'], mar_dir)
+            if os.path.exists(target_path):
+                for root, target_dirs, file_names in os.walk(target_path):
+                    for file_name in file_names:
+                        if file_name.endswith('.pgc'):
+                            self.info('removing file: %s' % (file_name,))
+                            os.remove(file_name)
+        self.info("removing existing partial mar...")
+        mar_file_results = glob.glob(
+            os.path.join(dist_update_dir, '*.partial.*.mar')
+        )
+        if not mar_file_results:
+            self.warning("Could not determine an existing partial mar from "
+                         "%s pattern in %s dir" % ('*.partial.*.mar',
+                                                   dist_update_dir))
+        for mar_file in mar_file_results:
+            self.rmtree(mar_file)
+
+        self.info('generating partial patch from two complete mars...')
+        update_env.update({
+            'STAGE_DIR': '../../dist/update',
+            'SRC_BUILD': '../../previous',
+            'SRC_BUILD_ID': previous_buildid,
+            'DST_BUILD': '../../current',
+            'DST_BUILD_ID': self.query_buildid()
+        })
+        cmd = '%s -C tools/update-packaging partial-patch' % (
+            self.query_exe('make', return_type='string')
+        )
+        self.run_command_m(command=cmd,
+                           cwd=dirs['abs_obj_dir'],
+                           env=update_env)
+        self.rmtree(os.path.join(dist_update_dir, 'previous.mar'))
+
     def clone_tools(self):
         """clones the tools repo."""
         self._assert_cfg_valid_for_action(['tools_repo'], 'clone_tools')
@@ -1304,6 +1476,18 @@ or run without that action (ie: --no-{action})"
         if not self.query_is_nightly():
             self.info("Not a nightly build, skipping balrog submission.")
             return
+
+        # platform_supports_partials: is False for things like asan
+        # branch_supports_partials: is False for things like some b2g branches
+        if (c.get('platforms_supports_partials') and
+                c.get('branch_supports_partials')):
+            self._create_partial_mar()
+            dist_update_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
+                                           'dist',
+                                           'update')
+            self._set_file_properties(file_name='*.partial.*.mar',
+                                      find_dir=dist_update_dir,
+                                      prop_type='partialMar')
 
         if not self.config.get("balrog_api_root"):
             self.fatal("balrog_api_root not set; skipping balrog submission.")

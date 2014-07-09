@@ -55,6 +55,7 @@ config = {
     'enable_count_ctors': False,
     'enable_talos_sendchange': True,
     'enable_unittest_sendchange': True,
+    'platform_supports_partials': True,
     #########################################################################
 
 
@@ -97,5 +98,6 @@ config = {
     'purge_minsize': 12,
     'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/releng.manifest",
+    'platform_ftp_name': 'win32.complete.mar',
     #########################################################################
 }

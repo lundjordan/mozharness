@@ -51,6 +51,7 @@ config = {
     'enable_count_ctors': True,
     'enable_talos_sendchange': True,
     'enable_unittest_sendchange': True,
+    'platform_supports_partials': True,
     #########################################################################
 
 
@@ -148,5 +149,6 @@ config = {
     'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",
+    'platform_ftp_name': 'linux-i686.complete.mar',
     #########################################################################
 }

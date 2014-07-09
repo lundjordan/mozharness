@@ -88,6 +88,8 @@ config = {
             'UPLOAD_SSH_KEY': '~/.ssh/%s' % ("trybld_dsa",),
         },
         'use_branch_in_symbols_extra_buildid': False,
+        'stage_username': 'trybld',
+        'stage_ssh_key': 'trybld_dsa',
     },
 
     ### project branches

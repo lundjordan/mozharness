@@ -953,6 +953,7 @@ or run without that action (ie: --no-{action})"
 
     def _checkout_source(self):
         """use vcs_checkout to grab source needed for build."""
+        # TODO make this method its own action
         c = self.config
         dirs = self.query_abs_dirs()
         repo = self._query_repo()
@@ -1240,6 +1241,7 @@ or run without that action (ie: --no-{action})"
                       "counts are disabled for this build.")
 
     def sendchanges(self):
+        # TODO rip out this logic and put it in build configs
         c = self.config
 
         installer_url = self.query_buildbot_property('packageUrl')

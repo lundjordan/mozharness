@@ -15,6 +15,7 @@ sys.path.insert(1, os.path.dirname(sys.path[0]))
 from mozharness.base.errors import MakefileErrorList
 from mozharness.mozilla.buildbot import TBPL_WARNING
 from mozharness.mozilla.building.buildb2gbase import B2GBuildBaseScript
+from mozharness.mozilla.purge import PurgeMixin
 
 from b2g_build import B2GMakefileErrorList
 
@@ -35,7 +36,7 @@ def requires(*queries):
     return make_wrapper
 
 
-class B2GHazardBuild(B2GBuildBaseScript):
+class B2GHazardBuild(PurgeMixin, B2GBuildBaseScript):
     all_actions = [
         'checkout-tools',
         'clobber',
@@ -55,6 +56,7 @@ class B2GHazardBuild(B2GBuildBaseScript):
 
     default_actions = [
         'checkout-tools',
+        'clobber',
         'checkout-sources',
         'get-blobs',
         'clobber-shell',
@@ -84,7 +86,7 @@ class B2GHazardBuild(B2GBuildBaseScript):
             default_actions=B2GHazardBuild.default_actions,
         )
 
-        self.buildtime = None
+        self.buildid = None
 
     def _pre_config_lock(self, rw_config):
         super(B2GHazardBuild, self)._pre_config_lock(rw_config)
@@ -157,11 +159,14 @@ class B2GHazardBuild(B2GBuildBaseScript):
         dirs = self.query_abs_dirs()
         return os.path.join(dirs['analysis_scriptdir'], self.config['sixgill_manifest'])
 
-    def query_buildtime(self):
-        if self.buildtime:
-            return self.buildtime
-        self.buildtime = datetime.now().strftime("%Y%m%d%H%M%S")
-        return self.buildtime
+    def query_buildid(self):
+        if self.buildid:
+            return self.buildid
+        if self.buildbot_config and 'properties' in self.buildbot_config:
+            self.buildid = self.buildbot_config['properties'].get('buildid')
+        if not self.buildid:
+            self.buildid = datetime.now().strftime("%Y%m%d%H%M%S")
+        return self.buildid
 
     def query_upload_ssh_server(self):
         if self.buildbot_config and 'properties' in self.buildbot_config:
@@ -234,8 +239,8 @@ class B2GHazardBuild(B2GBuildBaseScript):
                 **common
             )
         else:
-            return "{basepath}/tinderbox-builds/{branch}-{target}/{buildtime}".format(
-                buildtime=self.query_buildtime(),
+            return "{basepath}/tinderbox-builds/{branch}-{target}/{buildid}".format(
+                buildid=self.query_buildid(),
                 **common
             )
 
@@ -257,6 +262,15 @@ class B2GHazardBuild(B2GBuildBaseScript):
         super(B2GHazardBuild, self).enable_mock()
 
     # Actions {{{2
+    def clobber(self):
+        dirs = self.query_abs_dirs()
+        PurgeMixin.clobber(
+            self,
+            always_clobber_dirs=[
+                dirs['abs_upload_dir'],
+            ],
+        )
+
     def checkout_sources(self):
         self.make_source_dir()
         super(B2GHazardBuild, self).checkout_sources()

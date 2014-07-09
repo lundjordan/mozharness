@@ -30,7 +30,10 @@ config = {
                 os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
             )
         ],
-        "buildbot": "/tools/buildbot/bin/buildbot",
+        "buildbot": [
+            sys.executable,
+            'c:\\mozilla-build\\buildbotve\\scripts\\buildbot'
+        ],
         "make": [
             sys.executable,
             os.path.join(

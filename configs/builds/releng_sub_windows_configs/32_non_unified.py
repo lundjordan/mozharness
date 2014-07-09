@@ -12,6 +12,6 @@ config = {
     'enable_talos_sendchange': False,
     'enable_unittest_sendchange': False,
     #### 64 bit build specific #####
-    'src_mozconfig': 'browser/config/mozconfigs/linux64/win32-nonunified',
+    'src_mozconfig': 'browser/config/mozconfigs/win32/nightly-nonunified',
     #######################
 }

@@ -70,7 +70,6 @@ class FxDesktopBuild(BuildScript, object):
                     'MBSDIFF': '../dist/host/bin/mbsdiff'
                 },
                 'branch_supports_partials': True,  # check branch_specifics.py
-                'partial_mar_pattern': '*.partial.*.mar',
 
                 # try will overwrite these
                 'clone_with_purge': False,

@@ -1479,7 +1479,7 @@ or run without that action (ie: --no-{action})"
 
         # platform_supports_partials: is False for things like asan
         # branch_supports_partials: is False for things like some b2g branches
-        if (c.get('platforms_supports_partials') and
+        if (c.get('platform_supports_partials') and
                 c.get('branch_supports_partials')):
             self._create_partial_mar()
             dist_update_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],

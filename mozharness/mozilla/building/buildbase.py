@@ -956,6 +956,9 @@ or run without that action (ie: --no-{action})"
         # TODO make this method its own action
         c = self.config
         dirs = self.query_abs_dirs()
+        # XXX JLUND HACK REMOVE BEFORE COMMITING
+        if os.path.exists(os.path.join(dirs['abs_work_dir'], 'source')):
+            self.rmtree(os.path.join(dirs['abs_work_dir'], 'source'))
         repo = self._query_repo()
         vcs_checkout_kwargs = {
             'repo': repo,

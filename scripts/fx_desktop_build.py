@@ -117,14 +117,14 @@ class FxDesktopBuild(BuildScript, object):
             # '{mozharness_repo}/build/build/', I have '{
             # mozharness_repo}/build/source/'
             'abs_src_dir': os.path.join(abs_dirs['abs_work_dir'],
-                                        'source'),
+                                        'src'),
             'abs_obj_dir': os.path.join(abs_dirs['abs_work_dir'],
-                                        'source',
+                                        'src',
                                         self._query_objdir()),
             'abs_tools_dir': os.path.join(abs_dirs['abs_work_dir'], 'tools'),
             'abs_app_ini_path': c['app_ini_path'] % {
                 'obj_dir': os.path.join(abs_dirs['abs_work_dir'],
-                                        'source',
+                                        'src',
                                         self._query_objdir())
             },
         }

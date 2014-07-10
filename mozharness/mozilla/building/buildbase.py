@@ -1354,7 +1354,7 @@ or run without that action (ie: --no-{action})"
 
         python = self.query_exe('python2.7')
         return_code = self.run_command_m(
-            command=['bash', '-c', 'mach', 'build'],
+            command=['bash', '-c', 'mach build'],
             cwd=self.query_abs_dirs()['abs_src_dir'],
             env=env
         )

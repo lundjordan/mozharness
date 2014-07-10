@@ -711,7 +711,7 @@ or run without that action (ie: --no-{action})"
                 env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
 
         if self.config.get('pgo_build'):
-            env['IS_PGO'] = '1'
+            env['MOZ_PGO'] = '1'
 
         if c.get('enable_signing'):
             moz_sign_cmd = subprocess.list2cmdline(

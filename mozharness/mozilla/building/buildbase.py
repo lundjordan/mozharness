@@ -1396,7 +1396,10 @@ or run without that action (ie: --no-{action})"
         """
         c = self.config
         # enable_max_vsize will be True for builds like pgo win32 builds
-        enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
+        # but not for nightlies (nightlies are pgo builds too so the
+        # check is needed).
+        enable_max_vsize = (c.get('enable_max_vsize') and c.get('pgo_build')
+                            and not self.query_is_nightly())
         if enable_max_vsize or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self.info("counting ctors...")

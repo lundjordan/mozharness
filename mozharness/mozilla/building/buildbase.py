@@ -918,7 +918,7 @@ or run without that action (ie: --no-{action})"
         ]
         cmd.extend(c['tooltool_script'])
         self.info(str(cmd))
-        self.run_command(cmd, cwd=dirs['abs_src_dir'])
+        self.run_command(cmd, cwd=dirs['abs_src_dir'], halt_on_failure=True)
 
     def query_revision(self, source_path=None):
         """ returns the revision of the build
@@ -1193,7 +1193,7 @@ or run without that action (ie: --no-{action})"
         # TODO use mar.py MIXINs and make this simpler
         self._assert_cfg_valid_for_action(
             ['update_env', 'platform_ftp_name', 'stage_server',
-             'stage_username', 'stage_ssh_key', 'partial_mar_pattern'],
+             'stage_username', 'stage_ssh_key'],
             'upload'
         )
         self.info('Creating a partial mar:')

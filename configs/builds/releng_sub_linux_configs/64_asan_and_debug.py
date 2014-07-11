@@ -10,7 +10,7 @@ config = {
         'build',
         'sendchanges',
         # 'generate-build-stats',
-        'update',  # decided by query_is_nightly()
+        # 'update',
     ],
     'stage_platform': 'linux64-asan-debug',
     'debug_build': True,

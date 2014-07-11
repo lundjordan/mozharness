@@ -470,6 +470,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
         self.builduid = None
         self.query_buildid()  # sets self.buildid
         self.query_builduid()  # sets self.builduid
+        self.generated_build_props = False
 
     def _pre_config_lock(self, rw_config):
         c = self.config
@@ -1031,6 +1032,11 @@ or run without that action (ie: --no-{action})"
         )
         c = self.config
         dirs = self.query_abs_dirs()
+
+        # grab any props available from previous run
+        self.generate_build_props(console_output=False,
+                                  halt_on_failure=False)
+
         graph_server_post_path = os.path.join(dirs['abs_tools_dir'],
                                               'buildfarm',
                                               'utils',
@@ -1094,20 +1100,54 @@ or run without that action (ie: --no-{action})"
             branch_list = [elem.capitalize() for elem in branch_list]
             return '-'.join(branch_list)
 
-    def _generate_build_props(self):
-        """set buildid, sourcestamp, appVersion, and appName."""
+    def _query_props_set_by_mach(self, console_output, error_level):
+        mach_properties_path = os.path.join(
+            self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
+        )
+        self.info("setting properties set by mach build. Looking in path: %s"
+                  % mach_properties_path)
+        if os.path.exists(mach_properties_path):
+            with open(mach_properties_path) as build_property_file:
+                build_props = json.load(build_property_file)
+                if console_output:
+                    self.info("Properties set from 'mach build'")
+                    pprint.pformat(build_props)
+            for key, prop in build_props.iteritems():
+                self.set_buildbot_property(key, prop, write_to_file=True)
+        else:
+            self.log("Could not find any properties set from mach build. "
+                     "Path does not exist: %s" % mach_properties_path,
+                     level=error_level)
+
+    def generate_build_props(self, console_output=True, halt_on_failure=False):
+        """sets props found from mach build and, in addition, buildid,
+        sourcestamp,  appVersion, and appName."""
+
+        error_level = ERROR
+        if halt_on_failure:
+            error_level = FATAL
+
+        if self.generated_build_props:
+            return
+
+        # grab props set by mach if any
+        self._query_props_set_by_mach(console_output=console_output,
+                                      error_level=error_level)
+
         dirs = self.query_abs_dirs()
         print_conf_setting_path = os.path.join(dirs['abs_src_dir'],
                                                'config',
                                                'printconfigsetting.py')
         if (not os.path.exists(print_conf_setting_path) or
                 not os.path.exists(dirs['abs_app_ini_path'])):
-            self.error("Can't set the following properties: "
+            self.log("Can't set the following properties: "
                        "buildid, sourcestamp, appVersion, and appName. "
                        "Required paths missing. Verify both %s and %s "
                        "exist. These paths require the 'build' action to be "
                        "run prior to this" % (print_conf_setting_path,
-                                              dirs['abs_app_ini_path']))
+                                              dirs['abs_app_ini_path']),
+                     level=error_level)
+            return
         self.info("Setting properties found in: %s" % dirs['abs_app_ini_path'])
         base_cmd = [
             'python', print_conf_setting_path, dirs['abs_app_ini_path'], 'App'
@@ -1119,11 +1159,13 @@ or run without that action (ie: --no-{action})"
         ]
         for prop in properties_needed:
             prop_val = self.get_output_from_command(
-                base_cmd + [prop['ini_name']], cwd=dirs['base_work_dir']
+                base_cmd + [prop['ini_name']], cwd=dirs['base_work_dir'],
+                halt_on_failure=halt_on_failure
             )
             self.set_buildbot_property(prop['prop_name'],
                                        prop_val,
                                        write_to_file=True)
+        self.generated_build_props = True
 
     def _set_file_properties(self, file_name, find_dir, prop_type,
                              error_level=ERROR):
@@ -1193,7 +1235,7 @@ or run without that action (ie: --no-{action})"
         # TODO use mar.py MIXINs and make this simpler
         self._assert_cfg_valid_for_action(
             ['update_env', 'platform_ftp_name', 'stage_server',
-             'stage_username', 'stage_ssh_key'],
+             'stage_username', 'stage_ssh_key', 'latest_mar_dir'],
             'upload'
         )
         self.info('Creating a partial mar:')
@@ -1365,25 +1407,9 @@ or run without that action (ie: --no-{action})"
             self.return_code = 2  # failure
 
     def postflight_build(self, console_output=True):
-        """grabs properties set by mach build."""
-        mach_properties_path = os.path.join(
-            self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
-        )
-        self.info("setting properties set by mach build. Looking in path: %s"
-                  % mach_properties_path)
-        if os.path.exists(mach_properties_path):
-            with open(mach_properties_path) as build_property_file:
-                build_props = json.load(build_property_file)
-                if console_output:
-                    self.info("Properties set from 'mach build'")
-                    pprint.pformat(build_props)
-            for key, prop in build_props.iteritems():
-                self.set_buildbot_property(key, prop, write_to_file=True)
-        else:
-            self.fatal("Could not find any properties set from mach build. "
-                       "Path does not exist: %s" % mach_properties_path)
-        # now set the additional properties that mach did not set...
-        self._generate_build_props()
+        """grabs properties from post build and calls ccache -s"""
+        self.generate_build_props(console_output=console_output,
+                                  halt_on_failure=True)
         if self.config.get('enable_ccache'):
             self._ccache_s()
 
@@ -1482,6 +1508,10 @@ or run without that action (ie: --no-{action})"
         if not self.query_is_nightly():
             self.info("Not a nightly build, skipping balrog submission.")
             return
+
+        # grab any props available from previous run
+        self.generate_build_props(console_output=False,
+                                  halt_on_failure=False)
 
         # platform_supports_partials: is False for things like asan
         # branch_supports_partials: is False for things like some b2g branches

@@ -69,6 +69,7 @@ class FxDesktopBuild(BuildScript, object):
                     'MAR': '../dist/host/bin/mar',
                     'MBSDIFF': '../dist/host/bin/mbsdiff'
                 },
+                'latest_mar_dir': '/pub/mozilla.org/firefox/nightly/latest-%(branch)s',
                 'branch_supports_partials': True,  # check branch_specifics.py
 
                 # try will overwrite these

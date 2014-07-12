@@ -718,7 +718,8 @@ or run without that action (ie: --no-{action})"
             moz_sign_cmd = subprocess.list2cmdline(
                 self.query_moz_sign_cmd(formats=None)
             )
-            # windows fix
+            # windows fix. This is passed to mach build env and we call that
+            # with python, not with bash so we need to fix the slashes here
             env['MOZ_SIGN_CMD'] = moz_sign_cmd.replace('\\', '\\\\\\\\')
 
         # we can't make env an attribute of self because env can change on
@@ -957,9 +958,6 @@ or run without that action (ie: --no-{action})"
         # TODO make this method its own action
         c = self.config
         dirs = self.query_abs_dirs()
-        # XXX JLUND HACK REMOVE BEFORE COMMITING
-        if os.path.exists(os.path.join(dirs['abs_work_dir'], 'source')):
-            self.rmtree(os.path.join(dirs['abs_work_dir'], 'source'))
         repo = self._query_repo()
         vcs_checkout_kwargs = {
             'repo': repo,
@@ -1147,7 +1145,6 @@ or run without that action (ie: --no-{action})"
                        "run prior to this" % (print_conf_setting_path,
                                               dirs['abs_app_ini_path']),
                      level=error_level)
-            return
         self.info("Setting properties found in: %s" % dirs['abs_app_ini_path'])
         base_cmd = [
             'python', print_conf_setting_path, dirs['abs_app_ini_path'], 'App'
@@ -1392,7 +1389,10 @@ or run without that action (ie: --no-{action})"
         if symbols_extra_buildid:
             env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid
 
-        # XXX HACK DO NOT COMMIT
+        # XXX Bug 1037883 - mozconfigs can not find buildprops.json when builds
+        # are through mozharness. This is not pretty but it is a stopgap
+        # until an alternative solution is made or all builds that touch
+        # mozconfig.cache are converted to mozharness.
         dirs = self.query_abs_dirs()
         self.copyfile(os.path.join(dirs['base_work_dir'], 'buildprops.json'),
                       os.path.join(dirs['abs_work_dir'], 'buildprops.json'))
@@ -1404,7 +1404,7 @@ or run without that action (ie: --no-{action})"
             env=env
         )
         if return_code:
-            self.return_code = 2  # failure
+            self.return_code = 2  # set the build to a failure
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
@@ -1509,7 +1509,7 @@ or run without that action (ie: --no-{action})"
             self.info("Not a nightly build, skipping balrog submission.")
             return
 
-        # grab any props available from previous run
+        # grab any props available from this or previous un-clobbered runs
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 

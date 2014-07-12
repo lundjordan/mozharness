@@ -12,6 +12,7 @@ mozharness.
 
 import codecs
 from contextlib import contextmanager
+import errno
 import gzip
 import inspect
 import os
@@ -176,12 +177,18 @@ class ScriptMixin(object):
         else:
             return parsed.netloc
 
+    def _urlopen(self, url, **kwargs):
+        """ This method can be overwritten to extend its complexity
+        """
+        return urllib2.urlopen(url, **kwargs)
+
     def _download_file(self, url, file_name):
         """ Helper script for download_file()
-            """
+        """
         try:
             f_length = None
-            f = urllib2.urlopen(url, timeout=30)
+            f = self._urlopen(url, timeout=30)
+
             if f.info().get('content-length') is not None:
                 f_length = int(f.info()['content-length'])
                 got_length = 0
@@ -202,6 +209,12 @@ class ScriptMixin(object):
             raise
         except urllib2.URLError, e:
             self.warning("URL Error: %s" % url)
+
+            # Failures due to missing local files won't benefit from retry.
+            # Raise the original OSError.
+            if isinstance(e.args[0], OSError) and e.args[0].errno == errno.NOENT:
+                raise e.args[0]
+
             remote_host = urlparse.urlsplit(url)[1]
             if remote_host:
                 nslookup = self.query_exe('nslookup')

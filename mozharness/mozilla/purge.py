@@ -23,12 +23,9 @@ from mozharness.base.log import ERROR
 # Depends on ScriptMixin for self.run_command,
 # and BuildbotMixin for self.buildbot_config and self.query_is_nightly()
 class PurgeMixin(object):
-    purge_tool = [
-        'python', os.path.join(external_tools_path, 'purge_builds.py')
-    ]
-    clobber_tool = [
-        'python', os.path.join(external_tools_path, 'clobberer.py')
-    ]
+    purge_tool = os.path.join(external_tools_path, 'purge_builds.py')
+    clobber_tool = os.path.join(external_tools_path, 'clobberer.py')
+
     default_skips = ['info', 'rel-*', 'tb-rel-*']
     default_maxage = 14
     default_periodic_clobber = 7 * 24
@@ -36,7 +33,6 @@ class PurgeMixin(object):
     def purge_builds(self, basedirs=None, min_size=None, skip=None, max_age=None):
         # Try clobbering first
         c = self.config
-        dirs = self.query_abs_dirs()
         if 'clobberer_url' in c:
             self.clobberer()
 
@@ -48,12 +44,15 @@ class PurgeMixin(object):
             # some platforms using this method (like linux) supply more than
             # one basedir
             basedirs = []
-            basedirs.append(os.path.dirname(dirs['base_work_dir']))
+            assert self.buildbot_config
+            basedirs.append(os.path.dirname(self.buildbot_config['properties']['basedir']))
             if self.config.get('purge_basedirs'):
                 basedirs.extend(self.config.get('purge_basedirs'))
 
         # Add --dry-run if you don't want to do this for realz
-        cmd = self.purge_tool + ['-s', str(min_size)]
+        cmd = [self.purge_tool,
+               '-s', str(min_size),
+               ]
 
         if max_age:
             cmd.extend(['--max-age', str(max_age)])
@@ -75,7 +74,6 @@ class PurgeMixin(object):
 
     def clobberer(self):
         c = self.config
-        dirs = self.query_abs_dirs()
         if not self.buildbot_config:
             self.fatal("clobberer requires self.buildbot_config (usually from $PROPERTIES_FILE)")
 
@@ -89,7 +87,7 @@ class PurgeMixin(object):
         master = self.buildbot_config['properties']['master']
 
         # Add --dry-run if you don't want to do this for realz
-        cmd = self.clobber_tool
+        cmd = [self.clobber_tool]
         # TODO configurable list
         cmd.extend(['-s', 'scripts'])
         cmd.extend(['-s', 'logs'])
@@ -105,13 +103,9 @@ class PurgeMixin(object):
             'explanation': 'Error contacting server for clobberer information.'
         }]
 
-        retval = self.retry(
-            self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
-            kwargs={
-                'cwd': os.path.dirname(dirs['base_work_dir']),
-                'error_list': error_list
-            }
-        )
+        retval = self.retry(self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
+                 kwargs={'cwd':os.path.dirname(self.buildbot_config['properties']['basedir']),
+                         'error_list':error_list})
         if retval != 0:
             self.fatal("failed to clobber build", exit_code=2)
 

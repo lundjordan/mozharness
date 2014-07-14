@@ -33,6 +33,7 @@ class PurgeMixin(object):
     def purge_builds(self, basedirs=None, min_size=None, skip=None, max_age=None):
         # Try clobbering first
         c = self.config
+        dirs = self.query_abs_dirs()
         if 'clobberer_url' in c:
             self.clobberer()
 
@@ -44,8 +45,7 @@ class PurgeMixin(object):
             # some platforms using this method (like linux) supply more than
             # one basedir
             basedirs = []
-            assert self.buildbot_config
-            basedirs.append(os.path.dirname(self.buildbot_config['properties']['basedir']))
+            basedirs.append(os.path.dirname(dirs['base_work_dir']))
             if self.config.get('purge_basedirs'):
                 basedirs.extend(self.config.get('purge_basedirs'))
 
@@ -74,13 +74,14 @@ class PurgeMixin(object):
 
     def clobberer(self):
         c = self.config
+        dirs = self.query_abs_dirs()
         if not self.buildbot_config:
             self.fatal("clobberer requires self.buildbot_config (usually from $PROPERTIES_FILE)")
 
         periodic_clobber = c.get('periodic_clobber') or self.default_periodic_clobber
         clobberer_url = c['clobberer_url']
 
-        builddir = os.path.basename(self.buildbot_config['properties']['basedir'])
+        builddir = os.path.dirname(dirs['base_work_dir'])
         branch = self.buildbot_config['properties']['branch']
         buildername = self.buildbot_config['properties']['buildername']
         slave = self.buildbot_config['properties']['slavename']
@@ -104,9 +105,10 @@ class PurgeMixin(object):
         }]
 
         env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
-        retval = self.retry(self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
-                 kwargs={'cwd':os.path.dirname(self.buildbot_config['properties']['basedir']),
-                         'error_list':error_list, 'env':env})
+        retval = self.retry(
+            self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
+            kwargs={'cwd': builddir, 'error_list': error_list, 'env': env}
+        )
         if retval != 0:
             self.fatal("failed to clobber build", exit_code=2)
 

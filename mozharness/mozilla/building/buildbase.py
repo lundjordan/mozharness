@@ -1206,7 +1206,7 @@ or run without that action (ie: --no-{action})"
         if previous_buildid:
             return previous_buildid
         cmd = [
-            "bash", "-c", "find previous -maxdepth, 4 -type f -name application.ini"
+            "bash", "-c", "find previous -maxdepth 4 -type f -name application.ini"
         ]
         self.info("finding previous mar's inipath...")
         prev_ini_path = self.get_output_from_command(cmd,

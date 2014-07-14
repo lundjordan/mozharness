@@ -106,7 +106,7 @@ class PurgeMixin(object):
         env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
         retval = self.retry(self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
                  kwargs={'cwd':os.path.dirname(self.buildbot_config['properties']['basedir']),
-                         'error_list':error_list, env:env})
+                         'error_list':error_list, 'env':env})
         if retval != 0:
             self.fatal("failed to clobber build", exit_code=2)
 

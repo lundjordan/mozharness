@@ -1105,11 +1105,13 @@ or run without that action (ie: --no-{action})"
         self.info("setting properties set by mach build. Looking in path: %s"
                   % mach_properties_path)
         if os.path.exists(mach_properties_path):
-            with open(mach_properties_path) as build_property_file:
-                build_props = json.load(build_property_file)
+            with self.opened(mach_properties_path) as (fh, err):
+                if err:
+                    self.error('Could not set props set from mach')
+                build_props = json.load(fh)
                 if console_output:
                     self.info("Properties set from 'mach build'")
-                    pprint.pformat(build_props)
+                    self.info(pprint.pformat(build_props))
             for key, prop in build_props.iteritems():
                 self.set_buildbot_property(key, prop, write_to_file=True)
         else:
@@ -1204,8 +1206,7 @@ or run without that action (ie: --no-{action})"
         if previous_buildid:
             return previous_buildid
         cmd = [
-            "find", "previous", "-maxdepth", "4", "-type", "f", "-name",
-            "application.ini"
+            "bash", "-c", "find previous -maxdepth, 4 -type f -name application.ini"
         ]
         self.info("finding previous mar's inipath...")
         prev_ini_path = self.get_output_from_command(cmd,
@@ -1509,7 +1510,7 @@ or run without that action (ie: --no-{action})"
             self.info("Not a nightly build, skipping balrog submission.")
             return
 
-        # grab any props available from this or previous un-clobbered runs
+        # grab any props available from this or previous unclobbered runs
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 

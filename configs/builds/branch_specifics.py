@@ -64,13 +64,27 @@ config = {
         'branch_uses_per_checkin_strategy': True,
         'use_branch_in_symbols_extra_buildid': False,
     },
+    'mozilla-esr31': {
+        'repo_path': 'releases/mozilla-esr31',
+        'update_channel': 'nightly-esr31',
+        'branch_uses_per_checkin_strategy': True,
+        'use_branch_in_symbols_extra_buildid': False,
+    },
     'mozilla-b2g28_v1_3': {
         'repo_path': 'releases/mozilla-b2g28_v1_3',
         'use_branch_in_symbols_extra_buildid': False,
+        'update_channel': 'nightly-b2g28',
+        'branch_supports_partials': False,
     },
     'mozilla-b2g28_v1_3t': {
         'repo_path': 'releases/mozilla-b2g28_v1_3t',
         'use_branch_in_symbols_extra_buildid': False,
+    },
+    'mozilla-b2g30_v1_4': {
+        'repo_path': 'releases/mozilla-b2g30_v1_4',
+        'use_branch_in_symbols_extra_buildid': False,
+        'update_channel': 'nightly-b2g30',
+        'branch_supports_partials': False,
     },
     'try': {
         'repo_path': 'try',

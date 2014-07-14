@@ -64,7 +64,7 @@ class PurgeMixin(object):
 
         # purge_builds.py can also clean up old shared hg repos if we set
         # HG_SHARE_BASE_DIR accordingly
-        env = {'PATH': os.environ.get('PATH')}
+        env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
         share_base = c.get('vcs_share_base', os.environ.get("HG_SHARE_BASE_DIR", None))
         if share_base:
             env['HG_SHARE_BASE_DIR'] = share_base

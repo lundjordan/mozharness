@@ -69,7 +69,7 @@ class HgtoolVCS(ScriptMixin, LogMixin):
         share_base = c.get('vcs_share_base', os.environ.get("HG_SHARE_BASE_DIR", None))
         clone_by_rev = c.get('clone_by_revision')
         clone_with_purge = c.get('clone_with_purge')
-        env = {'PATH': os.environ.get('PATH')}
+        env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
         if share_base is not None:
             env['HG_SHARE_BASE_DIR'] = share_base
 

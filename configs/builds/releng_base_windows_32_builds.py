@@ -37,7 +37,7 @@ config = {
         "make": [
             sys.executable,
             os.path.join(
-                os.getcwd(), 'build', 'source', 'build', 'pymake', 'make.py'
+                os.getcwd(), 'build', 'src', 'build', 'pymake', 'make.py'
             )
         ]
     },

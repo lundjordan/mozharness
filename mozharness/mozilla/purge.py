@@ -49,10 +49,14 @@ class PurgeMixin(object):
             if self.config.get('purge_basedirs'):
                 basedirs.extend(self.config.get('purge_basedirs'))
 
+        try:
+            python = self.query_python_path()
+        except AttributeError:
+            # we are not inheriting from VirtualenvMixin
+            python = self.query_exe('python')
+
         # Add --dry-run if you don't want to do this for realz
-        cmd = [self.purge_tool,
-               '-s', str(min_size),
-               ]
+        cmd = [python, self.purge_tool, '-s', str(min_size)]
 
         if max_age:
             cmd.extend(['--max-age', str(max_age)])
@@ -64,7 +68,7 @@ class PurgeMixin(object):
 
         # purge_builds.py can also clean up old shared hg repos if we set
         # HG_SHARE_BASE_DIR accordingly
-        env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
+        env = {'PATH': os.environ.get('PATH')}
         share_base = c.get('vcs_share_base', os.environ.get("HG_SHARE_BASE_DIR", None))
         if share_base:
             env['HG_SHARE_BASE_DIR'] = share_base
@@ -87,8 +91,15 @@ class PurgeMixin(object):
         slave = self.buildbot_config['properties']['slavename']
         master = self.buildbot_config['properties']['master']
 
+
+        try:
+            python = self.query_python_path()
+        except AttributeError:
+            # we are not inheriting from VirtualenvMixin
+            python = self.query_exe('python')
+
         # Add --dry-run if you don't want to do this for realz
-        cmd = [self.clobber_tool]
+        cmd = [python, self.clobber_tool]
         # TODO configurable list
         cmd.extend(['-s', 'scripts'])
         cmd.extend(['-s', 'logs'])
@@ -104,11 +115,8 @@ class PurgeMixin(object):
             'explanation': 'Error contacting server for clobberer information.'
         }]
 
-        env = {'PATH': c.get('env', {}).get('PATH', os.environ.get('PATH'))}
-        retval = self.retry(
-            self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
-            kwargs={'cwd': builddir, 'error_list': error_list, 'env': env}
-        )
+        retval = self.retry(self.run_command, attempts=3, good_statuses=(0,), args=[cmd],
+                            kwargs={'cwd': builddir, 'error_list': error_list})
         if retval != 0:
             self.fatal("failed to clobber build", exit_code=2)
 

@@ -13,10 +13,10 @@ config = {
     # releng_base_windows_64_builds.py
 
     'default_actions': [
-        # 'clobber',
-        # 'clone-tools',
-        # # 'setup-mock', windows do not use mock
-        # 'build',
+        'clobber',
+        'clone-tools',
+        # 'setup-mock', windows do not use mock
+        'build',
         'sendchanges',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()

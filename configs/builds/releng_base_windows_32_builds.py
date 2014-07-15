@@ -17,8 +17,8 @@ config = {
         # 'clone-tools',
         # # 'setup-mock', windows do not use mock
         # 'build',
-        # 'sendchanges',
-        # 'generate-build-stats',
+        'sendchanges',
+        'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
     "buildbot_json_path": "buildprops.json",

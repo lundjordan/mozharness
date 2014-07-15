@@ -1175,6 +1175,10 @@ or run without that action (ie: --no-{action})"
                              error_level=ERROR):
         c = self.config
         dirs = self.query_abs_dirs()
+
+        # windows fix. even bash -c loses two single slashes.
+        find_dir = find_dir.replace('\\', '\\\\\\\\')
+
         error_msg = "Not setting props: %s{Filename, Size, Hash}" % prop_type
         cmd = ["bash", "-c",
                "find %s -maxdepth 1 -type f -name %s" % (find_dir, file_name)]
@@ -1454,6 +1458,10 @@ or run without that action (ie: --no-{action})"
     def sendchanges(self):
         # TODO rip out this logic and put it in build configs
         c = self.config
+
+        # grab any props available from this or previous unclobbered runs
+        self.generate_build_props(console_output=False,
+                                  halt_on_failure=False)
 
         installer_url = self.query_buildbot_property('packageUrl')
         if not installer_url:

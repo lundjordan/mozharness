@@ -13,11 +13,11 @@ config = {
     # releng_base_windows_64_builds.py
 
     'default_actions': [
-        'clobber',
-        'clone-tools',
-        # 'setup-mock', windows do not use mock
-        'build',
-        'sendchanges',
+        # 'clobber',
+        # 'clone-tools',
+        # # 'setup-mock', windows do not use mock
+        # 'build',
+        # 'sendchanges',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
@@ -61,7 +61,7 @@ config = {
 
      #########################################################################
      ###### 32 bit specific ######
-    'base_name': 'WINNT 5.2 %(branch)s',
+    'base_name': 'WINNT_5.2_%(branch)s',
     'platform': 'win32',
     'stage_platform': 'win32',
     'enable_max_vsize': True,

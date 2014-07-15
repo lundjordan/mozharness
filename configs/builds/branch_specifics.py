@@ -75,6 +75,7 @@ config = {
         'use_branch_in_symbols_extra_buildid': False,
         'update_channel': 'nightly-b2g28',
         'branch_supports_partials': False,
+        'graph_server_branch_name': 'Mozilla-B2g28-v1.3',
     },
     'mozilla-b2g28_v1_3t': {
         'repo_path': 'releases/mozilla-b2g28_v1_3t',
@@ -85,6 +86,7 @@ config = {
         'use_branch_in_symbols_extra_buildid': False,
         'update_channel': 'nightly-b2g30',
         'branch_supports_partials': False,
+        'graph_server_branch_name': 'Mozilla-B2g30-v1.4',
     },
     'try': {
         'repo_path': 'try',

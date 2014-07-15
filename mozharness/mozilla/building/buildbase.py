@@ -1015,8 +1015,8 @@ or run without that action (ie: --no-{action})"
             dirs['abs_obj_dir'], 'toolkit', 'library', 'linker-vsize'
         )
         cmd = ['cat', vsize_path]
-        vsize = int(self.get_output_from_command(cmd, cwd=dirs['abs_src_dir']))
-        testresults = [('libxul_link', 'libxul_link', vsize, str(vsize))]
+        vsize = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
+        testresults = [('libxul_link', 'libxul_link', int(vsize), str(vsize))]
         self.set_buildbot_property('vsize', vsize, write_to_file=True)
         self.set_buildbot_property('testresults',
                                    testresults,
@@ -1432,6 +1432,11 @@ or run without that action (ie: --no-{action})"
         We only post to graph server for non nightly build
         """
         c = self.config
+
+        # grab any props available from this or previous unclobbered runs
+        self.generate_build_props(console_output=False,
+                                  halt_on_failure=False)
+
         # enable_max_vsize will be True for builds like pgo win32 builds
         # but not for nightlies (nightlies are pgo builds too so the
         # check is needed).

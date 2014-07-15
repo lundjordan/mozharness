@@ -42,4 +42,4 @@ class BalrogMixin(object):
             self.run_command, args=(cmd,),
         )
         if return_code not in [0]:
-            self.return_code = 3
+            self.return_code = 1

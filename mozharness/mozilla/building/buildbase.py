@@ -1110,7 +1110,9 @@ or run without that action (ie: --no-{action})"
                 if not build_props or err:
                     self.log("%s exists but there was an error finding any "
                              "properties. props: `%s` - error: "
-                             "`%s`" % (mach_properties_path, build_props, err),
+                             "`%s`" % (mach_properties_path,
+                                       build_props or 'None',
+                                       err or 'No error'),
                              error_level)
                 if console_output:
                     self.info("Properties set from 'mach build'")
@@ -1118,8 +1120,8 @@ or run without that action (ie: --no-{action})"
             for key, prop in build_props.iteritems():
                 self.set_buildbot_property(key, prop, write_to_file=True)
         else:
-            self.log("Could not find any properties set from mach build. "
-                     "Path does not exist: %s" % mach_properties_path,
+            self.log("Could not determine path for build properties. "
+                     "Does this exist: `%s` ?" % mach_properties_path,
                      level=error_level)
 
     def generate_build_props(self, console_output=True, halt_on_failure=False):
@@ -1174,10 +1176,9 @@ or run without that action (ie: --no-{action})"
         c = self.config
         dirs = self.query_abs_dirs()
         error_msg = "Not setting props: %s{Filename, Size, Hash}" % prop_type
-        cmd = ["find", find_dir, "-maxdepth", "1", "-type",
-               "f", "-name", file_name]
-        file_path = self.get_output_from_command(cmd,
-                                                 dirs['abs_work_dir'])
+        cmd = ["bash", "-c",
+               "find %s -maxdepth 1 -type f -name %s" % (find_dir, file_name)]
+        file_path = self.get_output_from_command(cmd, dirs['abs_work_dir'])
         if not file_path:
             self.error(error_msg)
             self.error("Can't determine filepath with cmd: %s" % (str(cmd),))
@@ -1407,8 +1408,10 @@ or run without that action (ie: --no-{action})"
             cwd=self.query_abs_dirs()['abs_src_dir'],
             env=env
         )
-        if return_code:
-            self.return_code = 2  # set the build to a failure
+        if return_code:  # set the return code to red, failure
+            self.return_code = self.worst_level(
+                2,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+            )
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
@@ -1453,6 +1456,15 @@ or run without that action (ie: --no-{action})"
         c = self.config
 
         installer_url = self.query_buildbot_property('packageUrl')
+        if not installer_url:
+            # don't burn the job but we should turn orange
+            self.error("could not determine packageUrl property to use "
+                       "against sendchange. Was it set after 'mach build'?")
+            self.return_code = self.worst_level(
+                1,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+            )
+            self.return_code = 1
+            return
         tests_url = self.query_buildbot_property('testsUrl')
         sendchange_props = {
             'buildid': self.query_buildid(),

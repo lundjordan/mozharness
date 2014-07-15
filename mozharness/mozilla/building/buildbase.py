@@ -1105,10 +1105,13 @@ or run without that action (ie: --no-{action})"
         self.info("setting properties set by mach build. Looking in path: %s"
                   % mach_properties_path)
         if os.path.exists(mach_properties_path):
-            with self.opened(mach_properties_path) as (fh, err):
-                if err:
-                    self.error('Could not set props set from mach')
+            with self.opened(mach_properties_path, error_level=error_level) as (fh, err):
                 build_props = json.load(fh)
+                if not build_props or err:
+                    self.log("%s exists but there was an error finding any "
+                             "properties. props: `%s` - error: "
+                             "`%s`" % (mach_properties_path, build_props, err),
+                             error_level)
                 if console_output:
                     self.info("Properties set from 'mach build'")
                     self.info(pprint.pformat(build_props))
@@ -1141,11 +1144,11 @@ or run without that action (ie: --no-{action})"
         if (not os.path.exists(print_conf_setting_path) or
                 not os.path.exists(dirs['abs_app_ini_path'])):
             self.log("Can't set the following properties: "
-                       "buildid, sourcestamp, appVersion, and appName. "
-                       "Required paths missing. Verify both %s and %s "
-                       "exist. These paths require the 'build' action to be "
-                       "run prior to this" % (print_conf_setting_path,
-                                              dirs['abs_app_ini_path']),
+                     "buildid, sourcestamp, appVersion, and appName. "
+                     "Required paths missing. Verify both %s and %s "
+                     "exist. These paths require the 'build' action to be "
+                     "run prior to this" % (print_conf_setting_path,
+                                            dirs['abs_app_ini_path']),
                      level=error_level)
         self.info("Setting properties found in: %s" % dirs['abs_app_ini_path'])
         base_cmd = [

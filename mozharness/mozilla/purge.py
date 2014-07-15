@@ -129,8 +129,7 @@ class PurgeMixin(object):
             do_clobber = False
             if self.query_is_nightly():
                 self.info("Clobbering because we're a nightly build")
-                self.info("XXX NOT! /me waves wand and stops build from clobbering")
-                do_clobber = False
+                do_clobber = True
             if c.get('force_clobber'):
                 self.info("Clobbering because our config forced us to")
                 do_clobber = True

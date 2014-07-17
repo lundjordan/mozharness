@@ -80,6 +80,9 @@ config = {
         # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
         'SYMBOL_SERVER_HOST': '%(symbol_server_host)s',
         'SYMBOL_SERVER_SSH_KEY': '/c/Users/cltbld/.ssh/ffxbld_dsa',
+        'SYMBOL_SERVER_USER': 'ffxbld',
+        'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
+        'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
         'TINDERBOX_OUTPUT': '1',
     },
     'upload_env': {

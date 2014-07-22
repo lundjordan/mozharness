@@ -1,7 +1,7 @@
 from itertools import chain
 import os
 
-from mozharness.base.log import INFO, ERROR
+from mozharness.base.log import INFO
 
 # BalrogMixin {{{1
 class BalrogMixin(object):

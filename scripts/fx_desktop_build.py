@@ -50,8 +50,7 @@ class FxDesktopBuild(BuildScript, object):
                 # hg tool stuff
                 'default_vcs': 'hgtool',
                 "tools_repo": "https://hg.mozilla.org/build/tools",
-                # "repo_base": "https://hg.mozilla.org",
-                "repo_base": "https://hg.mozilla.org/users/mshal_mozilla.com",
+                "repo_base": "https://hg.mozilla.org",
                 'tooltool_url': 'http://runtime-binaries.pvt.build.mozilla'
                                 '.org/tooltool',
                 "graph_selector": "/server/collect.cgi",

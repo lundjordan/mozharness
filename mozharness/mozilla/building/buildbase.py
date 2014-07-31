@@ -600,7 +600,9 @@ or run without that action (ie: --no-{action})"
         # let's see if it's in buildbot_properties
         if in_buildbot_props:
             self.info("Determining builduid from buildbot properties")
-            self.builduid = str(self.buildbot_config['properties']['builduid'])
+            self.builduid = self.buildbot_config['properties']['builduid'].encode(
+                'ascii', 'replace'
+            )
         else:
             self.info("Creating builduid through uuid hex")
             self.builduid = uuid.uuid4().hex
@@ -632,7 +634,9 @@ or run without that action (ie: --no-{action})"
         # now let's see if it's in buildbot_properties
         elif in_buildbot_props:
             self.info("Determining buildid from buildbot properties")
-            self.buildid = str(self.buildbot_config['properties']['buildid'])
+            self.buildid = self.buildbot_config['properties']['buildid'].encode(
+                'ascii', 'replace'
+            )
         else:
             # finally, let's resort to making a buildid this will happen when
             #  buildbot has not made one, and we are running this script for
@@ -947,7 +951,7 @@ or run without that action (ie: --no-{action})"
                 revision = self.get_output_from_command(
                     hg + ['parent', '--template', '{node|short}'], cwd=source_path
                 )
-        return str(revision[0:12]) if revision else None
+        return revision[0:12].encode('ascii', 'replace') if revision else None
 
     def _checkout_source(self):
         """use vcs_checkout to grab source needed for build."""
@@ -958,10 +962,10 @@ or run without that action (ie: --no-{action})"
         vcs_checkout_kwargs = {
             'repo': repo,
             'dest': dirs['abs_src_dir'],
+            'revision': self.query_revision(),
             'env': self.query_build_env()
         }
         if c.get('clone_by_revision'):
-            vcs_checkout_kwargs['revision'] = self.query_revision()
             vcs_checkout_kwargs['clone_by_revision'] = True
 
         if c.get('clone_with_purge'):

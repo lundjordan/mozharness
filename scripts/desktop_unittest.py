@@ -148,6 +148,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
 
     # helper methods {{{2
     def _pre_config_lock(self, rw_config):
+        super(TestingMixin, self)._pre_config_lock(rw_config)
         c = self.config
         if not c.get('run_all_suites'):
             return  # configs are valid
@@ -169,6 +170,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         dirs = {}
         dirs['abs_app_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'application')
         dirs['abs_test_install_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'tests')
+        dirs['abs_test_extensions_dir'] = os.path.join(dirs['abs_test_install_dir'], 'extensions')
         dirs['abs_test_bin_dir'] = os.path.join(dirs['abs_test_install_dir'], 'bin')
         dirs['abs_test_bin_plugins_dir'] = os.path.join(dirs['abs_test_bin_dir'],
                                                         'plugins')
@@ -381,6 +383,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         abs_app_dir = self.query_abs_app_dir()
         abs_app_components_dir = os.path.join(abs_app_dir, 'components')
         abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
+        abs_app_extensions_dir = os.path.join(abs_app_dir, 'extensions')
         if suites:  # there are xpcshell suites to run
             self.mkdir_p(abs_app_plugins_dir)
             self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
@@ -394,11 +397,20 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             self.copytree(dirs['abs_test_bin_plugins_dir'],
                           abs_app_plugins_dir,
                           overwrite='overwrite_if_exists')
+            if os.path.isdir(dirs['abs_test_extensions_dir']):
+                self.copytree(dirs['abs_test_extensions_dir'],
+                              abs_app_extensions_dir,
+                              overwrite='overwrite_if_exists')
 
     def preflight_cppunittest(self, suites):
         abs_app_dir = self.query_abs_app_dir()
         dirs = self.query_abs_dirs()
         abs_cppunittest_dir = dirs['abs_cppunittest_dir']
+
+        # check if separate test package required
+        if suites and 'cppunittest' in suites:
+            if not os.path.isdir(abs_cppunittest_dir):
+                self._download_unzip(self.test_url.replace('tests', 'cppunit.tests'), dirs['abs_test_install_dir'])
 
         # move manifest and js fils to app dir, where tests expect them
         files = glob.glob(os.path.join(abs_cppunittest_dir, '*.js'))

@@ -13,16 +13,10 @@ config = {
     ],
     "no_branch_repos": [
         "gecko",
-        "gaia",  # branched the week before, but we want to update the manifests
     ],
     "extra_branch_manifest_repos": [
         "gecko",
         "gaia",
-    ],
-    "no_lock_revision_repos": [
-        "gecko",
-        "gaia",
-        "b2g-manifest",
     ],
     "branch_order": [
         "master",
@@ -30,6 +24,7 @@ config = {
         "b2g-jellybean",  # most of our builds use jb
         "ics_chocolate_rb4.2",  # prefer wasabi's hardware_qcom_display over
                                 # otoro's
+        "foxfone-one",  # prefer flame's kernel_lm ove flame-kk's
     ],
 
     "exes": {

@@ -179,12 +179,18 @@ class ScriptMixin(object):
         else:
             return parsed.netloc
 
+    def _urlopen(self, url, **kwargs):
+        """ This method can be overwritten to extend its complexity
+        """
+        return urllib2.urlopen(url, **kwargs)
+
     def _download_file(self, url, file_name):
         """ Helper script for download_file()
-            """
+        """
         try:
             f_length = None
-            f = urllib2.urlopen(url, timeout=30)
+            f = self._urlopen(url, timeout=30)
+
             if f.info().get('content-length') is not None:
                 f_length = int(f.info()['content-length'])
                 got_length = 0
@@ -1325,11 +1331,12 @@ class BaseScript(ScriptMixin, LogMixin, object):
 
     # logging {{{2
     def new_log_obj(self, default_log_level="info"):
-        dirs = self.query_abs_dirs()
+        c = self.config
+        log_dir = os.path.join(c['base_work_dir'], c.get('log_dir', 'logs'))
         log_config = {
             "logger_name": 'Simple',
             "log_name": 'log',
-            "log_dir": dirs['abs_log_dir'],
+            "log_dir": log_dir,
             "log_level": default_log_level,
             "log_format": '%(asctime)s %(levelname)8s - %(message)s',
             "log_to_console": True,

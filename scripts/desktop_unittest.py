@@ -105,6 +105,12 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             "default": False,
             "help": "Run tests with multiple processes."}
          ],
+        [['--no-random', ], {
+            "action": "store_true",
+            "dest": "no_random",
+            "default": False,
+            "help": "Run tests with no random intermittents and bisect in case of real failure."}
+         ],
         [["--total-chunks"], {
             "action": "store",
             "dest": "total_chunks",
@@ -148,7 +154,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
 
     # helper methods {{{2
     def _pre_config_lock(self, rw_config):
-        super(TestingMixin, self)._pre_config_lock(rw_config)
+        super(DesktopUnittest, self)._pre_config_lock(rw_config)
         c = self.config
         if not c.get('run_all_suites'):
             return  # configs are valid
@@ -274,6 +280,12 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             if c.get('total_chunks') and c.get('this_chunk'):
                 base_cmd.extend(['--total-chunks', c['total_chunks'],
                                  '--this-chunk', c['this_chunk']])
+
+            if c['no_random']:
+                if suite_category == "mochitest":
+                    base_cmd.append('--bisect-chunk=default')
+                else:
+                    self.warning("--no-random does not currently work with suites other than mochitest.")
 
             # set pluginsPath
             abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
@@ -410,7 +422,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         # check if separate test package required
         if suites and 'cppunittest' in suites:
             if not os.path.isdir(abs_cppunittest_dir):
-                self._download_unzip(self.test_url.replace('tests', 'cppunit.tests'), dirs['abs_test_install_dir'])
+                self._download_unzip(self.test_url.replace('tests', 'tests.cppunit'), dirs['abs_test_install_dir'])
 
         # move manifest and js fils to app dir, where tests expect them
         files = glob.glob(os.path.join(abs_cppunittest_dir, '*.js'))

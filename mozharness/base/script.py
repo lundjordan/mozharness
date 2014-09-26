@@ -26,7 +26,9 @@ import sys
 import time
 import traceback
 import urllib2
+import httplib
 import urlparse
+import hashlib
 if os.name == 'nt':
     try:
         import win32file
@@ -177,12 +179,25 @@ class ScriptMixin(object):
         else:
             return parsed.netloc
 
+    def _urlopen(self, url, **kwargs):
+        """ This method can be overwritten to extend its complexity
+        """
+        return urllib2.urlopen(url, **kwargs)
+
     def _download_file(self, url, file_name):
         """ Helper script for download_file()
-            """
+        """
+        # If our URLs look like files, prefix them with file:// so they can
+        # be loaded like URLs.
+        if not (url.startswith("http") or url.startswith("file://")):
+            if not os.path.isfile(url):
+                self.fatal("The file %s does not exist" % url)
+            url = 'file://%s' % url
+
         try:
             f_length = None
-            f = urllib2.urlopen(url, timeout=30)
+            f = self._urlopen(url, timeout=30)
+
             if f.info().get('content-length') is not None:
                 f_length = int(f.info()['content-length'])
                 got_length = 0
@@ -227,27 +242,35 @@ class ScriptMixin(object):
             self.warning("Socket error when accessing %s: %s" % (url, str(e)))
             raise
 
-    def _retry_download_file(self, url, file_name, error_level):
+    def _retry_download_file(self, url, file_name, error_level, retry_config=None):
         """ Helper method to retry _download_file().
 
             Split out so we can alter the retry logic in
             mozharness.mozilla.testing.gaia_test.
             """
-        return self.retry(
-            self._download_file,
-            args=(url, file_name),
+        retry_args = dict(
             failure_status=None,
             retry_exceptions=(urllib2.HTTPError, urllib2.URLError,
+                              httplib.BadStatusLine,
                               socket.timeout, socket.error),
             error_message="Can't download from %s to %s!" % (url, file_name),
             error_level=error_level,
+        )
+
+        if retry_config:
+            retry_args.update(retry_config)
+
+        return self.retry(
+            self._download_file,
+            args=(url, file_name),
+            **retry_args
         )
 
     # http://www.techniqal.com/blog/2008/07/31/python-file-read-write-with-urllib2/
     # TODO thinking about creating a transfer object.
     def download_file(self, url, file_name=None, parent_dir=None,
                       create_parent_dir=True, error_level=ERROR,
-                      exit_code=3):
+                      exit_code=3, retry_config=None):
         """ Python wget.
         """
         if not file_name:
@@ -262,7 +285,7 @@ class ScriptMixin(object):
             if create_parent_dir:
                 self.mkdir_p(parent_dir, error_level=error_level)
         self.info("Downloading %s to %s" % (url, file_name))
-        status = self._retry_download_file(url, file_name, error_level)
+        status = self._retry_download_file(url, file_name, error_level, retry_config=retry_config)
         if status == file_name:
             self.info("Downloaded %d bytes." % os.path.getsize(file_name))
         return status
@@ -621,14 +644,14 @@ class ScriptMixin(object):
                     halt_on_failure=False, success_codes=None,
                     env=None, partial_env=None, return_type='status',
                     throw_exception=False, output_parser=None,
-                    output_timeout=None, fatal_exit_code=2, **kwargs):
+                    output_timeout=None, fatal_exit_code=2,
+                    error_level=ERROR, **kwargs):
         """Run a command, with logging and error parsing.
 
         output_timeout is the number of seconds without output before the process
         is killed.
 
         TODO: context_lines
-        TODO: error_level_override?
 
         output_parser lets you provide an instance of your own OutputParser
         subclass, or pass None to use OutputParser.
@@ -644,7 +667,7 @@ class ScriptMixin(object):
             success_codes = [0]
         if cwd is not None:
             if not os.path.isdir(cwd):
-                level = ERROR
+                level = error_level
                 if halt_on_failure:
                     level = FATAL
                 self.log("Can't run command %s in non-existent directory '%s'!" %
@@ -689,7 +712,10 @@ class ScriptMixin(object):
                 p.run(outputTimeout=output_timeout)
                 p.wait()
                 if p.timedOut:
-                    self.error('timed out after %s seconds of no output' % output_timeout)
+                    self.log(
+                        'timed out after %s seconds of no output' % output_timeout,
+                        level=error_level
+                    )
                 returncode = int(p.proc.returncode)
             else:
                 p = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
@@ -706,7 +732,7 @@ class ScriptMixin(object):
                         parser.add_lines(line)
                 returncode = p.returncode
         except OSError, e:
-            level = ERROR
+            level = error_level
             if halt_on_failure:
                 level = FATAL
             self.log('caught OS error %s: %s while running %s' % (e.errno,
@@ -715,7 +741,7 @@ class ScriptMixin(object):
 
         return_level = INFO
         if returncode not in success_codes:
-            return_level = ERROR
+            return_level = error_level
             if throw_exception:
                 raise subprocess.CalledProcessError(returncode, command)
         self.log("Return code: %d" % returncode, level=return_level)
@@ -723,11 +749,13 @@ class ScriptMixin(object):
         if halt_on_failure:
             _fail = False
             if returncode not in success_codes:
-                self.error("%s not in success codes: %s" % (returncode,
-                                                            success_codes))
+                self.log(
+                    "%s not in success codes: %s" % (returncode, success_codes),
+                    level=error_level
+                )
                 _fail = True
             if parser.num_errors:
-                self.error("failures found while parsing output")
+                self.log("failures found while parsing output", level=error_level)
                 _fail = True
             if _fail:
                 self.return_code = fatal_exit_code
@@ -1310,11 +1338,12 @@ class BaseScript(ScriptMixin, LogMixin, object):
 
     # logging {{{2
     def new_log_obj(self, default_log_level="info"):
-        dirs = self.query_abs_dirs()
+        c = self.config
+        log_dir = os.path.join(c['base_work_dir'], c.get('log_dir', 'logs'))
         log_config = {
             "logger_name": 'Simple',
             "log_name": 'log',
-            "log_dir": dirs['abs_log_dir'],
+            "log_dir": log_dir,
             "log_level": default_log_level,
             "log_format": '%(asctime)s %(levelname)8s - %(message)s',
             "log_to_console": True,
@@ -1448,6 +1477,16 @@ class BaseScript(ScriptMixin, LogMixin, object):
         else:
             self.log("%s doesn't exist after copy!" % dest, level=error_level)
             return None
+
+    def file_sha512sum(self, file_path):
+        bs = 65536
+        hasher = hashlib.sha512()
+        with open(file_path, 'rb') as fh:
+            buf = fh.read(bs)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = fh.read(bs)
+        return hasher.hexdigest()
 
 
 # __main__ {{{1

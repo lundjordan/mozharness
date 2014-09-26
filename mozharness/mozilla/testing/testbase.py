@@ -8,6 +8,8 @@
 import copy
 import os
 import platform
+import urllib2
+import getpass
 
 from mozharness.base.config import ReadOnlyDict, parse_config_file
 from mozharness.base.errors import BaseErrorList
@@ -18,6 +20,7 @@ from mozharness.base.python import (
     virtualenv_config_options,
 )
 from mozharness.mozilla.buildbot import BuildbotMixin
+from mozharness.mozilla.proxxy import Proxxy
 
 INSTALLER_SUFFIXES = ('.tar.bz2', '.zip', '.dmg', '.exe', '.apk', '.tar.gz')
 
@@ -51,6 +54,12 @@ testing_config_options = [
      "dest": "test_url",
      "default": None,
      "help": "URL to the zip file containing the actual tests",
+      }],
+    [["--jsshell-url"],
+     {"action": "store",
+     "dest": "jsshell_url",
+     "default": None,
+     "help": "URL to the jsshell to install",
       }],
     [["--download-symbols"],
      {"action": "store",
@@ -87,6 +96,23 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
     jsshell_url = None
     minidump_stackwalk_path = None
     default_tools_repo = 'https://hg.mozilla.org/build/tools'
+    proxxy = None
+
+    def _query_proxxy(self):
+        """manages the proxxy"""
+        if not self.proxxy:
+            self.proxxy = Proxxy(self.config, self.log_obj)
+        return self.proxxy
+
+    def download_proxied_file(self, url, file_name=None, parent_dir=None,
+                              create_parent_dir=True, error_level=FATAL,
+                              exit_code=3):
+        proxxy = self._query_proxxy()
+        return proxxy.download_proxied_file(url=url, file_name=file_name,
+                                            parent_dir=parent_dir,
+                                            create_parent_dir=create_parent_dir,
+                                            error_level=error_level,
+                                            exit_code=exit_code)
 
     def query_jsshell_url(self):
         """
@@ -124,6 +150,84 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
         else:
             self.fatal("Can't figure out symbols_url from installer_url %s!" % self.installer_url)
 
+    def _get_credentials(self):
+        if not hasattr(self, "https_username"):
+            self.info("NOTICE: Files downloaded from outside of "
+                    "Release Engineering network require LDAP credentials.")
+            self.https_username = raw_input("Please enter your full LDAP email address: ")
+            self.https_password = getpass.getpass()
+        return self.https_username, self.https_password
+
+    def _pre_config_lock(self, rw_config):
+        for i, (target_file, target_dict) in enumerate(rw_config.all_cfg_files_and_dicts):
+            if 'developer_config' in target_file:
+                self._developer_mode_changes(rw_config)
+
+    def _developer_mode_changes(self, rw_config):
+        """ This function is called when you append the config called
+            developer_config.py. This allows you to run a job
+            outside of the Release Engineering infrastructure.
+
+            What this functions accomplishes is:
+            * read-buildbot-config is removed from the list of actions
+            * --installer-url is set
+            * --test-url is set if needed
+            * every url is substituted by another external to the
+                Release Engineering network
+        """
+        c = self.config
+        self.warning("When you use developer_config.py, we drop " \
+                "'read-buildbot-config' from the list of actions.")
+        if "read-buildbot-config" in rw_config.actions:
+            rw_config.actions.remove("read-buildbot-config")
+        self.actions = tuple(rw_config.actions)
+
+        def _replace_url(url, changes):
+            for from_, to_ in changes:
+                if url.startswith(from_):
+                    new_url = url.replace(from_, to_)
+                    self.info("Replacing url %s -> %s" % (url, new_url))
+                    return new_url
+            return url
+
+        assert c["installer_url"], "You must use --installer-url with developer_config.py"
+        if c.get("require_test_zip"):
+            assert c["test_url"], "You must use --test-url with developer_config.py"
+
+        c["installer_url"] = _replace_url(c["installer_url"], c["replace_urls"])
+        if c.get("test_url"):
+            c["test_url"] = _replace_url(c["test_url"], c["replace_urls"])
+
+        for key, value in self.config.iteritems():
+            if type(value) == str and value.startswith("http"):
+                self.config[key] = _replace_url(value, c["replace_urls"])
+
+        self._get_credentials()
+
+    def _urlopen(self, url, **kwargs):
+        '''
+        This function helps dealing with downloading files while outside
+        of the releng network.
+        '''
+        # Code based on http://code.activestate.com/recipes/305288-http-basic-authentication
+        def _urlopen_basic_auth(url, **kwargs):
+            self.info("We want to download this file %s" % url)
+            username, password = self._get_credentials()
+            # This creates a password manager
+            passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            # Because we have put None at the start it will use this username/password combination from here on
+            passman.add_password(None, url, username, password)
+            authhandler = urllib2.HTTPBasicAuthHandler(passman)
+
+            return urllib2.build_opener(authhandler).open(url, **kwargs)
+
+        # If we have the developer_run flag enabled then we will switch
+        # URLs to the right place and enable http authentication
+        if "developer_config.py" in self.config["config_files"]:
+            return _urlopen_basic_auth(url, **kwargs)
+        else:
+            return urllib2.urlopen(url, **kwargs)
+
     # read_buildbot_config is in BuildbotMixin.
 
     def postflight_read_buildbot_config(self):
@@ -149,7 +253,7 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
                 if c.get("require_test_zip") and not self.test_url:
                     expected_length = [2, 3]
                 if buildbot_prop_branch.startswith('gaia-try'):
-                    expected_length = range(1,6)
+                    expected_length = range(1, 1000)
                 actual_length = len(files)
                 if actual_length not in expected_length:
                     self.fatal("Unexpected number of files in buildbot config %s.\nExpected these number(s) of files: %s, but got: %d" %
@@ -205,22 +309,16 @@ You can set this by:
         if message:
             self.fatal(message + "Can't run download-and-extract... exiting")
 
-        # If our URLs look like files, prefix them with file:// so they can
-        # be loaded like URLs.
-        if self.installer_url[0] == '/':
-            self.installer_url = 'file://%s' % self.installer_url
-
-        if self.test_url and self.test_url[0] == '/':
-            self.test_url = 'file://%s' % self.test_url
-
     def _download_test_zip(self):
         dirs = self.query_abs_dirs()
         file_name = None
         if self.test_zip_path:
             file_name = self.test_zip_path
-        source = self.download_file(self.test_url, file_name=file_name,
-                                    parent_dir=dirs['abs_work_dir'],
-                                    error_level=FATAL)
+        # try to use our proxxy servers
+        # create a proxxy object and get the binaries from it
+        source = self.download_proxied_file(self.test_url, file_name=file_name,
+                                            parent_dir=dirs['abs_work_dir'],
+                                            error_level=FATAL)
         self.test_zip_path = os.path.realpath(source)
 
     def _download_unzip(self, url, parent_dir):
@@ -228,8 +326,8 @@ You can set this by:
         This is hardcoded to halt on failure.
         We should probably change some other methods to call this."""
         dirs = self.query_abs_dirs()
-        zipfile = self.download_file(url, parent_dir=dirs['abs_work_dir'],
-                                     error_level=FATAL)
+        zipfile = self.download_proxied_file(url, parent_dir=dirs['abs_work_dir'],
+                                             error_level=FATAL)
         command = self.query_exe('unzip', return_type='list')
         command.extend(['-q', '-o', zipfile])
         self.run_command(command, cwd=parent_dir, halt_on_failure=True,
@@ -284,9 +382,10 @@ You can set this by:
         if self.installer_path:
             file_name = self.installer_path
         dirs = self.query_abs_dirs()
-        source = self.download_file(self.installer_url, file_name=file_name,
-                                    parent_dir=dirs['abs_work_dir'],
-                                    error_level=FATAL)
+        source = self.download_proxied_file(self.installer_url,
+                                            file_name=file_name,
+                                            parent_dir=dirs['abs_work_dir'],
+                                            error_level=FATAL)
         self.installer_path = os.path.realpath(source)
         self.set_buildbot_property("build_url", self.installer_url, write_to_file=True)
 
@@ -299,9 +398,9 @@ You can set this by:
         if not self.symbols_path:
             self.symbols_path = os.path.join(dirs['abs_work_dir'], 'symbols')
         self.mkdir_p(self.symbols_path)
-        source = self.download_file(self.symbols_url,
-                                    parent_dir=self.symbols_path,
-                                    error_level=FATAL)
+        source = self.download_proxied_file(self.symbols_url,
+                                            parent_dir=self.symbols_path,
+                                            error_level=FATAL)
         self.set_buildbot_property("symbols_url", self.symbols_url,
                                    write_to_file=True)
         self.run_command(['unzip', '-q', source], cwd=self.symbols_path,

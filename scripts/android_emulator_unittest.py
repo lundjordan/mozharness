@@ -22,6 +22,7 @@ from mozharness.base.log import FATAL
 from mozharness.base.script import BaseScript
 from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
+from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.buildbot import TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import DesktopUnittestOutputParser, EmulatorMixin
@@ -30,7 +31,7 @@ from mozharness.mozilla.tooltool import TooltoolMixin
 from mozharness.mozilla.testing.device import ADBDeviceHandler
 
 
-class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, EmulatorMixin, VCSMixin, BaseScript):
+class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, EmulatorMixin, VCSMixin, BaseScript, MozbaseMixin):
     config_options = [[
         ["--robocop-url"],
         {"action": "store",
@@ -235,7 +236,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         attempts = 0
         tn = None
         contacted_sut = False
-        while attempts < 4 and not contacted_sut:
+        while attempts < 8 and not contacted_sut:
             if attempts != 0:
                 self.info("Sleeping 30 seconds")
                 time.sleep(30)
@@ -407,7 +408,13 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         }
         for option in self.tree_config["suite_definitions"][suite_category]["options"]:
             cmd.extend([option % str_format_values])
-        cmd.extend(self.test_suite_definitions[suite_name]["extra_args"])
+
+        for arg in self.test_suite_definitions[suite_name]["extra_args"]:
+            argname = arg.split('=')[0]
+            # only add the extra arg if it wasn't already defined by in-tree configs
+            if any(a.split('=')[0] == argname for a in cmd):
+                continue
+            cmd.append(arg)
 
         return cmd
 
@@ -468,11 +475,15 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         for artifact_name in artifacts.keys():
             file_name = artifacts[artifact_name][0]
             file_path = os.path.join(c["tooltool_cache_path"], file_name)
-            if not os.path.exists(file_path):
+            file_shasum = artifacts[artifact_name][1]
+            if not os.path.exists(file_path) or self.file_sha512sum(file_path) != file_shasum:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
                 # We store files in tooltool as their shasum representation
-                file_shasum = artifacts[artifact_name][1]
                 file_url = os.path.join(c["tooltool_url"], file_shasum)
                 self.download_file(file_url, file_path, c["tooltool_cache_path"])
+                if self.file_sha512sum(file_path) != file_shasum:
+                    return ""
 
     def setup_avds(self):
         '''

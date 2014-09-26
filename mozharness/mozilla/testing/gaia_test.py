@@ -18,14 +18,16 @@ from mozharness.base.log import INFO, ERROR, WARNING, FATAL
 from mozharness.base.script import PreScriptAction
 from mozharness.base.transfer import TransferMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
+from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.buildbot import TBPL_SUCCESS, TBPL_WARNING, TBPL_FAILURE
 from mozharness.mozilla.gaia import GaiaMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.tooltool import TooltoolMixin
+from mozharness.mozilla.proxxy import Proxxy
 
 
 class GaiaTest(TestingMixin, TooltoolMixin, MercurialScript, TransferMixin,
-               GaiaMixin):
+               GaiaMixin, BlobUploadMixin):
     config_options = [[
         ["--gaia-dir"],
         {"action": "store",
@@ -82,7 +84,20 @@ class GaiaTest(TestingMixin, TooltoolMixin, MercurialScript, TransferMixin,
          "default": "http://npm-mirror.pub.build.mozilla.org",
          "help": "where to go for node packages"
          }
-    ]] + copy.deepcopy(testing_config_options)
+    ], [
+        ["--total-chunks"],
+        {"action": "store",
+         "dest": "total_chunks",
+         "help": "Number of total chunks",
+         }
+    ], [
+        ["--this-chunk"],
+        {"action": "store",
+         "dest": "this_chunk",
+         "help": "Number of this chunk",
+         }
+    ]] + copy.deepcopy(testing_config_options) + \
+        copy.deepcopy(blobupload_config_options)
 
     error_list = [
         {'substr': 'FAILED (errors=', 'level': WARNING},
@@ -155,6 +170,7 @@ class GaiaTest(TestingMixin, TooltoolMixin, MercurialScript, TransferMixin,
                                               'tests', 'python', 'gaia-unit-tests')
         dirs['abs_test_install_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'tests')
+        dirs['abs_blob_upload_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'blobber_upload_dir')
 
         for key in dirs.keys():
             if key not in abs_dirs:
@@ -217,10 +233,25 @@ class GaiaTest(TestingMixin, TooltoolMixin, MercurialScript, TransferMixin,
                              halt_on_failure=True,
                              fatal_exit_code=3)
 
-    def _retry_download_file(self, url, file_name, error_level=FATAL):
+    def _query_proxxy(self):
+        if not self.proxxy:
+            # we don't have a proxxy object. Create it.
+            # By default, Proxxy accepts a full configuration looks for the
+            # 'proxxy' element. If 'proxxy' is not defined it uses PROXXY_CONFIG
+            # For GaiaTest, if there's no proxxy element, don't use a proxxy at
+            # all. To do this we must pass a special configuraion
+            proxxy_conf = {'proxxy': self.config.get('proxxy', {})}
+            proxxy = Proxxy(proxxy_conf, self.log_obj)
+            self.proxxy = proxxy
+        return self.proxxy
+
+    def _retry_download_file(self, url, file_name, error_level=FATAL, retry_config=None):
         if self.config.get("bypass_download_cache"):
             n = 0
+            # ignore retry_config in this case
             max_attempts = 5
+            sleeptime = 60
+
             while n < max_attempts:
                 n += 1
                 try:
@@ -232,12 +263,12 @@ class GaiaTest(TestingMixin, TooltoolMixin, MercurialScript, TransferMixin,
                     if n >= max_attempts:
                         self.log("Can't download from %s to %s!" % (url, file_name),
                                  level=error_level, exit_code=3)
-                        return -1
-                    self.info("Sleeping 60 before retrying...")
-                    time.sleep(60)
+                        return None
+                    self.info("Sleeping %s before retrying..." % sleeptime)
+                    time.sleep(sleeptime)
         else:
             return super(GaiaTest, self)._retry_download_file(
-                url, file_name, error_level
+                url, file_name, error_level, retry_config=retry_config,
             )
 
     def download_and_extract(self):

@@ -29,7 +29,7 @@ from mozharness.mozilla.testing.device import SUTDeviceMozdeviceMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import DesktopUnittestOutputParser
 
-SUITE_CATEGORIES = ['mochitest', 'reftest', 'crashtest', 'jsreftest', 'robocop', 'xpcshell', 'jittest', 'cppunittest']
+SUITE_CATEGORIES = ['mochitest', 'reftest', 'crashtest', 'jsreftest', 'robocop', 'instrumentation', 'xpcshell', 'jittest', 'cppunittest']
 
 
 class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, BuildbotMixin, SUTDeviceMozdeviceMixin, MozbaseMixin):
@@ -101,6 +101,14 @@ class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, Bu
             "help": "Specify which robocop suite to run. "
                     "Suites are defined in the config file\n."
                     "Examples: 'robocop'"}
+         ],
+        [['--instrumentation-suite', ], {
+            "action": "extend",
+            "dest": "specified_instrumentation_suites",
+            "type": "string",
+            "help": "Specify which instrumentation suite to run. "
+                    "Suites are defined in the config file\n."
+                    "Examples: 'browser', 'background'"}
          ],
          [['--xpcshell-suite', ], {
             "action": "extend",
@@ -220,6 +228,10 @@ class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, Bu
                 should_install_app = True
                 if 'cppunittest' in suite:
                     should_install_app = False
+                    # check if separate test package required
+                    if not os.path.isdir(dirs['abs_cppunittest_dir']):
+                        self._download_unzip(self.test_url.replace('tests', 'tests.cppunit'), dirs['abs_test_install_dir'])
+
                 if 'robocop' in suite:
                     self._download_robocop_apk()
                 if 'jittest' in suite:
@@ -386,6 +398,8 @@ class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, Bu
             abs_dirs['abs_work_dir'], 'hostutils')
         dirs['abs_robocop_dir'] = os.path.join(
             dirs['abs_test_install_dir'], 'mochitest')
+        dirs['abs_instrumentation_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], 'instrumentation')
         dirs['abs_blob_upload_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'blobber_upload_dir')
         dirs['abs_jittest_dir'] = os.path.join(dirs['abs_test_install_dir'], "jit-test", "jit-test")
         dirs['shutdown_dir'] = abs_dirs['abs_work_dir'].rsplit("/", 2)[0]
@@ -457,6 +471,7 @@ class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, Bu
 
     ###### helper methods
     def _pre_config_lock(self, rw_config):
+        super(PandaTest, self)._pre_config_lock(rw_config)
         c = self.config
         if not c.get('run_all_suites'):
             return  # configs are valid
@@ -470,10 +485,13 @@ class PandaTest(TestingMixin, MercurialScript, BlobUploadMixin, MozpoolMixin, Bu
                                "like:\n '--mochitest-suite browser-chrome'")
 
     def close_request(self):
-        mph = self.query_mozpool_handler(self.mozpool_device)
-        mph.close_request(self.request_url)
-        self.info("Request '%s' deleted on cleanup" % self.request_url)
-        self.request_url = None
+        if self.request_url:
+            mph = self.query_mozpool_handler(self.mozpool_device)
+            mph.close_request(self.request_url)
+            self.info("Request '%s' deleted on cleanup" % self.request_url)
+            self.request_url = None
+        else:
+            self.info("request_url doesn't exist. Already closed?")
 
     def _build_arg(self, option, value):
         """

@@ -8,6 +8,7 @@
 '''
 
 import os
+import subprocess
 import sys
 import traceback
 
@@ -209,6 +210,9 @@ class VirtualenvMixin(object):
             virtualenv_cache_dir = c.get("virtualenv_cache_dir", os.path.join(venv_path, "cache"))
             if virtualenv_cache_dir:
                 command += ["--download-cache", virtualenv_cache_dir]
+            # To avoid timeouts with our pypi server, increase default timeout:
+            # https://bugzilla.mozilla.org/show_bug.cgi?id=1007230#c802
+            command += ['--timeout', str(c.get('pip_timeout', 120))]
             for requirement in requirements:
                 command += ["-r", requirement]
             if c.get('find_links') and not c["pip_index"]:
@@ -249,27 +253,32 @@ class VirtualenvMixin(object):
                     self.fatal("editable installs not supported for install_method %s" % install_method)
             command += [module_url]
 
-        # Prevents a return code of 1 being marked as an ERROR in the log
-        # for optional packages.
-        success_codes = [0, 1] if optional else [0]
-
         # If we're only installing a single requirements file, use
         # the file's directory as cwd, so relative paths work correctly.
         cwd = dirs['abs_work_dir']
         if not module and len(requirements) == 1:
             cwd = os.path.dirname(requirements[0])
 
+        quoted_command = subprocess.list2cmdline(command)
         # Allow for errors while building modules, but require a
         # return status of 0.
-        if self.run_command(command,
-                            error_list=VirtualenvErrorList,
-                            success_codes=success_codes,
-                            cwd=cwd) != 0:
-            if optional:
-                self.warning("Error running install of optional package, %s." %
-                             ' '.join(command))
-            else:
-                self.fatal("Error running install of package, %s!" % ' '.join(command))
+        self.retry(
+            self.run_command,
+            # None will cause default value to be used
+            attempts=1 if optional else None,
+            good_statuses=(0,),
+            error_level=WARNING if optional else FATAL,
+            error_message='Could not install python package: ' + quoted_command + ' failed after %(attempts)d tries!',
+            args=[command,],
+            kwargs={
+                'error_list': VirtualenvErrorList,
+                'cwd': cwd,
+                # WARNING only since retry will raise final FATAL if all
+                # retry attempts are unsuccessful - and we only want
+                # an ERROR of FATAL if *no* retry attempt works
+                'error_level': WARNING,
+            }
+        )
 
     def create_virtualenv(self, modules=(), requirements=()):
         """

@@ -26,6 +26,9 @@ config = {
     "locales_file": "%s/mobile/android/locales/all-locales" % MOZILLA_DIR,
     "locales_dir": "mobile/android/locales",
     "ignore_locales": ["en-US"],
+    "nightly_build": True,
+    'balrog_credentials_file': 'oauth.txt',    
+    "tools_repo": "https://hg.mozilla.org/build/tools",
     "tooltool_config": {
         "manifest": "mobile/android/config/tooltool-manifests/android/releng.manifest",
         "output_dir": "%(abs_work_dir)s/" + MOZILLA_DIR,
@@ -88,7 +91,7 @@ config = {
     "aus_base_dir": AUS_BASE_DIR,
 
     # Mock
-    "mock_target": "mozilla-centos6-x86_64",
+    "mock_target": "mozilla-centos6-x86_64-android",
     "mock_packages": ['autoconf213', 'python', 'zip', 'mozilla-python27-mercurial', 'git', 'ccache',
                       'glibc-static', 'libstdc++-static', 'perl-Test-Simple', 'perl-Config-General',
                       'gtk2-devel', 'libnotify-devel', 'yasm',
@@ -105,7 +108,7 @@ config = {
                       'gstreamer-devel', 'gstreamer-plugins-base-devel',
                       'freetype-2.3.11-6.el6_1.8.x86_64',
                       'freetype-devel-2.3.11-6.el6_1.8.x86_64',
-                      'java-1.6.0-openjdk-devel',
+                      'java-1.7.0-openjdk-devel',
                       'openssh-clients',
                       'zlib-devel-1.2.3-27.el6.i686',
                       ],

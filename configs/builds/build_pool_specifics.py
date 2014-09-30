@@ -17,10 +17,11 @@ config = {
         # self._query_graph_server_branch_name()
         "graph_server_branch_name": "MozillaTest",
         'graph_server': 'graphs.allizom.org',
-        "hgtool_base_bundle_urls": [
-            'http://dev-stage01.build.mozilla.org/pub/mozilla'
-            '.org/firefox/bundles',
-        ],
+        # XXX JLUND - temp remove staging bundles so try will work
+        # "hgtool_base_bundle_urls": [
+        #     'http://dev-stage01.build.mozilla.org/pub/mozilla'
+        #     '.org/firefox/bundles',
+        # ],
         'symbol_server_host': "dev-stage01.srv.releng.scl3.mozilla.com",
         'stage_server': 'dev-stage01.srv.releng.scl3.mozilla.com',
         "sendchange_masters": ["dev-master1.srv.releng.scl3.mozilla.com:9038"],

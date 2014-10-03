@@ -1417,6 +1417,7 @@ or run without that action (ie: --no-{action})"
             self.return_code = self.worst_level(
                 2,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
             )
+            self.fatal("'mach build' failed. Please check log for errors.")
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""

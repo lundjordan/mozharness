@@ -809,7 +809,7 @@ or run without that action (ie: --no-{action})"
             # TODO find out if we should fail here like we are
             if not who and not revision:
                 self.fatal("post upload failed. --tinderbox-builds-dir could "
-                           "not be determined. 'who' and/or 'revision unknown")
+                           "not be determined. 'who' and/or 'revision' unknown")
             # branches like try will use 'tinderbox_build_dir
             tinderbox_build_dir = c['tinderbox_build_dir'] % {
                 'who': who,

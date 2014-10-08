@@ -26,7 +26,7 @@ import sys
 from datetime import datetime
 import re
 from mozharness.base.config import BaseConfig, parse_config_file
-from mozharness.base.log import ERROR, OutputParser, FATAL
+from mozharness.base.log import ERROR, OutputParser, FATAL, WARNING
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
@@ -1413,11 +1413,18 @@ or run without that action (ie: --no-{action})"
             cwd=self.query_abs_dirs()['abs_src_dir'],
             env=env
         )
-        if return_code:  # set the return code to red, failure
+        if return_code:
+            log_level = WARNING
+            if return_code != 1:
+                # if not 1 (warning/orange), set the build to 2 (failure/red)
+                return_code = 2
+                log_level = FATAL
+            # set the return code to red, failure
             self.return_code = self.worst_level(
-                2,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+                return_code,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
             )
-            self.fatal("'mach build' failed. Please check log for errors.")
+            self.log("'mach build' did not run successfully. Please check log "
+                     "for errors/warnings.", log_level)
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""

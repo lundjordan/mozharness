@@ -48,7 +48,7 @@ config = {
         "PATH": "%(PATH)s:/usr/libexec/git-core",
     },
     "conversion_repos": [{
-        "repo": "https://hg.mozilla.org/releases/mozilla-aurora",
+        "repo": "https://hg.mozilla.org/releases/mozilla-b2g34_v2_1",
         "revision": "default",
         "repo_name": "mozilla-aurora",
         "targets": [{

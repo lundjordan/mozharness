@@ -109,9 +109,11 @@ class MakeUploadOutputParser(OutputParser):
                     prop_assigned = True
                     break
             if not prop_assigned:
-                # if we found a match but haven't identified the prop then this
-                # is the packageURL. Let's consider this the else block
-                self.matches['packageUrl'] = m
+                # ignore matched lines containing cppunit or geckoview
+                if m.find('cppunit') < 0 or m.find('geckoview') < 0:
+                    # if we found a match but haven't identified the prop then this
+                    # is the packageURL. Let's consider this the else block
+                    self.matches['packageUrl'] = m
 
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
@@ -1409,22 +1411,28 @@ or run without that action (ie: --no-{action})"
 
         python = self.query_exe('python2.7')
         return_code = self.run_command_m(
-            command=[python, 'mach', 'build'],
+            command=[python, 'mach', '--log-no-times', 'build', '-v'],
             cwd=self.query_abs_dirs()['abs_src_dir'],
             env=env
         )
         if return_code:
-            log_level = WARNING
-            if return_code != 1:
-                # if not 1 (warning/orange), set the build to 2 (failure/red)
-                return_code = 2
-                log_level = FATAL
-            # set the return code to red, failure
-            self.return_code = self.worst_level(
-                return_code,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+            mach_properties_path = os.path.join(
+                self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
             )
-            self.log("'mach build' did not run successfully. Please check log "
-                     "for errors/warnings.", log_level)
+            if os.path.exists(mach_properties_path):
+                # mach build was able to compile successfully but failed to
+                # run certain automation targets. The targets that failed
+                # should be ones that would make this job go orange but not
+                # stop it altogether. e.g. 'make check'
+                self.return_code = self.worst_level(
+                    1,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+                )
+                self.warning('compiling was successful but not all the '
+                             'automation targets succeeded. e.g. check-tests '
+                             'may have failed.')
+        else:
+            self.fatal("'mach build' did not run successfully."
+                       " Please check log for errors.")
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
@@ -1468,6 +1476,53 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("Nothing to do for this action since ctors and vsize "
                       "counts are disabled for this build.")
+
+    def upload(self):
+        self._assert_cfg_valid_for_action(
+            ['mock_target', 'branch_supports_partials',
+             'platform_supports_partials'], 'upload'
+        )
+        c = self.config
+        if self.query_is_nightly():
+            # mach build handles creating a complete mar through
+            # 'upload-packaging' target. but we still get mozharness to
+            # create the partial
+            if (c.get('platform_supports_partials') and
+                    c.get('branch_supports_partials')):
+                # platform_supports_partials: is False for things like asan
+                # branch_supports_partials: False for things like some b2g branches
+                self._create_partial_mar()
+                dist_update_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
+                                               'dist',
+                                               'update')
+                self._set_file_properties(file_name='*.partial.*.mar',
+                                          find_dir=dist_update_dir,
+                                          prop_type='partialMar')
+
+        upload_env = self.query_build_env()
+        upload_env.update(self.query_build_upload_env())
+
+        parser = MakeUploadOutputParser(config=c,
+                                        log_obj=self.log_obj)
+        cwd = self.query_abs_dirs()['abs_obj_dir']
+        self.retry(
+            self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
+                                           'command': 'make upload',
+                                           'cwd': cwd,
+                                           'env': upload_env,
+                                           'output_parser': parser}
+        )
+        if parser.tbpl_status != TBPL_SUCCESS:
+            self.add_summary("make upload failed")
+        self.worst_buildbot_status = self.worst_level(
+            parser.tbpl_status, self.worst_buildbot_status,
+            TBPL_STATUS_DICT.keys()
+        )
+        self.info('Setting properties from make upload...')
+        for prop, value in parser.matches.iteritems():
+            self.set_buildbot_property(prop,
+                                       value,
+                                       write_to_file=True)
 
     def sendchanges(self):
         # TODO rip out this logic and put it in build configs
@@ -1550,19 +1605,6 @@ or run without that action (ie: --no-{action})"
         # grab any props available from this or previous unclobbered runs
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
-
-        # platform_supports_partials: is False for things like asan
-        # branch_supports_partials: is False for things like some b2g branches
-        if (c.get('platform_supports_partials') and
-                c.get('branch_supports_partials')):
-            self._create_partial_mar()
-            dist_update_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
-                                           'dist',
-                                           'update')
-            self._set_file_properties(file_name='*.partial.*.mar',
-                                      find_dir=dist_update_dir,
-                                      prop_type='partialMar')
-
         if not self.config.get("balrog_api_root"):
             self.fatal("balrog_api_root not set; skipping balrog submission.")
             return

@@ -17,6 +17,7 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
+        'upload',
         'sendchanges',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()

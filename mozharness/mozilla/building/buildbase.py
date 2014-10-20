@@ -733,20 +733,25 @@ or run without that action (ie: --no-{action})"
         # every call for reasons like MOZ_SIGN_CMD
         return env
 
-    def query_build_upload_env(self):
+    def query_mach_build_env(self):
         c = self.config
-        upload_env = {}
+        mach_env = {}
         if c.get('upload_env'):
-            upload_env.update(c['upload_env'])
-        if not upload_env.get("UPLOAD_HOST") and c.get('stage_server'):
-            upload_env['UPLOAD_HOST'] = c['stage_server']
+            mach_env.update(c['upload_env'])
+        if not mach_env.get("UPLOAD_HOST") and c.get('stage_server'):
+            mach_env['UPLOAD_HOST'] = c['stage_server']
+
+        if self.query_is_nightly():
+            mach_env['LATEST_MAR_DIR'] = c['latest_mar_dir'] % {
+                'branch': self.branch
+            }
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
-        upload_env['POST_UPLOAD_CMD'] = pst_up_cmd
+        mach_env['POST_UPLOAD_CMD'] = pst_up_cmd
 
-        return upload_env
+        return mach_env
 
     def query_check_test_env(self):
         c = self.config
@@ -1395,7 +1400,7 @@ or run without that action (ie: --no-{action})"
     def build(self):
         """builds application."""
         env = self.query_build_env()
-        env.update(self.query_build_upload_env())
+        env.update(self.query_mach_build_env())
         env.update(self.query_check_test_env())
         symbols_extra_buildid = self._query_moz_symbols_buildid()
         if symbols_extra_buildid:
@@ -1500,7 +1505,7 @@ or run without that action (ie: --no-{action})"
                                           prop_type='partialMar')
 
         upload_env = self.query_build_env()
-        upload_env.update(self.query_build_upload_env())
+        upload_env.update(self.query_mach_build_env())
 
         parser = MakeUploadOutputParser(config=c,
                                         log_obj=self.log_obj)

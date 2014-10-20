@@ -32,7 +32,6 @@ class FxDesktopBuild(BuildScript, object):
                 'clone-tools',
                 'setup-mock',
                 'build',
-                'sendchanges',
                 'generate-build-stats',
                 'update',
             ],

@@ -746,6 +746,12 @@ or run without that action (ie: --no-{action})"
                 'branch': self.branch
             }
 
+        if c.get('enable_talos_sendchange'):
+            mach_env['TALOS_SENDCHANGE_CMD'] = self.query_sendchange_cmd('talos')
+
+        if c.get('enable_unittest_sendchange'):
+            mach_env['UNITTEST_SENDCHANGE_CMD'] = self.query_sendchange_cmd('unittest')
+
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
         pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
@@ -1529,36 +1535,23 @@ or run without that action (ie: --no-{action})"
                                        value,
                                        write_to_file=True)
 
-    def sendchanges(self):
-        # TODO rip out this logic and put it in build configs
+    def query_sendchange_cmd(self, test_type):
         c = self.config
 
         # grab any props available from this or previous unclobbered runs
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 
-        installer_url = self.query_buildbot_property('packageUrl')
-        if not installer_url:
-            # don't burn the job but we should turn orange
-            self.error("could not determine packageUrl property to use "
-                       "against sendchange. Was it set after 'mach build'?")
-            self.return_code = self.worst_level(
-                1,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
-            )
-            self.return_code = 1
-            return
-        tests_url = self.query_buildbot_property('testsUrl')
+        # these cmds are sent to mach through env vars. We won't know the
+        # packageUrl or testsUrl until mach runs upload target so we let mach
+        #  fill in the rest of the cmd
         sendchange_props = {
             'buildid': self.query_buildid(),
             'builduid': self.query_builduid(),
             'nightly_build': self.query_is_nightly(),
             'pgo_build': c.get('pgo_build', False),
         }
-        # TODO insert check for uploadMulti factory 2526
-        # if not self.uploadMulti when we introduce a platform/build that uses
-        # uploadMulti
-
-        if c.get('enable_talos_sendchange'):
+        if test_type == 'talos':
             if c.get('pgo_build'):
                 build_type = 'pgo-'
             else:  # we don't do talos sendchange for debug so no need to check
@@ -1567,14 +1560,13 @@ or run without that action (ie: --no-{action})"
                                            self.stage_platform,
                                            build_type,
                                            'talos')
-            self.sendchange(downloadables=[installer_url],
-                            branch=talos_branch,
-                            username='sendchange',
-                            sendchange_props=sendchange_props)
-
-        if c.get('enable_unittest_sendchange'):
+            return self.sendchange(downloadables=[],
+                                   branch=talos_branch,
+                                   username='sendchange',
+                                   sendchange_props=sendchange_props,
+                                   dry_run=True)
+        elif test_type == 'unittest':
             # do unittest sendchange
-
             # we need a way to make opt builds use pgo branch sendchanges.
             # if the branch supports per_checkin and this platform is in
             # pgo platforms (see branch_specifics.py), use pgo instead of opt.
@@ -1596,9 +1588,13 @@ or run without that action (ie: --no-{action})"
             unittest_branch = "%s-%s-%s" % (self.branch,
                                             platform_and_build_type,
                                             'unittest')
-            self.sendchange(downloadables=[installer_url, tests_url],
-                            branch=unittest_branch,
-                            sendchange_props=sendchange_props)
+            return self.sendchange(downloadables=[],
+                                   branch=unittest_branch,
+                                   sendchange_props=sendchange_props,
+                                   dry_run=True)
+        else:
+            self.fatal('type: "%s" is unknown for sendchange type. valid '
+                       'strings are "unittest" or "talos"' % test_type)
 
     def update(self):
         """ submit balrog update steps. """

@@ -140,7 +140,8 @@ class BuildbotMixin(object):
         return self.write_to_file(file_name, contents)
 
     def sendchange(self, downloadables=None, branch=None,
-                   username="sendchange-unittest", sendchange_props=None):
+                   username="sendchange-unittest", sendchange_props=None,
+                   dry_run=False):
         """ Generic sendchange, currently b2g- and unittest-specific.
             """
         c = self.config
@@ -178,6 +179,10 @@ class BuildbotMixin(object):
         for d in downloadables:
             sendchange += [d]
 
-        retcode = self.run_command(buildbot + sendchange)
-        if retcode != 0:
-            self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)
+        if dry_run:
+            self.info("sendchange command generated: %s")
+            return buildbot + sendchange
+        else:
+            retcode = self.run_command(buildbot + sendchange)
+            if retcode != 0:
+                self.info("The sendchange failed but we don't want to turn the build orange: %s" % retcode)

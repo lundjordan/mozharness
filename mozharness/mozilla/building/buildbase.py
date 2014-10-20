@@ -747,10 +747,14 @@ or run without that action (ie: --no-{action})"
             }
 
         if c.get('enable_talos_sendchange'):
-            mach_env['TALOS_SENDCHANGE_CMD'] = self.query_sendchange_cmd('talos')
+            mach_env['TALOS_SENDCHANGE_CMD'] = ' '.join(
+                [str(i) for i in self.query_sendchange_cmd('talos')]
+            )
 
         if c.get('enable_unittest_sendchange'):
-            mach_env['UNITTEST_SENDCHANGE_CMD'] = self.query_sendchange_cmd('unittest')
+            mach_env['UNITTEST_SENDCHANGE_CMD'] = ' '.join(
+                [str(i) for i in self.query_sendchange_cmd('unittest')]
+            )
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string

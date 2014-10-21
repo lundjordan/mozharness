@@ -819,7 +819,9 @@ or run without that action (ie: --no-{action})"
         revision = self.query_revision()
         platform = self.stage_platform
         who = self._query_who()
-        if c.get('pgo_build'):
+        if c.get('pgo_build') and not self.query_is_nightly():
+            # we do not want to mess with the platform name even though we
+            # compile against pgo for nightlies
             platform += '-pgo'
 
         if c.get('tinderbox_build_dir'):
@@ -1546,6 +1548,13 @@ or run without that action (ie: --no-{action})"
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 
+        # we need a way to make opt builds use pgo branch sendchanges.
+        # if the branch supports per_checkin and this platform is in
+        # pgo platforms (see branch_specifics.py), use pgo instead of opt.
+        override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
+                               c.get('branch_uses_per_checkin_strategy'))
+        pgo_build = c.get('pgo_build', False) or override_opt_branch
+
         # these cmds are sent to mach through env vars. We won't know the
         # packageUrl or testsUrl until mach runs upload target so we let mach
         #  fill in the rest of the cmd
@@ -1553,10 +1562,10 @@ or run without that action (ie: --no-{action})"
             'buildid': self.query_buildid(),
             'builduid': self.query_builduid(),
             'nightly_build': self.query_is_nightly(),
-            'pgo_build': c.get('pgo_build', False),
+            'pgo_build': pgo_build,
         }
         if test_type == 'talos':
-            if c.get('pgo_build'):
+            if pgo_build:
                 build_type = 'pgo-'
             else:  # we don't do talos sendchange for debug so no need to check
                 build_type = ''  # leave 'opt' out of branch for talos
@@ -1571,14 +1580,9 @@ or run without that action (ie: --no-{action})"
                                    dry_run=True)
         elif test_type == 'unittest':
             # do unittest sendchange
-            # we need a way to make opt builds use pgo branch sendchanges.
-            # if the branch supports per_checkin and this platform is in
-            # pgo platforms (see branch_specifics.py), use pgo instead of opt.
-            override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
-                                   c.get('branch_uses_per_checkin_strategy'))
             if c.get('debug_build'):
                 build_type = ''  # for debug builds we append nothing
-            elif c.get('pgo_build') or override_opt_branch:
+            elif pgo_build:
                 build_type = '-pgo'
             else:  # generic opt build
                 build_type = '-opt'

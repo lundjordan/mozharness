@@ -41,6 +41,7 @@ config = {
         ('/home/cltbld/.boto', '/builds/.boto'),
         ('/builds/gapi.data', '/builds/gapi.data'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
+        ('/tools', '/tools'),
     ],
     'enable_ccache': True,
     'vcs_share_base': '/builds/hg-shared',
@@ -91,7 +92,7 @@ config = {
         # stage_server is dictated from build_pool_specifics.py
         'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
+        'UPLOAD_SSH_KEY': '/home/mock_mozilla/.ssh/ffxbld_dsa',
     },
     "check_test_env": {
         'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',

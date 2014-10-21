@@ -16,16 +16,25 @@ config = {
         'clobber',
         'clone-tools',
         'setup-mock',
+        'create-virtualenv'
         'build',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
+    'virtualenv_modules': [
+        # needed for linux platform as mach runs through mock and buildbot is
+        # not in mock path
+        "buildbot==0.8.4-pre-moz4",
+    ],
+    "virtualenv_path": 'venv',
     "buildbot_json_path": "buildprops.json",
     'exes': {
         'hgtool.py': os.path.join(
             os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),
-        "buildbot": "/tools/buildbot/bin/buildbot",
+        'virtualenv': ['python', '/tools/misc-python/virtualenv.py'],
+        # XXX JLUND HACK
+        # "buildbot": "/tools/buildbot/bin/buildbot",
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
     # decides whether we want to use moz_sign_cmd in env
@@ -41,9 +50,6 @@ config = {
         ('/home/cltbld/.boto', '/builds/.boto'),
         ('/builds/gapi.data', '/builds/gapi.data'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
-        ('/tools/python27', '/tools/python27'),
-        ('/tools/buildbot-0.8.4-pre-moz4', '/tools/buildbot-0.8.4-pre-moz4'),
-        ('/tools/buildbot/', '/tools/buildbot'),
     ],
     'enable_ccache': True,
     'vcs_share_base': '/builds/hg-shared',

@@ -1466,23 +1466,11 @@ or run without that action (ie: --no-{action})"
             env=env
         )
         if return_code:
-            mach_properties_path = os.path.join(
-                self.query_abs_dirs()['abs_obj_dir'], 'mach_build_properties.json'
-            )
-            # mach build was able to compile successfully but failed to
-            # run certain automation targets. The targets that failed
-            # should be ones that would make this job go orange but not
-            # stop it altogether. e.g. 'make check'
             self.return_code = self.worst_level(
                 2,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
             )
-            if os.path.exists(mach_properties_path):
-                self._query_props_set_by_mach()
-                self.fatal("'mach build' was able to compile the build "
-                           "but not all the automation targets succeeded.")
-            else:
-                self.fatal("'mach build' was not able to compile the build "
-                           "successfully. Please check log for errors.")
+            self.fatal("'mach build' did not run successfully. Please check "
+                       "log for errors.")
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""

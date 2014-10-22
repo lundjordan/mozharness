@@ -29,7 +29,7 @@ class FxDesktopBuild(BuildScript, object):
             'config_options': BUILD_BASE_CONFIG_OPTIONS,
             'all_actions': [
                 'clobber',
-                'create-virtualenv'
+                'create-virtualenv',
                 'clone-tools',
                 'setup-mock',
                 'build',

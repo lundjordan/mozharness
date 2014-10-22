@@ -15,6 +15,7 @@ config = {
     'stage_platform': 'macosx64-debug-nonunified',
     'enable_talos_sendchange': False,
     'enable_unittest_sendchange': False,
+    'enable_check_test': False,
     'objdir': 'obj-firefox',
     #### 64 bit build specific #####
     'env': {

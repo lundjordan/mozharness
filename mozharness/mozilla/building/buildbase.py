@@ -36,6 +36,8 @@ from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
+from mozharness.mozilla.testing.errors import TinderBoxPrintRe
+from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.updates.balrog import BalrogMixin
 
 AUTOMATION_EXIT_CODES = EXIT_STATUS_DICT.values()
@@ -74,6 +76,47 @@ TBPL_UPLOAD_ERRORS = [
         'level': TBPL_RETRY,
     }
 ]
+
+class CheckTestCompleteParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+
+    def __init__(self, **kwargs):
+        self.matches = {}
+        super(CheckTestCompleteParser, self).__init__(**kwargs)
+        self.pass_count = 0
+        self.fail_count = 0
+        self.leaked = False
+        self.harness_err_re = TinderBoxPrintRe['harness_error']['full_regex']
+
+    def parse_single_line(self, line):
+        # Counts and flags.
+        # Regular expression for crash and leak detections.
+        if "TEST-PASS" in line:
+            self.pass_count += 1
+            return self.info(line)
+        if "TEST-UNEXPECTED-" in line:
+            # Set the error flags.
+            # Or set the failure count.
+            m = self.harness_err_re.match(line)
+            if m:
+                r = m.group(1)
+                if r == "missing output line for total leaks!":
+                    self.leaked = None
+                else:
+                    self.leaked = True
+            else:
+                self.fail_count += 1
+            return self.warning(line)
+        self.info(line)  # else
+
+    def evaluate_parser(self):
+        # Return the summary.
+        summary = tbox_print_summary(self.pass_count,
+                                     self.fail_count,
+                                     self.leaked)
+        self.info("TinderboxPrint: check<br/>%s\n" % summary)
+
+
 
 class MakeUploadOutputParser(OutputParser):
     tbpl_error_list = TBPL_UPLOAD_ERRORS
@@ -745,16 +788,6 @@ or run without that action (ie: --no-{action})"
             mach_env['LATEST_MAR_DIR'] = c['latest_mar_dir'] % {
                 'branch': self.branch
             }
-
-        if c.get('enable_talos_sendchange'):
-            mach_env['TALOS_SENDCHANGE_CMD'] = ' '.join(
-                [str(i) for i in self.do_sendchange('talos')]
-            )
-
-        if c.get('enable_unittest_sendchange'):
-            mach_env['UNITTEST_SENDCHANGE_CMD'] = ' '.join(
-                [str(i) for i in self.do_sendchange('unittest')]
-            )
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
@@ -1445,18 +1478,47 @@ or run without that action (ie: --no-{action})"
                     1,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
                 )
                 self.warning('compiling was successful but not all the '
-                             'automation targets succeeded. e.g. check-tests '
-                             'may have failed.')
+                             'automation targets succeeded')
         else:
             self.fatal("'mach build' did not run successfully."
                        " Please check log for errors.")
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
+        c = self.config
         self.generate_build_props(console_output=console_output,
                                   halt_on_failure=True)
+
+        if c.get('enable_talos_sendchange'):
+            self._do_sendchange('talos')
+
+        if c.get('enable_unittest_sendchange'):
+            self._do_sendchange('unittest')
+
+        if self.config.get('enable_check_test'):
+            self._check_test()
+
         if self.config.get('enable_ccache'):
             self._ccache_s()
+
+    def _check_test(self):
+        if self.query_is_nightly():
+            self.info("Skipping action because this is a nightly run...")
+            return
+
+        c = self.config
+        dirs = self.query_abs_dirs()
+
+        env = self.query_build_env()
+        env.update(self.query_check_test_env())
+        parser = CheckTestCompleteParser(config=c,
+                                         log_obj=self.log_obj)
+        self.run_command_m(command='make -k check',
+                           cwd=dirs['abs_obj_dir'],
+                           env=env,
+                           output_parser=parser)
+        parser.evaluate_parser()
+
 
     def generate_build_stats(self):
         """grab build stats following a compile.
@@ -1541,13 +1603,24 @@ or run without that action (ie: --no-{action})"
                                        value,
                                        write_to_file=True)
 
-    def do_sendchange(self, test_type):
+    def _do_sendchange(self, test_type):
         c = self.config
 
         # grab any props available from this or previous unclobbered runs
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 
+        installer_url = self.query_buildbot_property('packageUrl')
+        if not installer_url:
+            # don't burn the job but we should turn orange
+            self.error("could not determine packageUrl property to use "
+                       "against sendchange. Was it set after 'mach build'?")
+            self.return_code = self.worst_level(
+                1,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+            )
+            self.return_code = 1
+            return
+        tests_url = self.query_buildbot_property('testsUrl')
         # we need a way to make opt builds use pgo branch sendchanges.
         # if the branch supports per_checkin and this platform is in
         # pgo platforms (see branch_specifics.py), use pgo instead of opt.
@@ -1573,11 +1646,10 @@ or run without that action (ie: --no-{action})"
                                            self.stage_platform,
                                            build_type,
                                            'talos')
-            return self.sendchange(downloadables=[],
-                                   branch=talos_branch,
-                                   username='sendchange',
-                                   sendchange_props=sendchange_props,
-                                   dry_run=True)
+            self.sendchange(downloadables=[installer_url],
+                            branch=talos_branch,
+                            username='sendchange',
+                            sendchange_props=sendchange_props)
         elif test_type == 'unittest':
             # do unittest sendchange
             if c.get('debug_build'):
@@ -1596,10 +1668,9 @@ or run without that action (ie: --no-{action})"
             unittest_branch = "%s-%s-%s" % (self.branch,
                                             platform_and_build_type,
                                             'unittest')
-            return self.sendchange(downloadables=[],
-                                   branch=unittest_branch,
-                                   sendchange_props=sendchange_props,
-                                   dry_run=True)
+            self.sendchange(downloadables=[installer_url, tests_url],
+                            branch=unittest_branch,
+                            sendchange_props=sendchange_props)
         else:
             self.fatal('type: "%s" is unknown for sendchange type. valid '
                        'strings are "unittest" or "talos"' % test_type)

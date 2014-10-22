@@ -10,6 +10,7 @@ config = {
     'stage_platform': 'macosx64-nonunified',
     'enable_talos_sendchange': False,
     'enable_unittest_sendchange': False,
+    'enable_check_test': False,
     #### 64 bit build specific #####
     'src_mozconfig': 'browser/config/mozconfigs/macosx-universal/nightly-nonunified',
     #######################

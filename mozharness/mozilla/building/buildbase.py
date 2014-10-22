@@ -897,10 +897,9 @@ or run without that action (ie: --no-{action})"
         """clear ccache stats."""
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
-        if os.path.exists(dirs['abs_src_dir']):
-            self.run_command(command=['ccache', '-z'],
-                             cwd=dirs['abs_src_dir'],
-                             env=env)
+        self.run_command(command=['ccache', '-z'],
+                         cwd=dirs['abs_src_dir'],
+                         env=env)
 
     def _ccache_s(self):
         """print ccache stats. only done for unix like platforms"""

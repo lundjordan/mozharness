@@ -697,9 +697,6 @@ or run without that action (ie: --no-{action})"
 
         if not replace_dict:
             replace_dict = {}
-        # now let's grab the right host based off staging/production
-        # symbol_server_host is defined in build_pool_specifics.py
-        replace_dict.update({"symbol_server_host": c['symbol_server_host']})
 
         # let's evoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
@@ -739,6 +736,11 @@ or run without that action (ie: --no-{action})"
         mach_env = {}
         if c.get('upload_env'):
             mach_env.update(c['upload_env'])
+
+        # symbol_server_host is defined in build_pool_specifics.py
+        if not mach_env.get("SYMBOL_SERVER_HOST") and c.get('symbol_server_host'):
+            mach_env['SYMBOL_SERVER_HOST'] = c['symbol_server_host']
+
         if not mach_env.get("UPLOAD_HOST") and c.get('stage_server'):
             mach_env['UPLOAD_HOST'] = c['stage_server']
 

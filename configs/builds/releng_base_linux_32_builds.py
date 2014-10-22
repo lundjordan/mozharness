@@ -14,9 +14,9 @@ config = {
 
     'default_actions': [
         'clobber',
-        'create-virtualenv',
         'clone-tools',
         'setup-mock',
+        'create-virtualenv',
         'build',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()

@@ -1479,9 +1479,9 @@ or run without that action (ie: --no-{action})"
                 )
                 self.warning('compiling was successful but not all the '
                              'automation targets succeeded')
-        else:
-            self.fatal("'mach build' did not run successfully."
-                       " Please check log for errors.")
+            else:
+                self.fatal("'mach build' did not run successfully."
+                           " Please check log for errors.")
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""

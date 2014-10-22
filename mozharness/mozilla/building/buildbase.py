@@ -748,12 +748,12 @@ or run without that action (ie: --no-{action})"
 
         if c.get('enable_talos_sendchange'):
             mach_env['TALOS_SENDCHANGE_CMD'] = ' '.join(
-                [str(i) for i in self.query_sendchange_cmd('talos')]
+                [str(i) for i in self.do_sendchange('talos')]
             )
 
         if c.get('enable_unittest_sendchange'):
             mach_env['UNITTEST_SENDCHANGE_CMD'] = ' '.join(
-                [str(i) for i in self.query_sendchange_cmd('unittest')]
+                [str(i) for i in self.do_sendchange('unittest')]
             )
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
@@ -1541,7 +1541,7 @@ or run without that action (ie: --no-{action})"
                                        value,
                                        write_to_file=True)
 
-    def query_sendchange_cmd(self, test_type):
+    def do_sendchange(self, test_type):
         c = self.config
 
         # grab any props available from this or previous unclobbered runs

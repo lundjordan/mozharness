@@ -1491,10 +1491,6 @@ or run without that action (ie: --no-{action})"
             self._ccache_s()
 
     def _check_test(self):
-        if self.query_is_nightly():
-            self.info("Skipping action because this is a nightly run...")
-            return
-
         c = self.config
         dirs = self.query_abs_dirs()
 

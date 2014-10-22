@@ -27,7 +27,6 @@ from datetime import datetime
 import re
 from mozharness.base.config import BaseConfig, parse_config_file
 from mozharness.base.log import ERROR, OutputParser, FATAL, WARNING
-from mozharness.base.python import VirtualenvMixin
 from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
@@ -447,7 +446,7 @@ BUILD_BASE_CONFIG_OPTIONS = [
 
 
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
-                  SigningMixin, MercurialScript, VirtualenvMixin):
+                  SigningMixin, MercurialScript):
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
@@ -697,6 +696,9 @@ or run without that action (ie: --no-{action})"
 
         if not replace_dict:
             replace_dict = {}
+        # now let's grab the right host based off staging/production
+        # symbol_server_host is defined in build_pool_specifics.py
+        replace_dict.update({"symbol_server_host": c['symbol_server_host']})
 
         # let's evoke the base query_env and make a copy of it
         # as we don't always want every key below added to the same dict
@@ -736,11 +738,6 @@ or run without that action (ie: --no-{action})"
         mach_env = {}
         if c.get('upload_env'):
             mach_env.update(c['upload_env'])
-
-        # symbol_server_host is defined in build_pool_specifics.py
-        if not mach_env.get("SYMBOL_SERVER_HOST") and c.get('symbol_server_host'):
-            mach_env['SYMBOL_SERVER_HOST'] = c['symbol_server_host']
-
         if not mach_env.get("UPLOAD_HOST") and c.get('stage_server'):
             mach_env['UPLOAD_HOST'] = c['stage_server']
 
@@ -1429,8 +1426,7 @@ or run without that action (ie: --no-{action})"
         self.copyfile(os.path.join(dirs['base_work_dir'], 'buildprops.json'),
                       os.path.join(dirs['abs_work_dir'], 'buildprops.json'))
 
-
-        python = self.query_python_path('python2.7')
+        python = self.query_exe('python2.7')
         return_code = self.run_command_m(
             command=[python, 'mach', '--log-no-times', 'build', '-v'],
             cwd=self.query_abs_dirs()['abs_src_dir'],

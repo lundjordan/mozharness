@@ -16,25 +16,16 @@ config = {
         'clobber',
         'clone-tools',
         'setup-mock',
-        'create-virtualenv',
         'build',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
-    'virtualenv_modules': [
-        # needed for linux platform as mach runs through mock and buildbot is
-        # not in mock path
-        "buildbot==0.8.4-pre-moz4",
-    ],
-    "virtualenv_path": 'venv',
     "buildbot_json_path": "buildprops.json",
     'exes': {
         'hgtool.py': os.path.join(
             os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
         ),
-        'virtualenv': ['python', '/tools/misc-python/virtualenv.py'],
-        # XXX JLUND HACK
-        # "buildbot": "/tools/buildbot/bin/buildbot",
+        "buildbot": "/tools/buildbot/bin/buildbot",
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
     # decides whether we want to use moz_sign_cmd in env
@@ -76,6 +67,7 @@ config = {
         'HG_SHARE_BASE_DIR': '/builds/hg-shared',
         'MOZ_OBJDIR': 'obj-firefox',
         # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
+        'SYMBOL_SERVER_HOST': '%(symbol_server_host)s',
         'SYMBOL_SERVER_SSH_KEY': "/home/mock_mozilla/.ssh/ffxbld_dsa",
         'SYMBOL_SERVER_USER': 'ffxbld',
         'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
@@ -99,7 +91,7 @@ config = {
         # stage_server is dictated from build_pool_specifics.py
         'UPLOAD_USER': STAGE_USERNAME,
         'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '/home/mock_mozilla/.ssh/ffxbld_dsa',
+        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
     },
     "check_test_env": {
         'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',

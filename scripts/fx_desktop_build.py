@@ -31,7 +31,6 @@ class FxDesktopBuild(BuildScript, object):
                 'clobber',
                 'clone-tools',
                 'setup-mock',
-                'create-virtualenv',
                 'build',
                 'generate-build-stats',
                 'update',

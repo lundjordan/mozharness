@@ -51,7 +51,6 @@ config = {
     'enable_count_ctors': True,
     'enable_talos_sendchange': True,
     'enable_unittest_sendchange': True,
-    'platform_supports_partials': True,
     #########################################################################
 
 
@@ -90,11 +89,11 @@ config = {
         ##
     },
     'upload_env': {
-        # UPLOAD_HOST is set to stage_server
         # stage_server is dictated from build_pool_specifics.py
-        'UPLOAD_USER': STAGE_USERNAME,
+        'UPLOAD_HOST': '%(stage_server)s',
+        'UPLOAD_USER': '%(stage_username)s',
+        'UPLOAD_SSH_KEY': '/home/mock_mozilla/.ssh/%(stage_ssh_key)s',
         'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '/home/mock_mozilla/.ssh/ffxbld_dsa',
     },
     "check_test_env": {
         'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux64/minidump_stackwalk',
@@ -130,6 +129,5 @@ config = {
     'src_mozconfig': 'browser/config/mozconfigs/linux64/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
 releng.manifest",
-    'platform_ftp_name': 'linux-x86_64.complete.mar',
     #########################################################################
 }

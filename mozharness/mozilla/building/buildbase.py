@@ -672,9 +672,6 @@ or run without that action (ie: --no-{action})"
                 )
 
         if not buildid:
-            # finally, let's resort to making a buildid this will happen when
-            #  buildbot has not made one, and we are running this script for
-            # the first time in a clean clobbered state
             self.info("Creating buildid through current time")
             buildid = time.strftime("%Y%m%d%H%M%S",
                                     time.localtime(time.time()))
@@ -747,7 +744,7 @@ or run without that action (ie: --no-{action})"
             else:  # let's just give the generic channel based on branch
                 env["MOZ_UPDATE_CHANNEL"] = "nightly-%s" % (self.branch,)
 
-        if self.config.get('pgo_build'):
+        if self.config.get('pgo_build') or self._compile_against_pgo():
             env['MOZ_PGO'] = '1'
 
         if c.get('enable_signing'):
@@ -767,8 +764,9 @@ or run without that action (ie: --no-{action})"
         mach_env = {}
         if c.get('upload_env'):
             mach_env.update(c['upload_env'])
-        if not mach_env.get("UPLOAD_HOST") and c.get('stage_server'):
-            mach_env['UPLOAD_HOST'] = c['stage_server']
+            mach_env['UPLOAD_HOST'] = mach_env['UPLOAD_HOST'] % c['stage_server']
+            mach_env['UPLOAD_USER'] = mach_env['UPLOAD_USER'] % c['stage_username']
+            mach_env['UPLOAD_SSH_KEY'] = mach_env['UPLOAD_SSH_KEY'] % c['stage_ssh_key']
 
         if self.query_is_nightly():
             mach_env['LATEST_MAR_DIR'] = c['latest_mar_dir'] % {
@@ -781,6 +779,22 @@ or run without that action (ie: --no-{action})"
         mach_env['POST_UPLOAD_CMD'] = pst_up_cmd
 
         return mach_env
+
+    def _compile_against_pgo(self):
+        """determines whether a build should be run with pgo even if it is
+        not a classified as a 'pgo build'.
+
+        requirements:
+        1) must be a platform that can run against pgo
+        2) either:
+            a) must be a nightly build
+            b) must be on a branch that runs pgo if it can everytime
+        """
+        c = self.config
+        if self.stage_platform in c['pgo_platforms']:
+            if c.get('branch_uses_per_checkin_strategy') or self.query_is_nightly():
+                return True
+        return False
 
     def query_check_test_env(self):
         c = self.config
@@ -838,9 +852,7 @@ or run without that action (ie: --no-{action})"
         revision = self.query_revision()
         platform = self.stage_platform
         who = self._query_who()
-        if c.get('pgo_build') and not self.query_is_nightly():
-            # we do not want to mess with the platform name even though we
-            # compile against pgo for nightlies
+        if c.get('pgo_build'):
             platform += '-pgo'
 
         if c.get('tinderbox_build_dir'):
@@ -857,7 +869,7 @@ or run without that action (ie: --no-{action})"
             # the default
             tinderbox_build_dir = "%s-%s" % (self.branch, platform)
 
-        if who:
+        if who and self.branch == 'try':
             post_upload_cmd.extend(["--who", who])
         if c.get('include_post_upload_builddir'):
             post_upload_cmd.extend(
@@ -870,6 +882,7 @@ or run without that action (ie: --no-{action})"
             post_upload_cmd.extend(['--revision', revision])
         if c.get('to_tinderbox_dated'):
             post_upload_cmd.append('--release-to-tinderbox-dated-builds')
+            post_upload_cmd.append('--release-to-latest-tinderbox-builds')
         if c.get('release_to_try_builds'):
             post_upload_cmd.append('--release-to-try-builds')
         if self.query_is_nightly():
@@ -884,7 +897,7 @@ or run without that action (ie: --no-{action})"
         dirs = self.query_abs_dirs()
         env = self.query_build_env()
         self.run_command(command=['ccache', '-z'],
-                         cwd=dirs['abs_src_dir'],
+                         cwd=dirs['base_work_dir'],
                          env=env)
 
     def _ccache_s(self):
@@ -1294,114 +1307,6 @@ or run without that action (ie: --no-{action})"
                                    write_to_file=True)
         return previous_buildid
 
-    def _create_partial_mar(self):
-        # TODO use mar.py MIXINs and make this simpler
-        self._assert_cfg_valid_for_action(
-            ['update_env', 'platform_ftp_name', 'stage_server',
-             'stage_username', 'stage_ssh_key', 'latest_mar_dir'],
-            'upload'
-        )
-        self.info('Creating a partial mar:')
-        c = self.config
-        dirs = self.query_abs_dirs()
-        generic_env = self.query_build_env()
-        update_env = dict(chain(generic_env.items(), c['update_env'].items()))
-        abs_unwrap_update_path = os.path.join(dirs['abs_src_dir'],
-                                              'tools',
-                                              'update-packaging',
-                                              'unwrap_full_update.pl')
-        dist_update_dir = os.path.join(dirs['abs_obj_dir'],
-                                       'dist',
-                                       'update')
-        self.info('removing old unpacked dirs...')
-        for f in ['current', 'current.work', 'previous']:
-            self.rmtree(os.path.join(dirs['abs_obj_dir'], f),
-                        error_level=FATAL)
-        self.info('making unpacked dirs...')
-        for f in ['current', 'previous']:
-            self.mkdir_p(os.path.join(dirs['abs_obj_dir'], f),
-                         error_level=FATAL)
-        self.info('unpacking current mar...')
-        mar_file = self.query_buildbot_property('completeMarFilename')
-        cmd = '%s %s %s' % (self.query_exe('perl'),
-                            abs_unwrap_update_path,
-                            os.path.join(dist_update_dir, mar_file))
-        self.run_command_m(command=cmd,
-                           cwd=os.path.join(dirs['abs_obj_dir'], 'current'),
-                           env=update_env,
-                           halt_on_failure=True,
-                           fatal_exit_code=3)
-        # The mar file name will be the same from one day to the next,
-        # *except* when we do a version bump for a release. To cope with
-        # this, we get the name of the previous complete mar directly
-        # from staging. Version bumps can also often involve multiple mars
-        # living in the latest dir, so we grab the latest one.
-        self.info('getting previous mar filename...')
-        latest_mar_dir = c['latest_mar_dir'] % {'branch': self.branch}
-        cmd = 'ssh -l %s -i ~/.ssh/%s %s ls -1t %s | grep %s$ | head -n 1' % (
-            c['stage_username'], c['stage_ssh_key'], c['stage_server'],
-            latest_mar_dir, c['platform_ftp_name']
-        )
-        previous_mar_name = self.get_output_from_command(cmd)
-        if re.search(r'\.mar$', previous_mar_name or ""):
-            previous_mar_url = "http://%s%s/%s" % (c['stage_server'],
-                                                   latest_mar_dir,
-                                                   previous_mar_name)
-            self.info('downloading previous mar...')
-            previous_mar_file = self.download_file(previous_mar_url,
-                                                   file_name='previous.mar',
-                                                   parent_dir=dist_update_dir)
-            if not previous_mar_file:
-                # download_file will send error logs if this does not download
-                return
-        else:
-            self.warning('could not determine the previous complete mar file')
-            return
-        self.info('unpacking previous mar...')
-        cmd = '%s %s %s' % (self.query_exe('perl'),
-                            abs_unwrap_update_path,
-                            os.path.join(dist_update_dir, 'previous.mar'))
-        self.run_command_m(command=cmd,
-                           cwd=os.path.join(dirs['abs_obj_dir'], 'previous'),
-                           env=update_env)
-        # Extract the build ID from the unpacked previous complete mar.
-        previous_buildid = self._query_previous_buildid()
-        self.info('removing pgc files from previous and current dirs')
-        for mar_dir in ['current', 'previous']:
-            target_path = os.path.join(dirs['abs_obj_dir'], mar_dir)
-            if os.path.exists(target_path):
-                for root, target_dirs, file_names in os.walk(target_path):
-                    for file_name in file_names:
-                        if file_name.endswith('.pgc'):
-                            self.info('removing file: %s' % (file_name,))
-                            os.remove(file_name)
-        self.info("removing existing partial mar...")
-        mar_file_results = glob.glob(
-            os.path.join(dist_update_dir, '*.partial.*.mar')
-        )
-        if not mar_file_results:
-            self.warning("Could not determine an existing partial mar from "
-                         "%s pattern in %s dir" % ('*.partial.*.mar',
-                                                   dist_update_dir))
-        for mar_file in mar_file_results:
-            self.rmtree(mar_file)
-
-        self.info('generating partial patch from two complete mars...')
-        update_env.update({
-            'STAGE_DIR': '../../dist/update',
-            'SRC_BUILD': '../../previous',
-            'SRC_BUILD_ID': previous_buildid,
-            'DST_BUILD': '../../current',
-            'DST_BUILD_ID': self.query_buildid()
-        })
-        cmd = '%s -C tools/update-packaging partial-patch' % (
-            self.query_exe('make', return_type='string')
-        )
-        self.run_command_m(command=cmd,
-                           cwd=dirs['abs_obj_dir'],
-                           env=update_env)
-        self.rmtree(os.path.join(dist_update_dir, 'previous.mar'))
-
     def clone_tools(self):
         """clones the tools repo."""
         self._assert_cfg_valid_for_action(['tools_repo'], 'clone_tools')
@@ -1450,7 +1355,6 @@ or run without that action (ie: --no-{action})"
         """builds application."""
         env = self.query_build_env()
         env.update(self.query_mach_build_env())
-        env.update(self.query_check_test_env())
         symbols_extra_buildid = self._query_moz_symbols_buildid()
         if symbols_extra_buildid:
             env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid
@@ -1500,14 +1404,22 @@ or run without that action (ie: --no-{action})"
 
         env = self.query_build_env()
         env.update(self.query_check_test_env())
+
+        if c.get('enable_pymake'):  # e.g. windows
+            pymake_path = os.path.join(dirs['abs_src_dir'], 'build',
+                                       'pymake', 'make.py')
+            cmd = ['python', pymake_path]
+        else:
+            cmd = ['make']
+        cmd.extend(['-k', 'check'])
+
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-        self.run_command_m(command='make -k check',
+        self.run_command_m(command=cmd,
                            cwd=dirs['abs_obj_dir'],
                            env=env,
                            output_parser=parser)
         parser.evaluate_parser()
-
 
     def generate_build_stats(self):
         """grab build stats following a compile.
@@ -1525,8 +1437,8 @@ or run without that action (ie: --no-{action})"
         # enable_max_vsize will be True for builds like pgo win32 builds
         # but not for nightlies (nightlies are pgo builds too so the
         # check is needed).
-        enable_max_vsize = (c.get('enable_max_vsize') and c.get('pgo_build')
-                            and not self.query_is_nightly())
+        enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
+
         if enable_max_vsize or c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self.info("counting ctors...")
@@ -1544,53 +1456,6 @@ or run without that action (ie: --no-{action})"
         else:
             self.info("Nothing to do for this action since ctors and vsize "
                       "counts are disabled for this build.")
-
-    def upload(self):
-        self._assert_cfg_valid_for_action(
-            ['mock_target', 'branch_supports_partials',
-             'platform_supports_partials'], 'upload'
-        )
-        c = self.config
-        if self.query_is_nightly():
-            # mach build handles creating a complete mar through
-            # 'upload-packaging' target. but we still get mozharness to
-            # create the partial
-            if (c.get('platform_supports_partials') and
-                    c.get('branch_supports_partials')):
-                # platform_supports_partials: is False for things like asan
-                # branch_supports_partials: False for things like some b2g branches
-                self._create_partial_mar()
-                dist_update_dir = os.path.join(self.query_abs_dirs()['abs_obj_dir'],
-                                               'dist',
-                                               'update')
-                self._set_file_properties(file_name='*.partial.*.mar',
-                                          find_dir=dist_update_dir,
-                                          prop_type='partialMar')
-
-        upload_env = self.query_build_env()
-        upload_env.update(self.query_mach_build_env())
-
-        parser = MakeUploadOutputParser(config=c,
-                                        log_obj=self.log_obj)
-        cwd = self.query_abs_dirs()['abs_obj_dir']
-        self.retry(
-            self.run_mock_command, kwargs={'mock_target': c.get('mock_target'),
-                                           'command': 'make upload',
-                                           'cwd': cwd,
-                                           'env': upload_env,
-                                           'output_parser': parser}
-        )
-        if parser.tbpl_status != TBPL_SUCCESS:
-            self.add_summary("make upload failed")
-        self.worst_buildbot_status = self.worst_level(
-            parser.tbpl_status, self.worst_buildbot_status,
-            TBPL_STATUS_DICT.keys()
-        )
-        self.info('Setting properties from make upload...')
-        for prop, value in parser.matches.iteritems():
-            self.set_buildbot_property(prop,
-                                       value,
-                                       write_to_file=True)
 
     def _do_sendchange(self, test_type):
         c = self.config
@@ -1610,12 +1475,7 @@ or run without that action (ie: --no-{action})"
             self.return_code = 1
             return
         tests_url = self.query_buildbot_property('testsUrl')
-        # we need a way to make opt builds use pgo branch sendchanges.
-        # if the branch supports per_checkin and this platform is in
-        # pgo platforms (see branch_specifics.py), use pgo instead of opt.
-        override_opt_branch = (self.stage_platform in c['pgo_platforms'] and
-                               c.get('branch_uses_per_checkin_strategy'))
-        pgo_build = c.get('pgo_build', False) or override_opt_branch
+        pgo_build = c.get('pgo_build', False) or self._compile_against_pgo()
 
         # these cmds are sent to mach through env vars. We won't know the
         # packageUrl or testsUrl until mach runs upload target so we let mach

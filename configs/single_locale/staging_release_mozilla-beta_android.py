@@ -6,7 +6,7 @@ STAGE_SERVER = "dev-stage01.srv.releng.scl3.mozilla.com"
 #STAGE_SERVER = "stage.mozilla.org"
 EN_US_BINARY_URL = "http://" + STAGE_SERVER + "/pub/mozilla.org/mobile/candidates/%(version)s-candidates/build%(buildnum)d/android/en-US"
 STAGE_USER = "ffxbld"
-STAGE_SSH_KEY = "~/.ssh/ffxbld_dsa"
+STAGE_SSH_KEY = "~/.ssh/ffxbld_rsa"
 HG_SHARE_BASE_DIR = "/builds/hg-shared"
 
 config = {
@@ -16,7 +16,7 @@ config = {
     "buildbot_json_path": "buildprops.json",
     "purge_minsize": 10,
     "force_clobber": True,
-    "clobberer_url": "http://clobberer-stage.pvt.build.mozilla.org/index.php",
+    "clobberer_url": "https://api-pub-build.allizom.org/clobberer/lastclobber",
     "locales_file": "buildbot-configs/mozilla/l10n-changesets_mobile-beta.json",
     "locales_dir": "mobile/android/locales",
     "locales_platform": "android",

@@ -31,7 +31,7 @@ from mozharness.base.script import PostScriptRun
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
     TBPL_EXCEPTION, TBPL_SUCCESS, TBPL_WORST_LEVEL_TUPLE, TBPL_RETRY, \
-    EXIT_STATUS_DICT
+    EXIT_STATUS_DICT, TBPL_WARNING, TBPL_FAILURE
 from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.mock import MockMixin
 from mozharness.mozilla.signing import SigningMixin
@@ -432,6 +432,14 @@ BUILD_BASE_CONFIG_OPTIONS = [
 ]
 
 
+def generate_build_ID():
+    return time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
+
+
+def generate_build_UID():
+    return uuid.uuid4().hex
+
+
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
                   SigningMixin, MercurialScript):
     def __init__(self, **kwargs):
@@ -593,7 +601,7 @@ or run without that action (ie: --no-{action})"
 
         if not builduid:
             self.info("Creating builduid through uuid hex")
-            builduid = uuid.uuid4().hex
+            builduid = generate_build_UID()
 
         if c.get('is_automation'):
             self.set_buildbot_property('builduid',
@@ -617,8 +625,7 @@ or run without that action (ie: --no-{action})"
 
         if not buildid:
             self.info("Creating buildid through current time")
-            buildid = time.strftime("%Y%m%d%H%M%S",
-                                    time.localtime(time.time()))
+            buildid = generate_build_ID()
 
         if c.get('is_automation'):
             self.set_buildbot_property('buildid',
@@ -1175,12 +1182,14 @@ or run without that action (ie: --no-{action})"
             self.info("Verifying buildid from application.ini matches buildid "
                       "from buildbot")
             app_ini_buildid = self._query_build_prop_from_app_ini('BuildID')
-            buildbot_buildid = self.query_buildid()
+            # it would be hard to imagine query_buildid evaluating to a falsey
+            #  value (e.g. 0), but incase it does, force it to None
+            buildbot_buildid = self.query_buildid() or None
             self.info(
                 'buildid from application.ini: "%s". buildid from buildbot '
                 'properties: "%s"' % (app_ini_buildid, buildbot_buildid)
             )
-            if app_ini_buildid and buildbot_buildid and app_ini_buildid == buildbot_buildid:
+            if app_ini_buildid == buildbot_buildid != None:
                 self.info('buildids match.')
             else:
                 self.error(
@@ -1188,7 +1197,8 @@ or run without that action (ie: --no-{action})"
                 )
                 # set the build to orange if not already worse
                 self.return_code = self.worst_level(
-                    1, self.return_code, AUTOMATION_EXIT_CODES[::-1]
+                    EXIT_STATUS_DICT[TBPL_WARNING], self.return_code,
+                    AUTOMATION_EXIT_CODES[::-1]
                 )
 
         self.generated_build_props = True
@@ -1327,7 +1337,8 @@ or run without that action (ie: --no-{action})"
         )
         if return_code:
             self.return_code = self.worst_level(
-                2,  self.return_code, AUTOMATION_EXIT_CODES[::-1]
+                EXIT_STATUS_DICT[TBPL_FAILURE],  self.return_code,
+                AUTOMATION_EXIT_CODES[::-1]
             )
             self.fatal("'mach build' did not run successfully. Please check "
                        "log for errors.")

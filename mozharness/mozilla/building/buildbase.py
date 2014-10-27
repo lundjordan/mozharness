@@ -76,6 +76,58 @@ TBPL_UPLOAD_ERRORS = [
     }
 ]
 
+class MakeUploadOutputParser(OutputParser):
+    tbpl_error_list = TBPL_UPLOAD_ERRORS
+    # let's create a switch case using name-spaces/dict
+    # rather than a long if/else with duplicate code
+    property_conditions = [
+        # key: property name, value: condition
+        ('symbolsUrl', "m.endswith('crashreporter-symbols.zip') or "
+                       "m.endswith('crashreporter-symbols-full.zip')"),
+        ('testsUrl', "m.endswith(('tests.tar.bz2', 'tests.zip'))"),
+        ('unsignedApkUrl', "m.endswith('apk') and "
+                           "'unsigned-unaligned' in m"),
+        ('robocopApkUrl', "m.endswith('apk') and 'robocop' in m"),
+        ('jsshellUrl', "'jsshell-' in m and m.endswith('.zip')"),
+        ('partialMarUrl', "m.endswith('.mar') and '.partial.' in m"),
+        ('completeMarUrl', "m.endswith('.mar')"),
+    ]
+
+    def __init__(self, **kwargs):
+        super(MakeUploadOutputParser, self).__init__(**kwargs)
+        self.matches = {}
+        self.tbpl_status = TBPL_SUCCESS
+
+    def parse_single_line(self, line):
+        prop_assigned = False
+        pat = r'''^(https?://.*?\.(?:tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+        m = re.compile(pat).match(line)
+        if m:
+            m = m.group(1)
+            for prop, condition in self.property_conditions:
+                if eval(condition):
+                    self.matches[prop] = m
+                    prop_assigned = True
+                    break
+            if not prop_assigned:
+                # if we found a match but haven't identified the prop then this
+                # is the packageURL. Let's consider this the else block
+                self.matches['packageUrl'] = m
+
+        # now let's check for retry errors which will give log levels:
+        # tbpl status as RETRY and mozharness status as WARNING
+        for error_check in self.tbpl_error_list:
+            if error_check['regex'].search(line):
+                self.num_warnings += 1
+                self.warning(line)
+                self.tbpl_status = self.worst_level(
+                    error_check['level'], self.tbpl_status,
+                    levels=TBPL_WORST_LEVEL_TUPLE
+                )
+                break
+        else:
+            self.info(line)
+
 class CheckTestCompleteParser(OutputParser):
     tbpl_error_list = TBPL_UPLOAD_ERRORS
 

@@ -1,5 +1,4 @@
 import os
-import sys
 
 STAGE_USERNAME = 'ffxbld'
 STAGE_SSH_KEY = 'ffxbld_rsa'

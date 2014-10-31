@@ -31,7 +31,9 @@
 config = {
     ### release branches
     "mozilla-central": {
-        "repo_path": 'mozilla-central',
+        # XXX JLUND HACK
+        # "repo_path": 'mozilla-central',
+        "repo_path": 'users/mshal_mozilla.com/mozilla-central',
         "update_channel": "nightly",
         "graph_server_branch_name": "Firefox",
         'use_branch_in_symbols_extra_buildid': False,

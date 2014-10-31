@@ -764,8 +764,8 @@ or run without that action (ie: --no-{action})"
 
     def query_mach_build_env(self):
         c = self.config
-        mach_env = {}
-        if c.get('upload_env') and c.get('branch_supports_uploadsymbols'):
+        mach_env = self.query_build_env()
+        if c.get('upload_env'):
             mach_env.update(c['upload_env'])
             mach_env['UPLOAD_HOST'] = mach_env['UPLOAD_HOST'] % {
                 'stage_server': c['stage_server']
@@ -781,6 +781,12 @@ or run without that action (ie: --no-{action})"
             mach_env['LATEST_MAR_DIR'] = c['latest_mar_dir'] % {
                 'branch': self.branch
             }
+
+        if not c.get('branch_supports_uploadsymbols'):
+            for key in ['SYMBOL_SERVER_HOST', 'SYMBOL_SERVER_SSH_KEY',
+                        'SYMBOL_SERVER_USER', 'SYMBOL_SERVER_PATH']:
+                if key in mach_env:
+                    del mach_env[key]
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
@@ -1368,8 +1374,7 @@ or run without that action (ie: --no-{action})"
 
     def build(self):
         """builds application."""
-        env = self.query_build_env()
-        env.update(self.query_mach_build_env())
+        env = self.query_mach_build_env()
         symbols_extra_buildid = self._query_moz_symbols_buildid()
         if symbols_extra_buildid:
             env['MOZ_SYMBOLS_EXTRA_BUILDID'] = symbols_extra_buildid

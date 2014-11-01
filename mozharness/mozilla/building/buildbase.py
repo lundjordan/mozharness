@@ -765,7 +765,7 @@ or run without that action (ie: --no-{action})"
     def query_mach_build_env(self):
         c = self.config
         mach_env = {}
-        if c.get('upload_env') and c.get('branch_supports_uploadsymbols'):
+        if c.get('upload_env'):
             mach_env.update(c['upload_env'])
             mach_env['UPLOAD_HOST'] = mach_env['UPLOAD_HOST'] % {
                 'stage_server': c['stage_server']

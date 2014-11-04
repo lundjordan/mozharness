@@ -96,9 +96,13 @@ class FxDesktopBuild(BuildScript, object):
                 if c.get('pgo_build'):
                     platform_for_log_url += '-pgo'
                 # postrun.py uses stage_platform buildbot prop as part of the log url
+<<<<<<< HEAD
                 self.set_buildbot_property('stage_platform',
                                            platform_for_log_url,
                                            write_to_file=True)
+=======
+                self.set_buildbot_property('stage_platform', platform_for_log_url)
+>>>>>>> master
             else:
                 self.fatal("'stage_platform' not determined and is required in your config")
 

@@ -1431,7 +1431,6 @@ or run without that action (ie: --no-{action})"
 
         parser = CheckTestCompleteParser(config=c,
                                          log_obj=self.log_obj)
-<<<<<<< HEAD
         return_code = self.run_command_m(command=cmd,
                                          cwd=dirs['abs_obj_dir'],
                                          env=env,
@@ -1444,13 +1443,6 @@ or run without that action (ie: --no-{action})"
             )
             self.error("'make -k check' did not run successfully. Please check "
                        "log for errors.")
-=======
-        self.run_command_m(command=cmd,
-                           cwd=dirs['abs_obj_dir'],
-                           env=env,
-                           output_parser=parser)
-        parser.evaluate_parser()
->>>>>>> master
 
     def generate_build_stats(self):
         """grab build stats following a compile.

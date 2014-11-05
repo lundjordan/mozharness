@@ -799,11 +799,10 @@ or run without that action (ie: --no-{action})"
             a) must be a nightly build
             b) must be on a branch that runs pgo if it can everytime
         """
-        # XXX JLUND DISABLES PGO FOR NIGHTLIES AND PER-CHECKIN
-        # c = self.config
-        # if self.stage_platform in c['pgo_platforms']:
-        #     if c.get('branch_uses_per_checkin_strategy') or self.query_is_nightly():
-        #         return True
+        c = self.config
+        if self.stage_platform in c['pgo_platforms']:
+            if c.get('branch_uses_per_checkin_strategy') or self.query_is_nightly():
+                return True
         return False
 
     def query_check_test_env(self):

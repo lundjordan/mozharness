@@ -1,8 +1,7 @@
 import os
-import sys
 
 STAGE_USERNAME = 'ffxbld'
-STAGE_SSH_KEY = 'ffxbld_dsa'
+STAGE_SSH_KEY = 'ffxbld_rsa'
 
 config = {
     #########################################################################
@@ -17,7 +16,6 @@ config = {
         'clone-tools',
         'setup-mock',
         'build',
-        'sendchanges',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()
     ],
@@ -44,6 +42,7 @@ config = {
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
     'enable_ccache': True,
+    'enable_check_test': True,
     'vcs_share_base': '/builds/hg-shared',
     'objdir': 'obj-firefox',
     'tooltool_script': ["/builds/tooltool.py"],
@@ -51,7 +50,6 @@ config = {
     'enable_count_ctors': True,
     'enable_talos_sendchange': True,
     'enable_unittest_sendchange': True,
-    'platform_supports_partials': True,
     #########################################################################
 
 
@@ -69,7 +67,7 @@ config = {
         'MOZ_OBJDIR': 'obj-firefox',
         # SYMBOL_SERVER_HOST is dictated from build_pool_specifics.py
         'SYMBOL_SERVER_HOST': '%(symbol_server_host)s',
-        'SYMBOL_SERVER_SSH_KEY': "/home/mock_mozilla/.ssh/ffxbld_dsa",
+        'SYMBOL_SERVER_SSH_KEY': "/home/mock_mozilla/.ssh/ffxbld_rsa",
         'SYMBOL_SERVER_USER': 'ffxbld',
         'SYMBOL_SERVER_PATH': '/mnt/netapp/breakpad/symbols_ffx/',
         'POST_SYMBOL_UPLOAD_CMD': '/usr/local/bin/post-symbol-upload.py',
@@ -88,11 +86,11 @@ config = {
         'LD_LIBRARY_PATH': "/tools/gcc-4.3.3/installed/lib",
     },
     'upload_env': {
-        # UPLOAD_HOST is set to stage_server
         # stage_server is dictated from build_pool_specifics.py
-        'UPLOAD_USER': STAGE_USERNAME,
+        'UPLOAD_HOST': '%(stage_server)s',
+        'UPLOAD_USER': '%(stage_username)s',
+        'UPLOAD_SSH_KEY': '/home/mock_mozilla/.ssh/%(stage_ssh_key)s',
         'UPLOAD_TO_TEMP': '1',
-        'UPLOAD_SSH_KEY': '~/.ssh/%s' % (STAGE_SSH_KEY,),
     },
     "check_test_env": {
         'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/linux/minidump_stackwalk',
@@ -149,6 +147,5 @@ config = {
     'src_mozconfig': 'browser/config/mozconfigs/linux32/nightly',
     'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/\
 releng.manifest",
-    'platform_ftp_name': 'linux-i686.complete.mar',
     #########################################################################
 }

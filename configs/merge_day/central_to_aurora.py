@@ -38,4 +38,11 @@ config = {
     "end_tag": "FIREFOX_AURORA_%(major_version)s_END",
 
     "migration_behavior": "central_to_aurora",
+
+    "balrog_rules_to_lock": [
+        8, # Fennec aurora channel
+        10, # Firefox aurora channel
+        18, # MetroFirefox aurora channel
+    ],
+    "balrog_credentials_file": "oauth.txt",
 }

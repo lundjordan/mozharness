@@ -9,12 +9,13 @@ config = {
     'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-b2g30_v1_4',
     'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-b2g30_v1_4',
     'gecko_local_dir': 'mozilla-b2g30_v1_4',
+    'git_ref_cache': '/builds/b2g_bumper/git_ref_cache.json',
 
     'manifests_repo': 'https://git.mozilla.org/b2g/b2g-manifest.git',
     'manifests_revision': 'origin/v1.4',
 
     'hg_user': 'B2G Bumper Bot <release+b2gbumper@mozilla.com>',
-    "ssh_key": "~/.ssh/ffxbld_dsa",
+    "ssh_key": "~/.ssh/ffxbld_rsa",
     "ssh_user": "ffxbld",
 
     'hgtool_base_bundle_urls': ['https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'],

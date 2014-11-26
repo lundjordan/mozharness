@@ -844,14 +844,18 @@ or run without that action (ie: --no-{action})"
         and failing that, will poll buildbot_config
         If nothing is found, it will default to returning "nobody@example.com"
         """
-        _who = ''
+        _who = "nobody@example.com"
         if self.config.get('who'):
             _who = self.config['who']
-        if self.buildbot_config and 'sourcestamp' in self.buildbot_config:
-            if self.buildbot_config['sourcestamp'].get('who'):
-                _who = self.buildbot_config['sourcestamp']['who']
-        if not _who:
-            _who = "nobody@example.com"
+        else:
+            try:
+                if self.buildbot_config:
+                    _who = self.buildbot_config['sourcestamp']['changes'][0]['who']
+            except (KeyError, IndexError):
+                # KeyError: "sourcestamp" or "changes" or "who" not in buildbot_config
+                # IndexError: buildbot_config['sourcestamp']['changes'] is empty
+                # "who" is not available, using the default value
+                pass
         return _who
 
     def _query_post_upload_cmd(self):
@@ -1506,9 +1510,10 @@ or run without that action (ie: --no-{action})"
         sendchange_props = {
             'buildid': self.query_buildid(),
             'builduid': self.query_builduid(),
-            'nightly_build': self.query_is_nightly(),
             'pgo_build': pgo_build,
         }
+        if self.query_is_nightly():
+            sendchange_props['nightly_build'] = True
         if test_type == 'talos':
             if pgo_build:
                 build_type = 'pgo-'
@@ -1562,7 +1567,12 @@ or run without that action (ie: --no-{action})"
             return
 
         if c['balrog_api_root']:
-            self.submit_balrog_updates()
+            if self.submit_balrog_updates():
+                # set the build to orange so it is at least caught
+                self.return_code = self.worst_level(
+                    EXIT_STATUS_DICT[TBPL_WARNING], self.return_code,
+                    AUTOMATION_EXIT_CODES[::-1]
+                )
 
     def _post_fatal(self, message=None, exit_code=None):
         if not self.return_code:  # only overwrite return_code if it's 0

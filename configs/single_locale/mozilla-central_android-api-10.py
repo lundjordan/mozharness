@@ -38,8 +38,9 @@ config = {
         'tooltool.py': '/tools/tooltool.py',
     },
     "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
+    # XXX JLUND HACK use user repo
     "repos": [{
-        "repo": "https://hg.mozilla.org/mozilla-central",
+        "repo": "https://hg.mozilla.org/users/jlund_mozilla.com/mozilla-central",
         "revision": "default",
         "dest": MOZILLA_DIR,
     }, {

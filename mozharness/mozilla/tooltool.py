@@ -15,12 +15,13 @@ class TooltoolMixin(object):
     Requires self.config['tooltool_servers'] to be a list of base urls
     """
     def tooltool_fetch(self, manifest, bootstrap_cmd=None,
-                       output_dir=None, privileged=False, cache=None):
+                       output_dir=None, privileged=False, cache=None, default_urls=None):
         """docstring for tooltool_fetch"""
         tooltool = self.query_exe('tooltool.py', return_type='list')
         cmd = tooltool
-        # get the tooltools servers from configuration
-        default_urls = self.config['tooltool_servers']
+        if not default_urls:
+            # get the tooltools servers from configuration
+            default_urls = self.config['tooltool_servers']
         proxxy = Proxxy(self.config, self.log_obj)
         proxxy_urls = proxxy.get_proxies_and_urls(default_urls)
 

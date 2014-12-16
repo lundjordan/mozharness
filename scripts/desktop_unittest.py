@@ -105,11 +105,11 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             "default": False,
             "help": "Run tests with multiple processes."}
          ],
-        [['--content-sandbox', ], {
-            "choices": ["off", "warn", "on"],
-            "dest": "content_sandbox",
-            "default": "off",
-            "help": "Run tests with the content sandbox enabled or in warn only mode (Windows only)."}
+        [['--strict-content-sandbox', ], {
+            "action": "store_true",
+            "dest": "strict_content_sandbox",
+            "default": False,
+            "help": "Run tests with a more strict content sandbox (Windows only)."}
          ],
         [['--no-random', ], {
             "action": "store_true",
@@ -312,11 +312,11 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             if c['e10s']:
                 base_cmd.append('--e10s')
 
-            if c.get('content_sandbox') in ["warn", "on"]:
+            if c.get('strict_content_sandbox'):
                 if suite_category == "mochitest":
-                    base_cmd.append('--content-sandbox=' + c['content_sandbox'])
+                    base_cmd.append('--strict-content-sandbox')
                 else:
-                    self.fatal("--content-sandbox does not currently work with suites other than mochitest.")
+                    self.fatal("--strict-content-sandbox only works with mochitest suites.")
 
             if c.get('total_chunks') and c.get('this_chunk'):
                 base_cmd.extend(['--total-chunks', c['total_chunks'],
@@ -332,18 +332,29 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
             str_format_values['test_plugin_path'] = abs_app_plugins_dir
 
-            suite_options = '%s_options' % suite_category
-            if suite_options not in self.tree_config:
-                self.fatal("Key '%s' not defined in the in-tree config! Please add it to '%s'. "
+            missing_key = True
+            if "suite_definitions" in self.tree_config: # new structure
+                if suite_category in self.tree_config["suite_definitions"]:
+                    missing_key = False
+                options = self.tree_config["suite_definitions"][suite_category]["options"]
+            else:
+                suite_options = '%s_options' % suite_category
+                if suite_options in self.tree_config:
+                    missing_key = False
+                options = self.tree_config[suite_options]
+
+            if missing_key:
+                self.fatal("'%s' not defined in the in-tree config! Please add it to '%s'. "
                            "See bug 981030 for more details." %
-                           (suite_options,
+                           (suite_category,
                             os.path.join('gecko', 'testing', self.config['in_tree_config'])))
-            options = list(self.tree_config[suite_options])
+
             if options:
-                for i, option in enumerate(options):
-                    options[i] = option % str_format_values
-                abs_base_cmd = base_cmd + options
-                return abs_base_cmd
+                for option in options:
+                    option = option % str_format_values
+                    if not option.endswith('None'):
+                        base_cmd.append(option)
+                return base_cmd
             else:
                 self.warning("Suite options for %s could not be determined."
                              "\nIf you meant to have options for this suite, "

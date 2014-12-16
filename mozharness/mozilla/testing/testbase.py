@@ -157,8 +157,24 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
         if not hasattr(self, "https_username"):
             self.info("NOTICE: Files downloaded from outside of "
                     "Release Engineering network require LDAP credentials.")
-            self.https_username = raw_input("Please enter your full LDAP email address: ")
-            self.https_password = getpass.getpass()
+	    self.credential_path = os.path.expanduser("~/.mozilla/credentials.cfg")
+	    if (os.path.isfile(self.credential_path)):
+	        fp = open(self.credential_path,'r')
+		content = fp.read().splitlines()
+		fp.close()
+		self.https_username = content[0].strip()
+		self.https_password = content[1].strip()
+	    else:
+                if not os.path.exists(os.path.expanduser("~/.mozilla")):
+                    os.makedirs(os.path.expanduser("~/.mozilla"))
+                self.https_username = raw_input("Please enter your full LDAP email address: ")
+                self.https_password = getpass.getpass()
+	        fp = open(self.credential_path,"w+")
+	        fp.write("%s\n" % self.https_username)
+		fp.write("%s\n" % self.https_password)
+	        fp.close()
+		os.chmod(self.credential_path, 0600)
+
         return self.https_username, self.https_password
 
     def _pre_config_lock(self, rw_config):
@@ -179,6 +195,7 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
                 Release Engineering network
         """
         c = self.config
+        orig_config = copy.deepcopy(c)
         self.warning("When you use developer_config.py, we drop " \
                 "'read-buildbot-config' from the list of actions.")
         if "read-buildbot-config" in rw_config.actions:
@@ -205,7 +222,9 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin):
             if type(value) == str and value.startswith("http"):
                 self.config[key] = _replace_url(value, c["replace_urls"])
 
-        self._get_credentials()
+        # Any changes to c means that we need credentials
+        if not c == orig_config:
+            self._get_credentials()
 
     def _urlopen(self, url, **kwargs):
         '''

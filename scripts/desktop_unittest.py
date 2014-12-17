@@ -275,7 +275,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                                           c['minidump_stackwalk_path'])
 
             if not os.path.exists(stackwalk_path):
-                # something went wrong, we don't have a stackwalk binary to use
+                self.warning("minidump stackwalk path was given but couldn't be determined.")
                 # don't burn the job but we should at least turn them orange so it is caught
                 self.buildbot_status(TBPL_WARNING, WARNING)
                 return None

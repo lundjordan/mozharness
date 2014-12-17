@@ -10,9 +10,11 @@ EXE_SUFFIX = ''
 DISABLE_SCREEN_SAVER = True
 ADJUST_MOUSE_AND_SCREEN = False
 if platform.architecture()[0] == '64bit':
-    MINIDUMP_STACKWALK_PATH = "%(abs_work_dir)s/tools/breakpad/linux64/minidump_stackwalk"
+    TOOLTOOL_MANIFEST_PATH = "config/tooltool-manifests/linux64/releng.manifest"
+    MINIDUMP_STACKWALK_PATH = "linux64-minidump_stackwalk"
 else:
-    MINIDUMP_STACKWALK_PATH = "%(abs_work_dir)s/tools/breakpad/linux/minidump_stackwalk"
+    TOOLTOOL_MANIFEST_PATH = "config/tooltool-manifests/linux32/releng.manifest"
+    MINIDUMP_STACKWALK_PATH = "linux32-minidump_stackwalk"
 
 #####
 config = {
@@ -148,14 +150,15 @@ config = {
             "enabled": ADJUST_MOUSE_AND_SCREEN
         },
     ],
-    "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
     "vcs_output_timeout": 1000,
-    "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
     "minidump_save_path": "%(abs_work_dir)s/../minidumps",
     "buildbot_max_log_size": 52428800,
     "default_blob_upload_servers": [
         "https://blobupload.elasticbeanstalk.com",
     ],
     "blob_uploader_auth_file": os.path.join(os.getcwd(), "oauth.txt"),
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux32/releng.manifest",
+    "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
+    "tooltool_manifest_path": TOOLTOOL_MANIFEST_PATH,
+    "tooltool_cache": "/builds/tooltool_cache",
+    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
 }

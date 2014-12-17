@@ -21,13 +21,14 @@ import glob
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import BaseErrorList
-from mozharness.base.log import INFO, ERROR
+from mozharness.base.log import INFO, ERROR, WARNING
 from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.tooltool import TooltoolMixin
+from mozharness.mozilla.buildbot import TBPL_WARNING
 
 SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell', 'mozbase']
 
@@ -257,29 +258,27 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
     def query_minidump_stackwalk_path(self):
         c = self.config
         stackwalk_path = None
-        # If the in tree config hasn't been loaded by a previous step, load it here.
-        if not self.tree_config:
-            self._read_tree_config()
-        if self.tree_config.get('minidump_stackwalk_path'):
+        if c.get('minidump_stackwalk_path'):
             self.info('grabbing minidump binary from tooltool')
             try:
                 self.tooltool_fetch(
-                    manifest=self.tree_config['tooltool_manifest_path'],
+                    manifest=os.path.join(self.query_abs_dirs()['abs_test_install_dir'],
+                                          c['tooltool_manifest_path']),
                     output_dir=self.query_abs_dirs()['abs_work_dir'],
-                    cache=self.tree_config.get('tooltool_cache'),
-                    default_urls=self.tree_config['tooltool_servers']
+                    cache=c.get('tooltool_cache'),
+                    default_urls=c['tooltool_servers']
                 )
             except KeyError:
                 self.error('missing keys in tree_config. required: "tooltool_manifest_path" '
                            'and "tooltool_servers"')
             stackwalk_path = os.path.join(self.query_abs_dirs()['abs_work_dir'],
-                                          self.tree_config['minidump_stackwalk_path'])
+                                          c['minidump_stackwalk_path'])
 
-        if not os.path.exists(stackwalk_path):
-            self.warning('Something went wrong while trying to get minidump binary from tooltool.'
-                         'Reverting back to using tools repo.')
-            self.pull()  # grab tools repo
-            stackwalk_path = c.get('minidump_stackwalk_path')
+            if not os.path.exists(stackwalk_path):
+                # something went wrong, we don't have a stackwalk binary to use
+                # don't burn the job but we should at least turn them orange so it is caught
+                self.buildbot_status(TBPL_WARNING, WARNING)
+                return None
 
         return stackwalk_path
 

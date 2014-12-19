@@ -582,13 +582,14 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
             self.info('grabbing minidump binary from tooltool')
             try:
                 self.tooltool_fetch(
-                    manifest=os.path.join(dirs['abs_test_install_dir'],
+                    manifest=os.path.join(dirs.get('abs_test_install_dir',
+                                                   os.path.join(dirs['abs_work_dir'], 'tests')),
                                           tooltool_manifest_path),
                     output_dir=dirs['abs_work_dir'],
                     cache=c.get('tooltool_cache')
                 )
             except KeyError:
-                self.error('missing required: c["tooltool_servers"], dirs["abs_test_install_dir"]')
+                self.error('missing required: c["tooltool_servers"]')
 
             abs_minidump_path = os.path.join(dirs['abs_work_dir'],
                                              minidump_stackwalk_path)

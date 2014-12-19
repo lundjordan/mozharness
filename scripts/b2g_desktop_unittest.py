@@ -122,12 +122,6 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScri
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 
-    def download_and_extract(self):
-        super(B2GDesktopTest, self).download_and_extract()
-
-        if self.config.get('download_minidump_stackwalk'):
-            self.install_minidump_stackwalk()
-
     @PreScriptAction('create-virtualenv')
     def _pre_create_virtualenv(self, action):
         if self.tree_config.get('use_puppetagain_packages'):

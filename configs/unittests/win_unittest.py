@@ -151,7 +151,8 @@ config = {
         "https://blobupload.elasticbeanstalk.com",
     ],
     "blob_uploader_auth_file": os.path.join(os.getcwd(), "oauth.txt"),
+    "download_minidump_stackwalk": True,
     "minidump_stackwalk_path": "win32-minidump_stackwalk.exe",
-    "tooltool_manifest_path": "config/tooltool-manifests/win32/releng.manifest",
+    "minidump_tooltool_manifest_path": "config/tooltool-manifests/win32/releng.manifest",
     "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
 }

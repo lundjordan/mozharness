@@ -27,14 +27,13 @@ from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.mozilla.tooltool import TooltoolMixin
 from mozharness.mozilla.buildbot import TBPL_WARNING
 
 SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell', 'mozbase']
 
 
 # DesktopUnittest {{{1
-class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMixin, TooltoolMixin):
+class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMixin):
     config_options = [
         [['--mochitest-suite', ], {
             "action": "extend",
@@ -254,33 +253,6 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         self.info("setting symbols_url as %s" % (symbols_url))
         self.symbols_url = symbols_url
         return self.symbols_url
-
-    def query_minidump_stackwalk_path(self):
-        c = self.config
-        stackwalk_path = None
-        if c.get('minidump_stackwalk_path'):
-            self.info('grabbing minidump binary from tooltool')
-            try:
-                self.tooltool_fetch(
-                    manifest=os.path.join(self.query_abs_dirs()['abs_test_install_dir'],
-                                          c['tooltool_manifest_path']),
-                    output_dir=self.query_abs_dirs()['abs_work_dir'],
-                    cache=c.get('tooltool_cache'),
-                    default_urls=c['tooltool_servers']
-                )
-            except KeyError:
-                self.error('missing keys in tree_config. required: "tooltool_manifest_path" '
-                           'and "tooltool_servers"')
-            stackwalk_path = os.path.join(self.query_abs_dirs()['abs_work_dir'],
-                                          c['minidump_stackwalk_path'])
-
-            if not os.path.exists(stackwalk_path):
-                self.warning("minidump stackwalk path was given but couldn't be determined.")
-                # don't burn the job but we should at least turn them orange so it is caught
-                self.buildbot_status(TBPL_WARNING, WARNING)
-                return None
-
-        return stackwalk_path
 
     def _query_abs_base_cmd(self, suite_category):
         if self.binary_path:
@@ -519,9 +491,9 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                                                      config=self.config,
                                                      error_list=error_list,
                                                      log_obj=self.log_obj)
-                minidump_stackwalk_path = self.query_minidump_stackwalk_path()
-                if minidump_stackwalk_path:
-                    env['MINIDUMP_STACKWALK'] = minidump_stackwalk_path
+
+                if self.query_minidump_stackwalk_path():
+                    env['MINIDUMP_STACKWALK'] = self.minidump_stackwalk_path
                 env['MOZ_UPLOAD_DIR'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 env['MINIDUMP_SAVE_PATH'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 if not os.path.isdir(env['MOZ_UPLOAD_DIR']):

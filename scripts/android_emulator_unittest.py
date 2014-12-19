@@ -595,13 +595,6 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         # This will download and extract the fennec.apk and tests.zip
         super(AndroidEmulatorTest, self).download_and_extract()
         dirs = self.query_abs_dirs()
-        # XXX: Why is it called "download" since we don't download it?
-        if self.config.get('download_minidump_stackwalk'):
-            # XXX: install_minidump_stackwalk will clone tools regardless if
-            # I already have a stackwalk_path on the machine
-            # Does it make sense?
-            self.install_minidump_stackwalk()
-
         self._download_robocop_apk()
 
         self.mkdir_p(dirs['abs_xre_dir'])

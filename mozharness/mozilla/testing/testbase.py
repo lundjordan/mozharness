@@ -562,7 +562,7 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
         elif self._is_darwin():
             # we only use the 64 bit binary for osx
             return minidump_filename % ('macosx64',)
-        elif self.is_linux():
+        elif self._is_linux():
             if self._is_64_bit():
                 return minidump_filename % ('linux64',)
             else:

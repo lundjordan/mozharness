@@ -17,10 +17,9 @@ from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.mozilla.tooltool import TooltoolMixin
 
 
-class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScript):
+class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
     test_suites = ('mochitest',
                    'reftest',)
     config_options = [

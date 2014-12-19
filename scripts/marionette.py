@@ -25,10 +25,8 @@ from mozharness.mozilla.testing.errors import LogcatErrorList
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import TestSummaryOutputParserHelper
 from mozharness.mozilla.structuredlog import StructuredOutputParser
-from mozharness.mozilla.tooltool import TooltoolMixin
 
-class MarionetteTest(TestingMixin, TooltoolMixin,
-                     MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
+class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
     config_options = [[
         ["--application"],
         {"action": "store",

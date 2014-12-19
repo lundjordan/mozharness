@@ -542,7 +542,7 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
         elif self._is_darwin():
             # we only use the 64 bit binary for osx
             return tooltool_path % 'macosx64'
-        elif self.is_linux():
+        elif self._is_linux():
             if self._is_64_bit():
                 return tooltool_path % 'linux64'
             else:

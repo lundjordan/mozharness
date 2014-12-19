@@ -23,11 +23,10 @@ from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.errors import LogcatErrorList
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.mozilla.tooltool import TooltoolMixin
 from mozharness.mozilla.buildbot import TBPL_SUCCESS
 
 
-class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUploadMixin):
+class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
     test_suites = ('jsreftest', 'reftest', 'mochitest', 'xpcshell', 'crashtest', 'cppunittest')
     config_options = [[
         ["--type"],

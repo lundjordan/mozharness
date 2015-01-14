@@ -17,9 +17,10 @@ from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
+from mozharness.mozilla.tooltool import TooltoolMixin
 
 
-class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
+class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScript):
     test_suites = ('mochitest',
                    'reftest',)
     config_options = [
@@ -121,6 +122,12 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 
+    def download_and_extract(self):
+        super(B2GDesktopTest, self).download_and_extract()
+
+        if self.config.get('download_minidump_stackwalk'):
+            self.install_minidump_stackwalk()
+
     @PreScriptAction('create-virtualenv')
     def _pre_create_virtualenv(self, action):
         if self.tree_config.get('use_puppetagain_packages'):
@@ -144,6 +151,8 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
         cmd = [self.query_python_path('python')]
         cmd.append(self.query_value("run_file_names")[suite])
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite)
         str_format_values = {
             'application': self.binary_path,
             'test_manifest': self.test_manifest,
@@ -154,7 +163,7 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
             'this_chunk': self.config.get('this_chunk'),
             'cert_path': dirs['abs_certs_dir'],
             'browser_arg': self.config.get('browser_arg'),
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
         }
 
         # Bug 978233 - hack to get around multiple mochitest manifest arguments
@@ -256,12 +265,13 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, MercurialScript):
                                              log_obj=self.log_obj,
                                              error_list=error_list)
 
-        self.run_command(cmd, cwd=cwd, env=env,
-                         output_timeout=1000,
-                         output_parser=parser,
-                         success_codes=success_codes)
+        return_code = self.run_command(cmd, cwd=cwd, env=env,
+                                       output_timeout=1000,
+                                       output_parser=parser,
+                                       success_codes=success_codes)
 
-        tbpl_status, log_level = parser.evaluate_parser(0)
+        tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                        success_codes=success_codes)
         parser.append_tinderboxprint_line(suite_name)
 
         self.buildbot_status(tbpl_status, level=log_level)

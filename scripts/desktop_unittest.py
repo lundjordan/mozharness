@@ -21,13 +21,12 @@ import glob
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import BaseErrorList
-from mozharness.base.log import INFO, ERROR, WARNING
+from mozharness.base.log import INFO, ERROR
 from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
-from mozharness.mozilla.buildbot import TBPL_WARNING
 
 SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell', 'mozbase']
 
@@ -140,6 +139,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                 'read-buildbot-config',
                 'download-and-extract',
                 'create-virtualenv',
+                'pull',
                 'install',
                 'run-tests',
             ],
@@ -274,7 +274,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         self.symbols_url = symbols_url
         return self.symbols_url
 
-    def _query_abs_base_cmd(self, suite_category):
+    def _query_abs_base_cmd(self, suite_category, suite):
         if self.binary_path:
             c = self.config
             dirs = self.query_abs_dirs()
@@ -289,12 +289,14 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             if c.get('exe_suffix'):
                 webapprt_path += c['exe_suffix']
 
+            raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                        '%s_raw.log' % suite)
             str_format_values = {
                 'binary_path': self.binary_path,
                 'symbols_path': self._query_symbols_url(),
                 'abs_app_dir': abs_app_dir,
                 'app_path': webapprt_path,
-                'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+                'raw_log_file': raw_log_file,
             }
             # TestingMixin._download_and_extract_symbols() will set
             # self.symbols_path when downloading/extracting.
@@ -492,8 +494,8 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             preflight_run_method(suites)
         if suites:
             self.info('#### Running %s suites' % suite_category)
-            abs_base_cmd = self._query_abs_base_cmd(suite_category)
             for suite in suites:
+                abs_base_cmd = self._query_abs_base_cmd(suite_category, suite)
                 cmd = abs_base_cmd[:]
                 replace_dict = {
                     'abs_app_dir': abs_app_dir,
@@ -523,9 +525,8 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                                                      config=self.config,
                                                      error_list=error_list,
                                                      log_obj=self.log_obj)
-
-                if self.query_minidump_stackwalk():
-                    env['MINIDUMP_STACKWALK'] = self.minidump_stackwalk_path
+                if c.get('minidump_stackwalk_path'):
+                    env['MINIDUMP_STACKWALK'] = c['minidump_stackwalk_path']
                 env['MOZ_UPLOAD_DIR'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 env['MINIDUMP_SAVE_PATH'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 if not os.path.isdir(env['MOZ_UPLOAD_DIR']):
@@ -544,7 +545,15 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                 #    errors itself with 'num_errors' <- OutputParser
                 # 2) if num_errors is 0 then we look in the subclassed 'parser'
                 #    findings for harness/suite errors <- DesktopUnittestOutputParser
-                tbpl_status, log_level = parser.evaluate_parser(0)
+                # 3) checking to see if the return code is in success_codes
+
+                success_codes = None
+                if self._is_windows():
+                    # bug 1120644
+                    success_codes = [0, 1]
+
+                tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                                success_codes=success_codes)
                 parser.append_tinderboxprint_line(suite_name)
 
                 self.buildbot_status(tbpl_status, level=log_level)

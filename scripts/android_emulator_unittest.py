@@ -19,18 +19,19 @@ import tempfile
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.log import FATAL
-from mozharness.base.script import BaseScript
+from mozharness.base.script import BaseScript, PostScriptRun
 from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.buildbot import TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import EmulatorMixin
+from mozharness.mozilla.tooltool import TooltoolMixin
 
 from mozharness.mozilla.testing.device import ADBDeviceHandler
 
 
-class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin, BaseScript, MozbaseMixin):
+class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, EmulatorMixin, VCSMixin, BaseScript, MozbaseMixin):
     config_options = [[
         ["--robocop-url"],
         {"action": "store",
@@ -118,6 +119,16 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
         for suite in self.test_suites:
             assert suite in self.test_suite_definitions
 
+    def _query_tests_dir(self, suite_name):
+        dirs = self.query_abs_dirs()
+        suite_category = self.test_suite_definitions[suite_name]["category"]
+        try:
+            test_dir = self.tree_config["suite_definitions"][suite_category]["testsdir"]
+        except:
+            test_dir = suite_category
+
+        return os.path.join(dirs['abs_test_install_dir'], test_dir)
+
     def query_abs_dirs(self):
         if self.abs_dirs:
             return self.abs_dirs
@@ -127,14 +138,8 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
             abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_xre_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'hostutils')
-        dirs['abs_mochitest_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'mochitest')
         dirs['abs_modules_dir'] = os.path.join(
             dirs['abs_test_install_dir'], 'modules')
-        dirs['abs_reftest_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'reftest')
-        dirs['abs_xpcshell_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'xpcshell')
         dirs['abs_blob_upload_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'blobber_upload_dir')
         for key in dirs.keys():
@@ -321,6 +326,22 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
         out, err = p.communicate()
         self.info('%s:\n%s\n%s' % (ps_cmd, out, err))
 
+    def _dump_host_state(self):
+        p = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        self.info("output from ps -ef follows...")
+        if out:
+            self.info(out)
+        if err:
+            self.info(err)
+        p = subprocess.Popen(['netstat', '-a', '-p', '-n', '-t', '-u'], stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        self.info("output from netstat -a -p -n -t -u follows...")
+        if out:
+            self.info(out)
+        if err:
+            self.info(err)
+
     def _dump_emulator_log(self, emulator_index):
         emulator = self.emulators[emulator_index]
         self.info("##### %s emulator log begins" % emulator["name"])
@@ -339,9 +360,8 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
                 self.info("Killing pid %d." % pid)
                 os.kill(pid, signal.SIGKILL)
 
-    def _post_fatal(self, message=None, exit_code=None):
-        """ After we call fatal(), run this method before exiting.
-        """
+    @PostScriptRun
+    def _post_script(self):
         self._kill_processes(self.config["emulator_process_name"])
 
     # XXX: This and android_panda.py's function might make sense to take higher up
@@ -381,11 +401,13 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
             self.query_python_path('python'),
             '-u',
             os.path.join(
-                dirs["abs_%s_dir" % suite_category],
+                self._query_tests_dir(suite_name),
                 self.tree_config["suite_definitions"][suite_category]["run_filename"]
             ),
         ]
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite_name)
         str_format_values = {
             'app': self._query_package_name(),
             'remote_webserver': c['remote_webserver'],
@@ -401,7 +423,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
             'symbols_path': self.symbols_path,
             'modules_dir': dirs['abs_modules_dir'],
             'installer_path': self.installer_path,
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
         }
         for option in self.tree_config["suite_definitions"][suite_category]["options"]:
             cmd.extend([option % str_format_values])
@@ -437,7 +459,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
         dirs = self.query_abs_dirs()
         cmd = self._build_command(self.emulators[emulator_index], suite_name)
         try:
-            cwd = dirs['abs_%s_dir' % self.test_suite_definitions[suite_name]["category"]]
+            cwd = self._query_tests_dir(suite_name)
         except:
             self.fatal("Don't know how to run --test-suite '%s'!" % suite_name)
 
@@ -540,6 +562,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
                 time.sleep(30)
             attempts += 1
             self.info('Attempt #%d to launch emulators...' % attempts)
+            self._dump_host_state()
             self.emulator_procs = []
             emulator_index = 0
             redirect_failed = False
@@ -594,6 +617,13 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
         # This will download and extract the fennec.apk and tests.zip
         super(AndroidEmulatorTest, self).download_and_extract()
         dirs = self.query_abs_dirs()
+        # XXX: Why is it called "download" since we don't download it?
+        if self.config.get('download_minidump_stackwalk'):
+            # XXX: install_minidump_stackwalk will clone tools regardless if
+            # I already have a stackwalk_path on the machine
+            # Does it make sense?
+            self.install_minidump_stackwalk()
+
         self._download_robocop_apk()
 
         self.mkdir_p(dirs['abs_xre_dir'])

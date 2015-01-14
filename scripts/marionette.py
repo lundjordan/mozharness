@@ -25,8 +25,10 @@ from mozharness.mozilla.testing.errors import LogcatErrorList
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import TestSummaryOutputParserHelper
 from mozharness.mozilla.structuredlog import StructuredOutputParser
+from mozharness.mozilla.tooltool import TooltoolMixin
 
-class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
+class MarionetteTest(TestingMixin, TooltoolMixin,
+                     MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
     config_options = [[
         ["--application"],
         {"action": "store",
@@ -134,8 +136,14 @@ class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMix
          "dest": "this_chunk",
          "help": "Number of this chunk",
         }
-    ]] + copy.deepcopy(testing_config_options) \
-       + copy.deepcopy(blobupload_config_options)
+     ], [
+        ["--e10s"],
+        {"action": "store_true",
+         "dest": "e10s",
+         "help": "Run tests with multiple processes. (Desktop builds only)",
+        }
+     ]] + copy.deepcopy(testing_config_options) \
+        + copy.deepcopy(blobupload_config_options)
 
     error_list = [
         {'substr': 'FAILED (errors=', 'level': WARNING},
@@ -353,6 +361,9 @@ class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMix
                              error_list=TarErrorList,
                              halt_on_failure=True, fatal_exit_code=3)
 
+        if self.config.get('download_minidump_stackwalk'):
+            self.install_minidump_stackwalk()
+
     def install(self):
         if self.config.get('emulator'):
             self.info("Emulator tests; skipping.")
@@ -371,6 +382,8 @@ class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMix
         """
         dirs = self.query_abs_dirs()
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    'marionette_raw.log')
         config_fmt_args = {
             'type': self.config.get('test_type'),
             # emulator builds require a longer timeout
@@ -384,8 +397,7 @@ class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMix
             'homedir': os.path.join(dirs['abs_emulator_dir'], 'b2g-distro'),
             'binary': self.binary_path,
             'address': self.config.get('marionette_address'),
-            'raw_log_file': os.path.join(dirs["abs_blob_upload_dir"],
-                                         "mn_structured_full.log"),
+            'raw_log_file': raw_log_file,
             'gecko_log': dirs["abs_blob_upload_dir"],
         }
 
@@ -463,6 +475,9 @@ class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMix
 
             if self.config.get('app_arg'):
                 config_fmt_args['app_arg'] = self.config['app_arg']
+
+            if self.config.get('e10s'):
+                cmd.append('--e10s')
 
         options_group = self._get_options_group(self.config.get('emulator'),
                                                 self.config.get('gaiatest'))

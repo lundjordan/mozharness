@@ -23,11 +23,12 @@ from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.testing.errors import LogcatErrorList
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
+from mozharness.mozilla.tooltool import TooltoolMixin
 from mozharness.mozilla.buildbot import TBPL_SUCCESS
 
 
-class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
-    test_suites = ('jsreftest', 'reftest', 'mochitest', 'xpcshell', 'crashtest', 'cppunittest')
+class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUploadMixin):
+    test_suites = ('jsreftest', 'reftest', 'mochitest', 'mochitest-chrome', 'xpcshell', 'crashtest', 'cppunittest')
     config_options = [[
         ["--type"],
         {"action": "store",
@@ -197,6 +198,9 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
                          error_list=TarErrorList,
                          halt_on_failure=True, fatal_exit_code=3)
 
+        if self.config.get('download_minidump_stackwalk'):
+            self.install_minidump_stackwalk()
+
         self.mkdir_p(dirs['abs_xre_dir'])
         self._download_unzip(self.config['xre_url'],
                              dirs['abs_xre_dir'])
@@ -257,6 +261,8 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
         cmd = [self.query_python_path('python')]
         cmd.append(self.config['run_file_names'][suite])
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite)
         str_format_values = {
             'adbpath': self.adb_path,
             'b2gpath': dirs['abs_b2g-distro_dir'],
@@ -274,7 +280,7 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
             'this_chunk': self.config.get('this_chunk'),
             'test_path': self.config.get('test_path'),
             'certificate_path': dirs['abs_certs_dir'],
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
         }
 
         # Bug 978233 - hack to get around multiple mochitest manifest arguments
@@ -302,7 +308,7 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
                 missing_key = False
             options = self.tree_config[suite_options]
 
-        if missing_key: 
+        if missing_key:
             self.fatal("Key '%s' not defined in the in-tree config! Please add it to '%s'." \
                        "See bug 981030 for more details." % (suite,
                        os.path.join('gecko', 'testing', self.config['in_tree_config'])))
@@ -381,10 +387,13 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
         else:
             suite = suite_name
 
-        # bug 773703
         success_codes = None
         if suite_name == 'xpcshell':
+            # bug 773703
             success_codes = [0, 1]
+        elif suite_name == 'mochitest' and int(self.config['this_chunk']) == 11:
+            # bug 1120580
+            success_codes = [0, 247]
 
         if suite_name == 'cppunittest':
             # check if separate test package required
@@ -403,10 +412,10 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
                                              config=self.config,
                                              log_obj=self.log_obj,
                                              error_list=error_list)
-        self.run_command(cmd, cwd=cwd, env=env,
-                         output_timeout=1000,
-                         output_parser=parser,
-                         success_codes=success_codes)
+        return_code = self.run_command(cmd, cwd=cwd, env=env,
+                                       output_timeout=1000,
+                                       output_parser=parser,
+                                       success_codes=success_codes)
 
         logcat = os.path.join(dirs['abs_work_dir'], 'emulator-5554.log')
 
@@ -415,7 +424,8 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
             self.copyfile(qemu, os.path.join(env['MOZ_UPLOAD_DIR'],
                                              os.path.basename(qemu)))
 
-        tbpl_status, log_level = parser.evaluate_parser(0)
+        tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                        success_codes=success_codes)
 
         if os.path.isfile(logcat):
             if tbpl_status != TBPL_SUCCESS:

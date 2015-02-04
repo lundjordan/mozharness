@@ -59,20 +59,18 @@ config = {
 
 
      #########################################################################
-     ###### 32 bit specific ######
-    'base_name': 'WINNT_5.2_%(branch)s',
-    'platform': 'win32',
-    'stage_platform': 'win32',
+     ###### 64 bit specific ######
+    'base_name': 'WINNT_6.1_%(branch)s',
+    'platform': 'win64',
+    'stage_platform': 'win64',
     'enable_max_vsize': True,
     'env': {
-        'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
+        'MOZ_SYMBOLS_EXTRA_BUILDID': 'win64',
         'MOZ_AUTOMATION': '1',
-        'BINSCOPE': 'C:/Program Files (x86)/Microsoft/SDL BinScope/BinScope.exe',
         'HG_SHARE_BASE_DIR': 'C:/builds/hg-shared',
         'MOZ_CRASHREPORTER_NO_REPORT': '1',
         'MOZ_OBJDIR': 'obj-firefox',
-        'PATH': 'C:/mozilla-build/nsis-3.0a2;C:/mozilla-build/nsis-2.46u;C:/mozilla-build/python27;'
-                'C:/mozilla-build/buildbotve/scripts;'
+        'PATH': 'C:/mozilla-build/python27;C:/mozilla-build/buildbotve/scripts;'
                 '%s' % (os.environ.get('path')),
         'PDBSTR_PATH': '/c/Program Files (x86)/Windows Kits/8.0/Debuggers/x64/srcsrv/pdbstr.exe',
         'PROPERTIES_FILE': os.path.join(os.getcwd(), 'buildprops.json'),
@@ -92,12 +90,12 @@ config = {
         'UPLOAD_TO_TEMP': '1',
     },
     "check_test_env": {
-        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/win32/minidump_stackwalk.exe',
+        'MINIDUMP_STACKWALK': '%(abs_tools_dir)s/breakpad/win64/minidump_stackwalk.exe',
         'MINIDUMP_SAVE_PATH': '%(base_work_dir)s/minidumps',
     },
     'enable_pymake': True,
     'purge_minsize': 12,
-    'src_mozconfig': 'browser/config/mozconfigs/win32/nightly',
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/win32/releng.manifest",
+    'src_mozconfig': 'browser/config/mozconfigs/win64/nightly',
+    'tooltool_manifest_src': "browser/config/tooltool-manifests/win64/releng.manifest",
     #########################################################################
 }

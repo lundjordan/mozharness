@@ -14,7 +14,7 @@ config = {
     'stage_platform': 'win64-debug',
     'debug_build': True,
     'enable_talos_sendchange': False,
-    #### 32 bit build specific #####
+    #### 64 bit build specific #####
     'env': {
         'BINSCOPE': 'C:/Program Files (x86)/Microsoft/SDL BinScope/BinScope.exe',
         'HG_SHARE_BASE_DIR': 'C:/builds/hg-shared',

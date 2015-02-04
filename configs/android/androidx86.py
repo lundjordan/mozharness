@@ -2,16 +2,17 @@ import os
 
 config = {
     "buildbot_json_path": "buildprops.json",
-    "host_utils_url": "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
+    "host_utils_url": "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.1109310.2.zip",
     "robocop_package_name": "org.mozilla.roboexample.test",
     "device_ip": "127.0.0.1",
     "default_sut_port1": "20701",
     "default_sut_port2": "20700", # does not prompt for commands
     "tooltool_manifest_path": "testing/config/tooltool-manifests/androidx86/releng.manifest",
     "tooltool_cache": "/builds/tooltool_cache",
-    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
-    ".avds_dir": "/home/cltbld/.android",
+    "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
     "emulator_process_name": "emulator64-x86",
+    "emulator_extra_args": "-debug init,console,gles,memcheck,adbserver,adbclient,adb,avd_config,socket -qemu -m 1024 -enable-kvm",
+    "device_manager": "sut",
     "exes": {
         'adb': '/tools/android-sdk18/platform-tools/adb',
         'python': '/tools/buildbot/bin/python',

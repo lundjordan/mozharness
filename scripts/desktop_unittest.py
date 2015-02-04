@@ -104,11 +104,11 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             "default": False,
             "help": "Run tests with multiple processes."}
          ],
-        [['--content-sandbox', ], {
-            "choices": ["off", "warn", "on"],
-            "dest": "content_sandbox",
-            "default": "off",
-            "help": "Run tests with the content sandbox enabled or in warn only mode (Windows only)."}
+        [['--strict-content-sandbox', ], {
+            "action": "store_true",
+            "dest": "strict_content_sandbox",
+            "default": False,
+            "help": "Run tests with a more strict content sandbox (Windows only)."}
          ],
         [['--no-random', ], {
             "action": "store_true",
@@ -157,6 +157,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         self.installer_path = c.get('installer_path')
         self.binary_path = c.get('binary_path')
         self.abs_app_dir = None
+        self.abs_res_dir = None
 
     # helper methods {{{2
     def _pre_config_lock(self, rw_config):
@@ -218,6 +219,25 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         self.abs_app_dir = os.path.dirname(self.binary_path)
         return self.abs_app_dir
 
+    def query_abs_res_dir(self):
+        """The directory containing resources like plugins and extensions. On
+        OSX this is Contents/Resources, on all other platforms its the same as
+        the app dir.
+
+        As with the app dir, we can't set this in advance, because OSX install
+        directories change depending on branding and opt/debug.
+        """
+        if self.abs_res_dir:
+            return self.abs_res_dir
+
+        abs_app_dir = self.query_abs_app_dir()
+        if self._is_darwin():
+            res_subdir = self.tree_config.get("mac_res_subdir", "Resources")
+            self.abs_res_dir = os.path.join(os.path.dirname(abs_app_dir), res_subdir)
+        else:
+            self.abs_res_dir = abs_app_dir
+        return self.abs_res_dir
+
     @PreScriptAction('create-virtualenv')
     def _pre_create_virtualenv(self, action):
         dirs = self.query_abs_dirs()
@@ -254,26 +274,29 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         self.symbols_url = symbols_url
         return self.symbols_url
 
-    def _query_abs_base_cmd(self, suite_category):
+    def _query_abs_base_cmd(self, suite_category, suite):
         if self.binary_path:
             c = self.config
             dirs = self.query_abs_dirs()
             run_file = c['run_file_names'][suite_category]
             base_cmd = [self.query_python_path('python'), '-u']
-            base_cmd.append(dirs["abs_%s_dir" % suite_category] + "/" + run_file)
+            base_cmd.append(os.path.join(dirs["abs_%s_dir" % suite_category], run_file))
             abs_app_dir = self.query_abs_app_dir()
+            abs_res_dir = self.query_abs_res_dir()
 
             webapprt_path = os.path.join(os.path.dirname(self.binary_path),
                                          'webapprt-stub')
             if c.get('exe_suffix'):
                 webapprt_path += c['exe_suffix']
 
+            raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                        '%s_raw.log' % suite)
             str_format_values = {
                 'binary_path': self.binary_path,
                 'symbols_path': self._query_symbols_url(),
                 'abs_app_dir': abs_app_dir,
                 'app_path': webapprt_path,
-                'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+                'raw_log_file': raw_log_file,
             }
             # TestingMixin._download_and_extract_symbols() will set
             # self.symbols_path when downloading/extracting.
@@ -283,11 +306,11 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             if c['e10s']:
                 base_cmd.append('--e10s')
 
-            if c.get('content_sandbox') in ["warn", "on"]:
+            if c.get('strict_content_sandbox'):
                 if suite_category == "mochitest":
-                    base_cmd.append('--content-sandbox=' + c['content_sandbox'])
+                    base_cmd.append('--strict-content-sandbox')
                 else:
-                    self.fatal("--content-sandbox does not currently work with suites other than mochitest.")
+                    self.fatal("--strict-content-sandbox only works with mochitest suites.")
 
             if c.get('total_chunks') and c.get('this_chunk'):
                 base_cmd.extend(['--total-chunks', c['total_chunks'],
@@ -300,21 +323,32 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                     self.warning("--no-random does not currently work with suites other than mochitest.")
 
             # set pluginsPath
-            abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
-            str_format_values['test_plugin_path'] = abs_app_plugins_dir
+            abs_res_plugins_dir = os.path.join(abs_res_dir, 'plugins')
+            str_format_values['test_plugin_path'] = abs_res_plugins_dir
 
-            suite_options = '%s_options' % suite_category
-            if suite_options not in self.tree_config:
-                self.fatal("Key '%s' not defined in the in-tree config! Please add it to '%s'. "
+            missing_key = True
+            if "suite_definitions" in self.tree_config: # new structure
+                if suite_category in self.tree_config["suite_definitions"]:
+                    missing_key = False
+                options = self.tree_config["suite_definitions"][suite_category]["options"]
+            else:
+                suite_options = '%s_options' % suite_category
+                if suite_options in self.tree_config:
+                    missing_key = False
+                options = self.tree_config[suite_options]
+
+            if missing_key:
+                self.fatal("'%s' not defined in the in-tree config! Please add it to '%s'. "
                            "See bug 981030 for more details." %
-                           (suite_options,
+                           (suite_category,
                             os.path.join('gecko', 'testing', self.config['in_tree_config'])))
-            options = list(self.tree_config[suite_options])
+
             if options:
-                for i, option in enumerate(options):
-                    options[i] = option % str_format_values
-                abs_base_cmd = base_cmd + options
-                return abs_base_cmd
+                for option in options:
+                    option = option % str_format_values
+                    if not option.endswith('None'):
+                        base_cmd.append(option)
+                return base_cmd
             else:
                 self.warning("Suite options for %s could not be determined."
                              "\nIf you meant to have options for this suite, "
@@ -405,29 +439,35 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         c = self.config
         dirs = self.query_abs_dirs()
         abs_app_dir = self.query_abs_app_dir()
-        abs_app_components_dir = os.path.join(abs_app_dir, 'components')
-        abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
-        abs_app_extensions_dir = os.path.join(abs_app_dir, 'extensions')
+
+        # For mac these directories are in Contents/Resources, on other
+        # platforms abs_res_dir will point to abs_app_dir.
+        abs_res_dir = self.query_abs_res_dir()
+        abs_res_components_dir = os.path.join(abs_res_dir, 'components')
+        abs_res_plugins_dir = os.path.join(abs_res_dir, 'plugins')
+        abs_res_extensions_dir = os.path.join(abs_res_dir, 'extensions')
+
         if suites:  # there are xpcshell suites to run
-            self.mkdir_p(abs_app_plugins_dir)
+            self.mkdir_p(abs_res_plugins_dir)
             self.info('copying %s to %s' % (os.path.join(dirs['abs_test_bin_dir'],
                       c['xpcshell_name']), os.path.join(abs_app_dir,
                                                         c['xpcshell_name'])))
             shutil.copy2(os.path.join(dirs['abs_test_bin_dir'], c['xpcshell_name']),
                          os.path.join(abs_app_dir, c['xpcshell_name']))
             self.copytree(dirs['abs_test_bin_components_dir'],
-                          abs_app_components_dir,
+                          abs_res_components_dir,
                           overwrite='overwrite_if_exists')
             self.copytree(dirs['abs_test_bin_plugins_dir'],
-                          abs_app_plugins_dir,
+                          abs_res_plugins_dir,
                           overwrite='overwrite_if_exists')
             if os.path.isdir(dirs['abs_test_extensions_dir']):
+                self.mkdir_p(abs_res_extensions_dir)
                 self.copytree(dirs['abs_test_extensions_dir'],
-                              abs_app_extensions_dir,
+                              abs_res_extensions_dir,
                               overwrite='overwrite_if_exists')
 
     def preflight_cppunittest(self, suites):
-        abs_app_dir = self.query_abs_app_dir()
+        abs_res_dir = self.query_abs_res_dir()
         dirs = self.query_abs_dirs()
         abs_cppunittest_dir = dirs['abs_cppunittest_dir']
 
@@ -436,11 +476,11 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
             if not os.path.isdir(abs_cppunittest_dir):
                 self._download_unzip(self.test_url.replace('tests', 'tests.cppunit'), dirs['abs_test_install_dir'])
 
-        # move manifest and js fils to app dir, where tests expect them
+        # move manifest and js fils to resources dir, where tests expect them
         files = glob.glob(os.path.join(abs_cppunittest_dir, '*.js'))
         files.extend(glob.glob(os.path.join(abs_cppunittest_dir, '*.manifest')))
         for f in files:
-            self.move(f, abs_app_dir)
+            self.move(f, abs_res_dir)
 
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
@@ -448,16 +488,21 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         dirs = self.query_abs_dirs()
         suites = self._query_specified_suites(suite_category)
         abs_app_dir = self.query_abs_app_dir()
+        abs_res_dir = self.query_abs_res_dir()
 
         if preflight_run_method:
             preflight_run_method(suites)
         if suites:
             self.info('#### Running %s suites' % suite_category)
-            abs_base_cmd = self._query_abs_base_cmd(suite_category)
             for suite in suites:
+                abs_base_cmd = self._query_abs_base_cmd(suite_category, suite)
                 cmd = abs_base_cmd[:]
                 replace_dict = {
                     'abs_app_dir': abs_app_dir,
+
+                    # Mac specific, but points to abs_app_dir on other
+                    # platforms.
+                    'abs_res_dir': abs_res_dir,
                 }
                 options_list = []
                 env = {}
@@ -500,7 +545,15 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                 #    errors itself with 'num_errors' <- OutputParser
                 # 2) if num_errors is 0 then we look in the subclassed 'parser'
                 #    findings for harness/suite errors <- DesktopUnittestOutputParser
-                tbpl_status, log_level = parser.evaluate_parser(0)
+                # 3) checking to see if the return code is in success_codes
+
+                success_codes = None
+                if self._is_windows():
+                    # bug 1120644
+                    success_codes = [0, 1]
+
+                tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                                success_codes=success_codes)
                 parser.append_tinderboxprint_line(suite_name)
 
                 self.buildbot_status(tbpl_status, level=log_level)

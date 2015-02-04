@@ -42,15 +42,37 @@ config = {
     },
     "backup_dir": "/mnt/netapp/github_sync/aki/%s" % hostname,
     "cvs_manifest": CVS_MANIFEST,
-    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
+    "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
     "cvs_history_tarball": "/home/pmoore/mozilla-cvs-history.tar.bz2",
     "env": {
         "PATH": "%(PATH)s:/usr/libexec/git-core",
     },
     "conversion_repos": [{
+        "repo": "https://hg.mozilla.org/releases/mozilla-b2g37_v2_2",
+        "revision": "default",
+        "repo_name": "mozilla-b2g37_v2_2",
+        "targets": [{
+            "target_dest": "gecko-git/.git",
+            "vcs": "git",
+            "test_push": True,
+        }, {
+            "target_dest": "github-gecko-git",
+        }],
+        "vcs": "hg",
+        "branch_config": {
+            "branches": {
+                "default": "v2.2",
+            },
+        },
+        "tag_config": {
+            "tag_regexes": [
+                "^B2G_",
+            ],
+        },
+    }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g34_v2_1",
         "revision": "default",
-        "repo_name": "mozilla-aurora",
+        "repo_name": "mozilla-b2g34_v2_1",
         "targets": [{
             "target_dest": "gecko-git/.git",
             "vcs": "git",

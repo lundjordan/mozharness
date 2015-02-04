@@ -2,17 +2,17 @@ import os
 
 config = {
     "buildbot_json_path": "buildprops.json",
-    "host_utils_url": "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.742597.zip",
+    "host_utils_url": "http://talos-remote.pvt.build.mozilla.org/tegra/tegra-host-utils.Linux.1109310.2.zip",
     "robocop_package_name": "org.mozilla.roboexample.test",
     "device_ip": "127.0.0.1",
     "default_sut_port1": "20701",
     "default_sut_port2": "20700", # does not prompt for commands
     "tooltool_manifest_path": "testing/config/tooltool-manifests/androidarm/releng.manifest",
     "tooltool_cache": "/builds/tooltool_cache",
-    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
-    ".avds_dir": "/home/cltbld/.android",
+    "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
     "emulator_process_name": "emulator64-arm",
-    "emulator_cpu": "cortex-a9",
+    "emulator_extra_args": "-debug init,console,gles,memcheck,adbserver,adbclient,adb,avd_config,socket -qemu -m 1024 -cpu cortex-a9",
+    "device_manager": "sut",
     "exes": {
         'adb': '/tools/android-sdk18/platform-tools/adb',
         'python': '/tools/buildbot/bin/python',
@@ -75,40 +75,28 @@ config = {
     ],
     "test_suite_definitions": {
         "jsreftest-1": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=1",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=1"],
         },
         "jsreftest-2": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=2",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=2"],
         },
         "jsreftest-3": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=3",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=3"],
         },
         "jsreftest-4": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=4",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=4"],
         },
         "jsreftest-5": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=5",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=5"],
         },
         "jsreftest-6": {
-            "category": "reftest",
-            "extra_args": ["../jsreftest/tests/jstests.list",
-                "--total-chunks=6", "--this-chunk=6",
-                "--extra-profile-file=jsreftest/tests/user.js"]
+            "category": "jsreftest",
+            "extra_args": ["--this-chunk=6"],
         },
         "mochitest-1": {
             "category": "mochitest",
@@ -175,12 +163,12 @@ config = {
             "extra_args": ["--total-chunks=16", "--this-chunk=16", "--run-only-tests=android23.json"],
         },
         "mochitest-gl-1": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=1", "--test-manifest=gl.json"],
+            "category": "mochitest-gl",
+            "extra_args": ["--this-chunk=1"],
         },
         "mochitest-gl-2": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=2", "--test-manifest=gl.json"],
+            "category": "mochitest-gl",
+            "extra_args": ["--this-chunk=2"],
         },
         "reftest-1": {
             "category": "reftest",
@@ -263,55 +251,40 @@ config = {
                 "tests/layout/reftests/reftest.list"]
         },
         "crashtest-1": {
-            "category": "reftest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=1",
-                "tests/testing/crashtest/crashtests.list"]
+            "category": "crashtest",
+            "extra_args": ["--this-chunk=1"],
         },
         "crashtest-2": {
-            "category": "reftest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=2",
-                "tests/testing/crashtest/crashtests.list"]
+            "category": "crashtest",
+            "extra_args": ["--this-chunk=2"],
         },
         "xpcshell-1": {
             "category": "xpcshell",
-            "extra_args": ["--total-chunks=3", "--this-chunk=1",
-                # XXX --manifest is superceded by testing/config/mozharness/android_arm_config.py.
-                # Remove when Gecko 35 no longer in tbpl.
-                "--manifest=tests/xpcshell_android.ini"]
+            "extra_args": ["--total-chunks=3", "--this-chunk=1"],
         },
         "xpcshell-2": {
             "category": "xpcshell",
-            "extra_args": ["--total-chunks=3", "--this-chunk=2",
-                # XXX --manifest is superceded by testing/config/mozharness/android_arm_config.py.
-                # Remove when Gecko 35 no longer in tbpl.
-                "--manifest=tests/xpcshell_android.ini"]
+            "extra_args": ["--total-chunks=3", "--this-chunk=2"],
         },
         "xpcshell-3": {
             "category": "xpcshell",
-            "extra_args": ["--total-chunks=3", "--this-chunk=3",
-                # XXX --manifest is superceded by testing/config/mozharness/android_arm_config.py.
-                # Remove when Gecko 35 no longer in tbpl.
-                "--manifest=tests/xpcshell_android.ini"]
+            "extra_args": ["--total-chunks=3", "--this-chunk=3"],
         },
         "robocop-1": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=4", "--this-chunk=1", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
+            "category": "robocop",
+            "extra_args": ["--this-chunk=1"],
         },
         "robocop-2": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=4", "--this-chunk=2", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
+            "category": "robocop",
+            "extra_args": ["--this-chunk=2"],
         },
         "robocop-3": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=4", "--this-chunk=3", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
+            "category": "robocop",
+            "extra_args": ["--this-chunk=3"],
         },
         "robocop-4": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=4", "--this-chunk=4", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
+            "category": "robocop",
+            "extra_args": ["--this-chunk=4"],
         },
     }, # end of "test_definitions"
     # test harness options are located in the gecko tree

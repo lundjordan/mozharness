@@ -1,9 +1,11 @@
 config = {
     "log_name": "aurora_to_beta",
 
-    "branding_dirs": ["mobile/android/config/mozconfigs/android/",
-                      "mobile/android/config/mozconfigs/android-armv6/",
-                      "mobile/android/config/mozconfigs/android-x86/"],
+    "branding_dirs": [
+        "mobile/android/config/mozconfigs/android-api-11/",
+        "mobile/android/config/mozconfigs/android-api-9-10-constrained/",
+        "mobile/android/config/mozconfigs/android-x86/",
+    ],
     "branding_files": ["debug", "l10n-nightly", "nightly"],
 
     # Disallow sharing, since we want pristine .hg directories.
@@ -18,4 +20,15 @@ config = {
     "end_tag": "FIREFOX_BETA_%(major_version)s_END",
 
     "migration_behavior": "aurora_to_beta",
+
+    "virtualenv_modules": [
+        "requests==2.2.1",
+    ],
+
+    "post_merge_builders": [
+        "mozilla-beta hg bundle",
+    ],
+    "post_merge_nightly_branches": [
+        # No nightlies on mozilla-beta
+    ],
 }

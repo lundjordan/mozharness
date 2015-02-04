@@ -28,7 +28,7 @@ from mozharness.mozilla.buildbot import TBPL_SUCCESS
 
 
 class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUploadMixin):
-    test_suites = ('jsreftest', 'reftest', 'mochitest', 'xpcshell', 'crashtest', 'cppunittest')
+    test_suites = ('jsreftest', 'reftest', 'mochitest', 'mochitest-chrome', 'xpcshell', 'crashtest', 'cppunittest')
     config_options = [[
         ["--type"],
         {"action": "store",
@@ -167,6 +167,8 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
             dirs['abs_emulator_dir'], 'b2g-distro')
         dirs['abs_mochitest_dir'] = os.path.join(
             dirs['abs_test_install_dir'], 'mochitest')
+        dirs['abs_mochitest-chrome_dir'] = os.path.join(
+            dirs['abs_test_install_dir'], 'mochitest')
         dirs['abs_certs_dir'] = os.path.join(
             dirs['abs_test_install_dir'], 'certs')
         dirs['abs_modules_dir'] = os.path.join(
@@ -261,6 +263,8 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
         cmd = [self.query_python_path('python')]
         cmd.append(self.config['run_file_names'][suite])
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite)
         str_format_values = {
             'adbpath': self.adb_path,
             'b2gpath': dirs['abs_b2g-distro_dir'],
@@ -278,7 +282,7 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
             'this_chunk': self.config.get('this_chunk'),
             'test_path': self.config.get('test_path'),
             'certificate_path': dirs['abs_certs_dir'],
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
         }
 
         # Bug 978233 - hack to get around multiple mochitest manifest arguments
@@ -295,12 +299,22 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
                 manifest_param = ''
             str_format_values['test_manifest'] = manifest_param
 
-        suite_options = '%s_options' % suite
-        if suite_options not in self.tree_config:
+        missing_key = True
+        if "suite_definitions" in self.tree_config: # new structure
+            if suite in self.tree_config["suite_definitions"]:
+                missing_key = False
+            options = self.tree_config["suite_definitions"][suite]["options"]
+        else:
+            suite_options = '%s_options' % suite
+            if suite_options in self.tree_config:
+                missing_key = False
+            options = self.tree_config[suite_options]
+
+        if missing_key:
             self.fatal("Key '%s' not defined in the in-tree config! Please add it to '%s'." \
-                       "See bug 981030 for more details." % (suite_options,
+                       "See bug 981030 for more details." % (suite,
                        os.path.join('gecko', 'testing', self.config['in_tree_config'])))
-        options = self.tree_config[suite_options]
+
         if options:
             for option in options:
                 option = option % str_format_values
@@ -347,6 +361,21 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
         # the base implementation from running here.
         pass
 
+    def _get_success_codes(self, suite_name):
+        chunk = int(self.config.get('this_chunk', 0))
+        branch = self.buildbot_config['properties'].get('branch')
+        platform = self.buildbot_config['properties'].get('stage_platform')
+
+        success_codes = None
+        if suite_name == 'xpcshell':
+            # bug 773703
+            success_codes = [0, 1]
+        elif suite_name == 'mochitest' and platform == 'emulator':
+            if chunk == 11 or (chunk == 12 and branch in ('mozilla-b2g32_v2_0', 'mozilla-b2g34_v2_1')):
+                # bug 1120580
+                success_codes = [0, 247]
+        return success_codes
+
     def run_tests(self):
         """
         Run the tests
@@ -375,11 +404,6 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
         else:
             suite = suite_name
 
-        # bug 773703
-        success_codes = None
-        if suite_name == 'xpcshell':
-            success_codes = [0, 1]
-
         if suite_name == 'cppunittest':
             # check if separate test package required
             if not os.path.isdir(dirs['abs_cppunittest_dir']):
@@ -393,14 +417,15 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
             self.mkdir_p(env['MOZ_UPLOAD_DIR'])
         env = self.query_env(partial_env=env)
 
+        success_codes = self._get_success_codes(suite_name)
         parser = self.get_test_output_parser(suite_name,
                                              config=self.config,
                                              log_obj=self.log_obj,
                                              error_list=error_list)
-        self.run_command(cmd, cwd=cwd, env=env,
-                         output_timeout=1000,
-                         output_parser=parser,
-                         success_codes=success_codes)
+        return_code = self.run_command(cmd, cwd=cwd, env=env,
+                                       output_timeout=1000,
+                                       output_parser=parser,
+                                       success_codes=success_codes)
 
         logcat = os.path.join(dirs['abs_work_dir'], 'emulator-5554.log')
 
@@ -409,7 +434,8 @@ class B2GEmulatorTest(TestingMixin, TooltoolMixin, VCSMixin, BaseScript, BlobUpl
             self.copyfile(qemu, os.path.join(env['MOZ_UPLOAD_DIR'],
                                              os.path.basename(qemu)))
 
-        tbpl_status, log_level = parser.evaluate_parser(0)
+        tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                        success_codes=success_codes)
 
         if os.path.isfile(logcat):
             if tbpl_status != TBPL_SUCCESS:

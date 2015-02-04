@@ -34,7 +34,7 @@ config = {
     "exes": {
         'tooltool.py': '/tools/tooltool.py',
     },
-    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
+    "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
     "repos": [{
         "repo": "https://hg.mozilla.org/%(user_repo_override)s/mozilla-release",
         "revision": "default",
@@ -93,7 +93,7 @@ config = {
     ],
 
     # Mock
-    "mock_target": "mozilla-centos6-x86_64",
+    "mock_target": "mozilla-centos6-x86_64-android",
     "mock_packages": ['autoconf213', 'python', 'zip', 'mozilla-python27-mercurial', 'git', 'ccache',
                       'glibc-static', 'libstdc++-static', 'perl-Test-Simple', 'perl-Config-General',
                       'gtk2-devel', 'libnotify-devel', 'yasm',
@@ -110,7 +110,7 @@ config = {
                       'gstreamer-devel', 'gstreamer-plugins-base-devel',
                       'freetype-2.3.11-6.el6_1.8.x86_64',
                       'freetype-devel-2.3.11-6.el6_1.8.x86_64',
-                      'java-1.6.0-openjdk-devel',
+                      'java-1.7.0-openjdk-devel',
                       'openssh-clients',
                       'zlib-devel-1.2.3-27.el6.i686',
                       ],

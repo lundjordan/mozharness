@@ -128,8 +128,17 @@ class ScriptMixin(object):
         if os.name == 'nt':
             return True
 
-    def is_darwin(self):
-        return sys.platform.startswith("darwin")
+    def _is_darwin(self):
+        if platform.system() in ("Darwin"):
+            return True
+        if sys.platform.startswith("darwin"):
+            return True
+
+    def _is_linux(self):
+        if platform.system() in ("Linux"):
+            return True
+        if sys.platform.startswith("linux"):
+            return True
 
     def query_msys_path(self, path):
         if not isinstance(path, basestring):
@@ -540,7 +549,7 @@ class ScriptMixin(object):
             n += 1
             try:
                 self.log("retry: Calling %s with args: %s, kwargs: %s, attempt #%d" %
-                         (action, str(args), str(kwargs), n), level=log_level)
+                         (action.__name__, str(args), str(kwargs), n), level=log_level)
                 status = action(*args, **kwargs)
                 if good_statuses and status not in good_statuses:
                     retry = True

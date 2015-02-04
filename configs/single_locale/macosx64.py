@@ -3,16 +3,18 @@ config = {
     "platform": "macosx64",
     "update_platform": "Darwin_x86_64-gcc3",
     "mozconfig": "%(branch)s/browser/config/mozconfigs/macosx-universal/l10n-mozconfig",
-    "src_xulrunner_mozconfig": "xulrunner/config/mozconfigs/macosx64/xulrunner",
-    "repack_env": {
+    "bootstrap_env": {
         "SHELL": '/bin/bash',
         "MOZ_OBJDIR": "obj-l10n",
         "EN_US_BINARY_URL": "%(en_us_binary_url)s",
         "MOZ_UPDATE_CHANNEL": "%(update_channel)s",
         "MOZ_SYMBOLS_EXTRA_BUILDID": "macosx64",
         "MOZ_PKG_PLATFORM": "mac",
-        "IS_NIGHTLY": "yes",
+        # "IS_NIGHTLY": "yes",
         "DIST": "%(abs_objdir)s",
+        "LOCALE_MERGEDIR": "%(abs_merge_dir)s/",
+        "L10NBASEDIR": "../../l10n",
+        "MOZ_MAKE_COMPLETE_MAR": "1",
         "LOCALE_MERGEDIR": "%(abs_merge_dir)s/",
     },
     "log_name": "single_locale",
@@ -25,13 +27,18 @@ config = {
         "MOZ_PKG_PLATFORM": "mac",
     },
 
+    # tooltool
+    'tooltool_url': 'http://tooltool.pvt.build.mozilla.org/build/',
+    'tooltool_script': ["/builds/tooltool.py"],
+    'tooltool_bootstrap': "setup.sh",
+    'tooltool_manifest_src': 'browser/config/tooltool-manifests/macosx64/releng.manifest',
+
     # balrog credential file:
     'balrog_credentials_file': 'oauth.txt',
 
     # l10n
     "ignore_locales": ["en-US"],
     "l10n_dir": "l10n",
-    "l10n_stage_dir": "dist/firefox/l10n-stage",
     "locales_file": "%(branch)s/browser/locales/all-locales",
     "locales_dir": "browser/locales",
     "hg_l10n_base": "https://hg.mozilla.org/l10n-central",
@@ -39,8 +46,8 @@ config = {
     "merge_locales": True,
 
     # MAR
-    "previous_mar_dir": "previous",
-    "current_mar_dir": "current",
+    "previous_mar_dir": "dist/previous",
+    "current_mar_dir": "dist/current",
     "update_mar_dir": "dist/update",  # sure?
     "previous_mar_filename": "previous.mar",
     "current_work_mar_dir": "current.work",
@@ -55,7 +62,7 @@ config = {
     "local_mar_tool_dir": "dist/host/bin",
     "mar": "mar",
     "mbsdiff": "mbsdiff",
-    "current_mar_filename": "firefox-%(version)s.en-US.mac.complete.mar",
+    "current_mar_filename": "firefox-%(version)s.%(locale)s.mac.complete.mar",
     "complete_mar": "firefox-%(version)s.en-US.mac.complete.mar",
     "localized_mar": "firefox-%(version)s.%(locale)s.mac.complete.mar",
     "partial_mar": "firefox-%(version)s.%(locale)s.mac.partial.%(from_buildid)s-%(to_buildid)s.mar",

@@ -130,54 +130,91 @@ config = {
                 },
             },
         },
-        "EUballot-installer": {
-            "product-name": "Firefox-%(version)s-EUballot",
-            "add-locales": False,
+        "complete-mar-candidates": {
+            "product-name": "Firefox-%(version)sbuild%(build_number)s-Complete",
             "ssl-only": False,
+            "add-locales": True,
             "paths": {
+                "linux": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/linux-i686/:lang/firefox-%(version)s.complete.mar",
+                    "bouncer-platform": "linux",
+                },
+                "linux64": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/linux-x86_64/:lang/firefox-%(version)s.complete.mar",
+                    "bouncer-platform": "linux64",
+                },
+                "macosx64": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/mac/:lang/firefox-%(version)s.complete.mar",
+                    "bouncer-platform": "osx",
+                },
                 "win32": {
-                    "path": "/firefox/releases/%(version)s/win32-EUballot/:lang/Firefox%%20Setup%%20%(version)s.exe",
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/win32/:lang/firefox-%(version)s.complete.mar",
                     "bouncer-platform": "win",
                 },
             },
         },
     },
     "partials": {
-        "product-name": "Firefox-%(version)s-Partial-%(prev_version)s",
-        "ssl-only": False,
-        "add-locales": True,
-        "paths": {
-            "linux": {
-                "path": "/firefox/releases/%(version)s/update/linux-i686/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
-                "bouncer-platform": "linux",
+        "releases-dir": {
+            "product-name": "Firefox-%(version)s-Partial-%(prev_version)s",
+            "ssl-only": False,
+            "add-locales": True,
+            "paths": {
+                "linux": {
+                    "path": "/firefox/releases/%(version)s/update/linux-i686/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "linux",
+                },
+                "linux64": {
+                    "path": "/firefox/releases/%(version)s/update/linux-x86_64/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "linux64",
+                },
+                "macosx64": {
+                    "path": "/firefox/releases/%(version)s/update/mac/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "osx",
+                },
+                "win32": {
+                    "path": "/firefox/releases/%(version)s/update/win32/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "win",
+                },
+                "opensolaris-i386": {
+                    "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.opensolaris-i386.partial.mar",
+                    "bouncer-platform": "opensolaris-i386",
+                },
+                "opensolaris-sparc": {
+                    "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.opensolaris-sparc.partial.mar",
+                    "bouncer-platform": "opensolaris-sparc",
+                },
+                "solaris-i386": {
+                    "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.solaris-i386.partial.mar",
+                    "bouncer-platform": "solaris-i386",
+                },
+                "solaris-sparc": {
+                    "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.solaris-sparc.partial.mar",
+                    "bouncer-platform": "solaris-sparc",
+                },
             },
-            "linux64": {
-                "path": "/firefox/releases/%(version)s/update/linux-x86_64/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
-                "bouncer-platform": "linux64",
-            },
-            "macosx64": {
-                "path": "/firefox/releases/%(version)s/update/mac/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
-                "bouncer-platform": "osx",
-            },
-            "win32": {
-                "path": "/firefox/releases/%(version)s/update/win32/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
-                "bouncer-platform": "win",
-            },
-            "opensolaris-i386": {
-                "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.opensolaris-i386.partial.mar",
-                "bouncer-platform": "opensolaris-i386",
-            },
-            "opensolaris-sparc": {
-                "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.opensolaris-sparc.partial.mar",
-                "bouncer-platform": "opensolaris-sparc",
-            },
-            "solaris-i386": {
-                "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.solaris-i386.partial.mar",
-                "bouncer-platform": "solaris-i386",
-            },
-            "solaris-sparc": {
-                "path": "/firefox/releases/%(version)s/contrib/solaris_tarball/firefox-%(prev_version)s-%(version)s.en-US.solaris-sparc.partial.mar",
-                "bouncer-platform": "solaris-sparc",
+        },
+        "candidates-dir": {
+            "product-name": "Firefox-%(version)sbuild%(build_number)s-Partial-%(prev_version)s",
+            "ssl-only": False,
+            "add-locales": True,
+            "paths": {
+                "linux": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/linux-i686/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "linux",
+                },
+                "linux64": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/linux-x86_64/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "linux64",
+                },
+                "macosx64": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/mac/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "osx",
+                },
+                "win32": {
+                    "path": "/firefox/candidates/%(version)s-candidates/build%(build_number)s/update/win32/:lang/firefox-%(prev_version)s-%(version)s.partial.mar",
+                    "bouncer-platform": "win",
+                },
             },
         },
     },

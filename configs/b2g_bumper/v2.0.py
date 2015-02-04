@@ -25,6 +25,7 @@ config = {
     'gaia_max_revisions': 5,
     # Which git branch this hg repo corresponds to
     'gaia_git_branch': 'v2.0',
+    'gaia_git_repo': 'https://git.mozilla.org/releases/gaia.git',
     'gaia_mapper_project': 'gaia',
     'mapper_url': 'http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}',
 
@@ -57,19 +58,7 @@ config = {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },
-        'hamachi': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
-        'helix': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
         'nexus-4': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
-        'wasabi': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },

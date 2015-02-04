@@ -151,6 +151,8 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScri
         cmd = [self.query_python_path('python')]
         cmd.append(self.query_value("run_file_names")[suite])
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite)
         str_format_values = {
             'application': self.binary_path,
             'test_manifest': self.test_manifest,
@@ -161,7 +163,7 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScri
             'this_chunk': self.config.get('this_chunk'),
             'cert_path': dirs['abs_certs_dir'],
             'browser_arg': self.config.get('browser_arg'),
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
         }
 
         # Bug 978233 - hack to get around multiple mochitest manifest arguments
@@ -178,12 +180,23 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScri
                 manifest_param = ''
             str_format_values['test_manifest'] = manifest_param
 
-        suite_options = '%s_options' % suite
-        if suite_options not in self.tree_config:
-            self.fatal("Key '%s' not defined in the in-tree config! Please add it to '%s'." \
-                       "See bug 981030 for more details." % (suite_options,
-                       os.path.join('gecko', 'testing', self.config['in_tree_config'])))
-        options = self.tree_config[suite_options]
+        missing_key = True
+        if "suite_definitions" in self.tree_config: # new structure
+            if suite in self.tree_config["suite_definitions"]:
+                missing_key = False
+            options = self.tree_config["suite_definitions"][suite]["options"]
+        else:
+            suite_options = '%s_options' % suite
+            if suite_options in self.tree_config:
+                missing_key = False
+            options = self.tree_config[suite_options]
+
+        if missing_key:
+            self.fatal("'%s' not defined in the in-tree config! Please add it to '%s'. "
+                       "See bug 981030 for more details." %
+                       (suite,
+                        os.path.join('gecko', 'testing', self.config['in_tree_config'])))
+
         if options:
             for option in options:
                 option = option % str_format_values
@@ -252,12 +265,13 @@ class B2GDesktopTest(BlobUploadMixin, TestingMixin, TooltoolMixin, MercurialScri
                                              log_obj=self.log_obj,
                                              error_list=error_list)
 
-        self.run_command(cmd, cwd=cwd, env=env,
-                         output_timeout=1000,
-                         output_parser=parser,
-                         success_codes=success_codes)
+        return_code = self.run_command(cmd, cwd=cwd, env=env,
+                                       output_timeout=1000,
+                                       output_parser=parser,
+                                       success_codes=success_codes)
 
-        tbpl_status, log_level = parser.evaluate_parser(0)
+        tbpl_status, log_level = parser.evaluate_parser(return_code,
+                                                        success_codes=success_codes)
         parser.append_tinderboxprint_line(suite_name)
 
         self.buildbot_status(tbpl_status, level=log_level)

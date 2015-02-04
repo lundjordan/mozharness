@@ -32,6 +32,10 @@ class BouncerSubmitter(BaseScript, PurgeMixin, BouncerSubmitterMixin):
             "action": "extend",
             "help": "Previous version(s)",
         }],
+        [["--build-number"], {
+            "dest": "build_number",
+            "help": "Build number of version",
+        }],
         [["--bouncer-api-prefix"], {
             "dest": "bouncer-api-prefix",
             "help": "Bouncer admin API URL prefix",
@@ -109,10 +113,19 @@ class BouncerSubmitter(BaseScript, PurgeMixin, BouncerSubmitterMixin):
         return self.locales
 
     def submit(self):
-        version = self.config["version"]
+        subs = {
+            "version": self.config["version"]
+        }
+        if self.config.get("build_number"):
+            subs["build_number"] = self.config["build_number"]
+
         for product, pr_config in sorted(self.config["products"].items()):
+            product_name = pr_config["product-name"] % subs
+            if self.product_exists(product_name):
+                self.warning("Product %s already exists. Skipping..." %
+                             product_name)
+                continue
             self.info("Adding %s..." % product)
-            product_name = pr_config["product-name"] % dict(version=version)
             self.api_add_product(
                 product_name=product_name,
                 add_locales=pr_config.get("add-locales"),
@@ -120,7 +133,7 @@ class BouncerSubmitter(BaseScript, PurgeMixin, BouncerSubmitterMixin):
             self.info("Adding paths...")
             for platform, pl_config in sorted(pr_config["paths"].items()):
                 bouncer_platform = pl_config["bouncer-platform"]
-                path = pl_config["path"] % dict(version=version)
+                path = pl_config["path"] % subs
                 self.info("%s (%s): %s" % (platform, bouncer_platform, path))
                 self.api_add_location(product_name, bouncer_platform, path)
 
@@ -129,24 +142,31 @@ class BouncerSubmitter(BaseScript, PurgeMixin, BouncerSubmitterMixin):
             self.submit_partials()
 
     def submit_partials(self):
-        part_config = self.config["partials"]
-        product_name_tmpl = part_config["product-name"]
-        version = self.config["version"]
+        subs = {
+            "version": self.config["version"]
+        }
+        if self.config.get("build_number"):
+            subs["build_number"] = self.config["build_number"]
         prev_versions = self.config.get("prev_versions")
-        for prev_version in prev_versions:
-            product_name = product_name_tmpl % dict(version=version,
-                                                    prev_version=prev_version)
-            self.info("Adding partial updates for %s" % product_name)
-            self.api_add_product(
-                product_name=product_name,
-                add_locales=part_config.get("add-locales"),
-                ssl_only=part_config.get("ssl-only"))
-            for platform, pl_config in sorted(part_config["paths"].items()):
-                bouncer_platform = pl_config["bouncer-platform"]
-                path = pl_config["path"] % dict(version=version,
-                                                prev_version=prev_version)
-                self.info("%s (%s): %s" % (platform, bouncer_platform, path))
-                self.api_add_location(product_name, bouncer_platform, path)
+        for product, part_config in sorted(self.config["partials"].items()):
+            product_name_tmpl = part_config["product-name"]
+            for prev_version in prev_versions:
+                subs["prev_version"] = prev_version
+                product_name = product_name_tmpl % subs
+                if self.product_exists(product_name):
+                    self.warning("Product %s already exists. Skipping..." %
+                                product_name)
+                    continue
+                self.info("Adding partial updates for %s" % product_name)
+                self.api_add_product(
+                    product_name=product_name,
+                    add_locales=part_config.get("add-locales"),
+                    ssl_only=part_config.get("ssl-only"))
+                for platform, pl_config in sorted(part_config["paths"].items()):
+                    bouncer_platform = pl_config["bouncer-platform"]
+                    path = pl_config["path"] % subs
+                    self.info("%s (%s): %s" % (platform, bouncer_platform, path))
+                    self.api_add_location(product_name, bouncer_platform, path)
 
 
 if __name__ == '__main__':

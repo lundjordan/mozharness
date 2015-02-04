@@ -18,8 +18,10 @@ import tempfile
 # load modules from parent dir
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
+from mozprocess import ProcessHandler
+
 from mozharness.base.log import FATAL
-from mozharness.base.script import BaseScript
+from mozharness.base.script import BaseScript, PostScriptRun
 from mozharness.base.vcs.vcsbase import VCSMixin
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
@@ -119,6 +121,16 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         for suite in self.test_suites:
             assert suite in self.test_suite_definitions
 
+    def _query_tests_dir(self, suite_name):
+        dirs = self.query_abs_dirs()
+        suite_category = self.test_suite_definitions[suite_name]["category"]
+        try:
+            test_dir = self.tree_config["suite_definitions"][suite_category]["testsdir"]
+        except:
+            test_dir = suite_category
+
+        return os.path.join(dirs['abs_test_install_dir'], test_dir)
+
     def query_abs_dirs(self):
         if self.abs_dirs:
             return self.abs_dirs
@@ -128,16 +140,19 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
             abs_dirs['abs_work_dir'], 'tests')
         dirs['abs_xre_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'hostutils')
-        dirs['abs_mochitest_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'mochitest')
         dirs['abs_modules_dir'] = os.path.join(
             dirs['abs_test_install_dir'], 'modules')
-        dirs['abs_reftest_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'reftest')
-        dirs['abs_xpcshell_dir'] = os.path.join(
-            dirs['abs_test_install_dir'], 'xpcshell')
         dirs['abs_blob_upload_dir'] = os.path.join(
             abs_dirs['abs_work_dir'], 'blobber_upload_dir')
+        dirs['abs_emulator_dir'] = os.path.join(
+            abs_dirs['abs_work_dir'], 'emulator')
+
+        if self.config.get("developer_mode"):
+            dirs['abs_avds_dir'] = os.path.join(
+                abs_dirs['abs_work_dir'], "avds_dir")
+        else:
+            dirs['abs_avds_dir'] = "/home/cltbld/.android"
+
         for key in dirs.keys():
             if key not in abs_dirs:
                 abs_dirs[key] = dirs[key]
@@ -206,17 +221,17 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         # constructed in start_emulators.
         env['LD_LIBRARY_PATH'] = self.abs_dirs['abs_work_dir']
 
+        # Specifically for developer mode we have to set this variable
+        avd_home_dir = self.abs_dirs['abs_avds_dir']
+        env['ANDROID_AVD_HOME'] = os.path.join(avd_home_dir, 'avd')
+
         command = [
             "emulator", "-avd", emulator["name"],
-            "-debug", "init,console,gles,memcheck,adbserver,adbclient,adb,avd_config,socket",
             "-port", str(emulator["emulator_port"]),
-            # Enable kvm; -qemu arguments must be at the end of the command
-            "-qemu", "-m", "1024"
         ]
-        if "emulator_cpu" in self.config:
-            command += ["-cpu", self.config["emulator_cpu"]]
-        else:
-            command += ["-enable-kvm"]
+        if "emulator_extra_args" in self.config:
+            command += self.config["emulator_extra_args"].split()
+
         tmp_file = tempfile.NamedTemporaryFile(mode='w')
         tmp_stdout = open(tmp_file.name, 'w')
         self.info("Created temp file %s." % tmp_file.name)
@@ -231,44 +246,45 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
     def _check_emulator(self, emulator):
         self.info('Checking emulator %s' % emulator["name"])
 
-        attempts = 0
-        tn = None
-        contacted_sut = False
-        while attempts < 8 and not contacted_sut:
-            if attempts != 0:
-                self.info("Sleeping 30 seconds")
-                time.sleep(30)
-            attempts += 1
-            self.info("  Attempt #%d to connect to SUT on port %d" %
-                      (attempts, emulator["sut_port1"]))
-            try:
-                tn = telnetlib.Telnet('localhost', emulator["sut_port1"], 10)
-                if tn is not None:
-                    self.info('Connected to port %d' % emulator["sut_port1"])
-                    res = tn.read_until('$>', 10)
-                    tn.write('quit\n')
-                    if res.find('$>') == -1:
-                        self.warning('Unexpected SUT response: %s' % res)
+        if self.config["device_manager"] == "sut":
+            attempts = 0
+            tn = None
+            contacted_sut = False
+            while attempts < 8 and not contacted_sut:
+                if attempts != 0:
+                    self.info("Sleeping 30 seconds")
+                    time.sleep(30)
+                attempts += 1
+                self.info("  Attempt #%d to connect to SUT on port %d" %
+                          (attempts, emulator["sut_port1"]))
+                try:
+                    tn = telnetlib.Telnet('localhost', emulator["sut_port1"], 10)
+                    if tn is not None:
+                        self.info('Connected to port %d' % emulator["sut_port1"])
+                        res = tn.read_until('$>', 10)
+                        tn.write('quit\n')
+                        if res.find('$>') == -1:
+                            self.warning('Unexpected SUT response: %s' % res)
+                        else:
+                            self.info('SUT response: %s' % res)
+                            contacted_sut = True
+                        tn.read_all()
                     else:
-                        self.info('SUT response: %s' % res)
-                        contacted_sut = True
-                    tn.read_all()
-                else:
-                    self.warning('Unable to connect to the SUT agent on port %d' % emulator["sut_port1"])
-            except socket.error, e:
-                self.info('Trying again after socket error: %s' % str(e))
-                pass
-            except EOFError:
-                self.info('Trying again after EOF')
-                pass
-            except:
-                self.info('Trying again after unexpected exception')
-                pass
-            finally:
-                if tn is not None:
-                    tn.close()
-        if not contacted_sut:
-            self.warning('Unable to communicate with SUT agent on port %d' % emulator["sut_port1"])
+                        self.warning('Unable to connect to the SUT agent on port %d' % emulator["sut_port1"])
+                except socket.error, e:
+                    self.info('Trying again after socket error: %s' % str(e))
+                    pass
+                except EOFError:
+                    self.info('Trying again after EOF')
+                    pass
+                except:
+                    self.info('Trying again after unexpected exception')
+                    pass
+                finally:
+                    if tn is not None:
+                        tn.close()
+            if not contacted_sut:
+                self.warning('Unable to communicate with SUT agent on port %d' % emulator["sut_port1"])
 
         attempts = 0
         tn = None
@@ -322,6 +338,22 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         out, err = p.communicate()
         self.info('%s:\n%s\n%s' % (ps_cmd, out, err))
 
+    def _dump_host_state(self):
+        p = subprocess.Popen(['ps', '-ef'], stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        self.info("output from ps -ef follows...")
+        if out:
+            self.info(out)
+        if err:
+            self.info(err)
+        p = subprocess.Popen(['netstat', '-a', '-p', '-n', '-t', '-u'], stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        self.info("output from netstat -a -p -n -t -u follows...")
+        if out:
+            self.info(out)
+        if err:
+            self.info(err)
+
     def _dump_emulator_log(self, emulator_index):
         emulator = self.emulators[emulator_index]
         self.info("##### %s emulator log begins" % emulator["name"])
@@ -340,9 +372,8 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
                 self.info("Killing pid %d." % pid)
                 os.kill(pid, signal.SIGKILL)
 
-    def _post_fatal(self, message=None, exit_code=None):
-        """ After we call fatal(), run this method before exiting.
-        """
+    @PostScriptRun
+    def _post_script(self):
         self._kill_processes(self.config["emulator_process_name"])
 
     # XXX: This and android_panda.py's function might make sense to take higher up
@@ -382,18 +413,18 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
             self.query_python_path('python'),
             '-u',
             os.path.join(
-                dirs["abs_%s_dir" % suite_category],
+                self._query_tests_dir(suite_name),
                 self.tree_config["suite_definitions"][suite_category]["run_filename"]
             ),
         ]
 
+        raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
+                                    '%s_raw.log' % suite_name)
         str_format_values = {
             'app': self._query_package_name(),
             'remote_webserver': c['remote_webserver'],
             'xre_path': os.path.join(dirs['abs_xre_dir'], 'xre'),
             'utility_path':  os.path.join(dirs['abs_xre_dir'], 'bin'),
-            'device_ip': c['device_ip'],
-            'device_port': str(emulator['sut_port1']),
             'http_port': emulator['http_port'],
             'ssl_port': emulator['ssl_port'],
             'certs_path': os.path.join(dirs['abs_work_dir'], 'tests/certs'),
@@ -402,8 +433,14 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
             'symbols_path': self.symbols_path,
             'modules_dir': dirs['abs_modules_dir'],
             'installer_path': self.installer_path,
-            'raw_log_file': os.path.join(dirs['abs_blob_upload_dir'], 'raw_structured_logs.log')
+            'raw_log_file': raw_log_file,
+            'dm_trans': c['device_manager'],
         }
+        if self.config["device_manager"] == "sut":
+            str_format_values.update({
+                'device_ip': c['device_ip'],
+                'device_port': str(emulator['sut_port1']),
+            })
         for option in self.tree_config["suite_definitions"][suite_category]["options"]:
             cmd.extend([option % str_format_values])
 
@@ -438,7 +475,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         dirs = self.query_abs_dirs()
         cmd = self._build_command(self.emulators[emulator_index], suite_name)
         try:
-            cwd = dirs['abs_%s_dir' % self.test_suite_definitions[suite_name]["category"]]
+            cwd = self._query_tests_dir(suite_name)
         except:
             self.fatal("Don't know how to run --test-suite '%s'!" % suite_name)
 
@@ -460,42 +497,70 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
             "emulator_index": emulator_index
         }
 
+    def _tooltool_fetch(self, url):
+        c = self.config
+        dirs = self.query_abs_dirs()
+
+        manifest_path = self.download_file(
+            url,
+            file_name='releng.manifest',
+            parent_dir=dirs['abs_avds_dir']
+        )
+
+        if not os.path.exists(manifest_path):
+            self.fatal("Could not retrieve manifest needed to retrieve avds "
+                       "artifacts from %s" % manifest_path)
+
+        self.tooltool_fetch(manifest_path,
+                            output_dir=dirs['abs_avds_dir'],
+                            cache=c.get("tooltool_cache", None))
+
     ##########################################
     ### Actions for AndroidEmulatorTest ###
     ##########################################
     def setup_avds(self):
         '''
-        If tooltool cache mechanism is enabled, the cached version is used by the fetch command
-        If the manifest includes an "unpack" field, tooltool will unpack all compressed archives mentioned in the manifest
+        If tooltool cache mechanism is enabled, the cached version is used by
+        the fetch command. If the manifest includes an "unpack" field, tooltool
+        will unpack all compressed archives mentioned in the manifest.
         '''
         c = self.config
-
-        # TODO
-        # the following code cleans the folder previously (pre bug 1058286) used as cache for tooltool artifacts
-        # it can be removed when the folder has been clobbered on all slaves
-        old_tooltool_cache = "/builds/slave/talos-slave/cached"
-        try:
-            self.rmtree(old_tooltool_cache)
-            self.info("Folder %s is no longer used to cache tooltool artifacts and has been deleted" % old_tooltool_cache)
-        except OSError as e:
-            self.warning("Folder %s has not been clobbered: %s" % (old_tooltool_cache, str(e)))
+        dirs = self.query_abs_dirs()
 
         # FIXME
-        # clobbering and re-unpacking would not be needed if we had a way to check whether
-        # the unpacked content already present match the contents of the tar ball
-
-        self.rmtree(c[".avds_dir"])
-        self.mkdir_p(c[".avds_dir"])
-        if self.buildbot_config and 'properties' in self.buildbot_config:
-            url = 'https://hg.mozilla.org/%s/raw-file/%s/%s' % (self.buildbot_config['properties']['repo_path'], self.buildbot_config['properties']['revision'], c["tooltool_manifest_path"])
-
-            manifest_path = self.download_file(url, file_name='releng.manifest',
-                                           parent_dir=c[".avds_dir"])
-            if not os.path.exists(manifest_path):
-                self.fatal("Could not retrieve manifest needed to retrieve avds artifacts from %s" % manifest_path)
-            self.tooltool_fetch(manifest_path, output_dir=c[".avds_dir"], cache=c.get("tooltool_cache", None))
+        # Clobbering and re-unpacking would not be needed if we had a way to
+        # check whether the unpacked content already present match the
+        # contents of the tar ball
+        self.rmtree(dirs['abs_avds_dir'])
+        self.mkdir_p(dirs['abs_avds_dir'])
+        if not self.buildbot_config:
+            # XXX until we figure out how to determine the repo_path, revision
+            url = 'https://hg.mozilla.org/%s/raw-file/%s/%s' % (
+                "try", "default", c["tooltool_manifest_path"])
+            self._tooltool_fetch(url)
+        elif self.buildbot_config and 'properties' in self.buildbot_config:
+            url = 'https://hg.mozilla.org/%s/raw-file/%s/%s' % (
+                self.buildbot_config['properties']['repo_path'],
+                self.buildbot_config['properties']['revision'],
+                c["tooltool_manifest_path"])
+            self._tooltool_fetch(url)
         else:
-            self.fatal("properties in self.buildbot_config are required to retrieve tooltool manifest to be used for avds setup")
+            self.fatal("properties in self.buildbot_config are required to "
+                       "retrieve tooltool manifest to be used for avds setup")
+
+        if self.config.get("developer_mode"):
+            # For developer mode we have to modify the downloaded avds to
+            # point to the right directory.
+            avd_home_dir = self.abs_dirs['abs_avds_dir']
+            cmd = [
+                'bash', '-c',
+                'sed -i "s|/home/cltbld/.android|%s|" %s/test-*.ini' %
+                (avd_home_dir, os.path.join(avd_home_dir, 'avd'))
+            ]
+            proc = ProcessHandler(cmd)
+            proc.run()
+            proc.wait()
+
 
     def start_emulators(self):
         '''
@@ -503,9 +568,14 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         '''
         assert len(self.test_suites) <= len(self.emulators), \
             "We can't run more tests that the number of emulators we start"
-        # We kill compiz because it sometimes prevents us from starting the emulators
-        self._kill_processes("compiz")
-        self._kill_processes("xpcshell")
+
+        if 'emulator_url' in self.config or 'emulator_manifest' in self.config:
+            self.install_emulator()
+
+        if not self.config.get("developer_mode"):
+            # We kill compiz because it sometimes prevents us from starting the emulators
+            self._kill_processes("compiz")
+            self._kill_processes("xpcshell")
 
         # We add a symlink for libGL.so because the emulator dlopen()s it by that name
         # even though the installed library on most systems without dev packages is
@@ -541,22 +611,24 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
                 time.sleep(30)
             attempts += 1
             self.info('Attempt #%d to launch emulators...' % attempts)
+            self._dump_host_state()
             self.emulator_procs = []
             emulator_index = 0
             redirect_failed = False
             for test in self.test_suites:
                 emulator_proc = self._launch_emulator(emulator_index)
                 self.emulator_procs.append(emulator_proc)
-                if self._redirectSUT(emulator_index):
-                    emulator = self.emulators[emulator_index]
-                    self.info("%s: %s; sut port: %s/%s" %
-                              (emulator["name"], emulator["emulator_port"], emulator["sut_port1"], emulator["sut_port2"]))
-                    emulator_index += 1
-                else:
-                    self._dump_emulator_log(emulator_index)
-                    self._kill_processes(self.config["emulator_process_name"])
-                    redirect_failed = True
-                    break
+                if self.config["device_manager"] == "sut":
+                    if self._redirectSUT(emulator_index):
+                        emulator = self.emulators[emulator_index]
+                        self.info("%s: %s; sut port: %s/%s" %
+                                  (emulator["name"], emulator["emulator_port"], emulator["sut_port1"], emulator["sut_port2"]))
+                        emulator_index += 1
+                    else:
+                        self._dump_emulator_log(emulator_index)
+                        self._kill_processes(self.config["emulator_process_name"])
+                        redirect_failed = True
+                        break
         if redirect_failed:
             self.fatal('We have not been able to establish a telnet connection with the emulator')
 

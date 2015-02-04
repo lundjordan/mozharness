@@ -6,13 +6,13 @@ config = {
         "hgtool.py": ["/usr/local/bin/hgtool.py"],
         "gittool.py": ["/usr/local/bin/gittool.py"],
     },
-    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-b2g32_v2_0',
-    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-b2g32_v2_0',
-    'gecko_local_dir': 'mozilla-b2g32_v2_0',
+    'gecko_pull_url': 'https://hg.mozilla.org/releases/mozilla-b2g34_v2_1s/',
+    'gecko_push_url': 'ssh://hg.mozilla.org/releases/mozilla-b2g34_v2_1s/',
+    'gecko_local_dir': 'mozilla-b2g34_v2_1s',
     'git_ref_cache': '/builds/b2g_bumper/git_ref_cache.json',
 
     'manifests_repo': 'https://git.mozilla.org/b2g/b2g-manifest.git',
-    'manifests_revision': 'origin/v2.0',
+    'manifests_revision': 'origin/v2.1s',
 
     'hg_user': 'B2G Bumper Bot <release+b2gbumper@mozilla.com>',
     "ssh_key": "~/.ssh/ffxbld_rsa",
@@ -20,16 +20,23 @@ config = {
 
     'hgtool_base_bundle_urls': ['https://ftp-ssl.mozilla.org/pub/mozilla.org/firefox/bundles'],
 
-    'gaia_repo_url': 'https://hg.mozilla.org/integration/gaia-2_0',
+    'gaia_repo_url': 'https://hg.mozilla.org/integration/gaia-2_1s',
     'gaia_revision_file': 'b2g/config/gaia.json',
     'gaia_max_revisions': 5,
     # Which git branch this hg repo corresponds to
-    'gaia_git_branch': 'v2.0',
-    'gaia_git_repo': 'https://git.mozilla.org/releases/gaia.git',
+    'gaia_git_branch': 'v2.1s',
     'gaia_mapper_project': 'gaia',
     'mapper_url': 'http://cruncher.build.mozilla.org/mapper/{project}/{vcs}/{rev}',
 
     'devices': {
+        'dolphin': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
+        'dolphin-512': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'emulator-kk': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -70,6 +77,7 @@ config = {
         'git://github.com/mozilla/': 'https://git.mozilla.org/b2g',
         'https://git.mozilla.org/releases': 'https://git.mozilla.org/releases',
         'http://android.git.linaro.org/git-ro/': 'https://git.mozilla.org/external/linaro',
+        'http://sprdsource.spreadtrum.com:8085/b2g/android': 'https://git.mozilla.org/external/sprd-aosp',
         'git://github.com/apitrace/': 'https://git.mozilla.org/external/apitrace',
         'git://github.com/t2m-foxfone/': 'https://git.mozilla.org/external/t2m-foxfone',
         # Some mappings to ourself, we want to leave these as-is!

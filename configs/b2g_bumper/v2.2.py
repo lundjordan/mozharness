@@ -34,6 +34,10 @@ config = {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },
+        'emulator-l': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
         'emulator-kk': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -63,6 +67,10 @@ config = {
             'ignore_groups': ['darwin'],
         },
         'nexus-4': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+        },
+        'nexus-5-l': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
         },

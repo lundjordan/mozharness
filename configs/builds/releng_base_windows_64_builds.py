@@ -60,7 +60,7 @@ config = {
 
      #########################################################################
      ###### 64 bit specific ######
-    'base_name': 'WINNT_6.1_%(branch)s',
+    'base_name': 'WINNT_6.1_x86-64_%(branch)s',
     'platform': 'win64',
     'stage_platform': 'win64',
     'enable_max_vsize': True,

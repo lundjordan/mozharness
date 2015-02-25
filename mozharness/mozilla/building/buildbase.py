@@ -39,6 +39,8 @@ from mozharness.mozilla.mock import ERROR_MSGS as MOCK_ERROR_MSGS
 from mozharness.mozilla.testing.errors import TinderBoxPrintRe
 from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.updates.balrog import BalrogMixin
+from mozharness.mozilla.taskcluster_helper import Taskcluster
+from mozharness.base.python import VirtualenvMixin
 
 AUTOMATION_EXIT_CODES = EXIT_STATUS_DICT.values()
 AUTOMATION_EXIT_CODES.sort()
@@ -280,6 +282,7 @@ class BuildOptionParser(object):
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
         'mulet': 'builds/releng_sub_%s_configs/%s_mulet.py',
         'code-coverage': 'builds/releng_sub_%s_configs/%s_code_coverage.py',
+        'graphene': 'builds/releng_sub_%s_configs/%s_graphene.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -490,7 +493,7 @@ def generate_build_UID():
 
 
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
-                  SigningMixin, MercurialScript):
+                  SigningMixin, VirtualenvMixin, MercurialScript):
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
@@ -1257,6 +1260,45 @@ or run without that action (ie: --no-{action})"
 
         self.generated_build_props = True
 
+    def upload_files(self):
+        auth = os.path.join(os.getcwd(), self.config['taskcluster_credentials_file'])
+        credentials = {}
+        execfile(auth, credentials)
+        client_id = credentials.get('taskcluster_clientId')
+        access_token = credentials.get('taskcluster_accessToken')
+        if not client_id or not access_token:
+            self.warning('Skipping S3 file upload: No taskcluster credentials.')
+            return
+
+        # We need to create & activate the virtualenv so that we can import
+        # taskcluster (and its dependent modules, like requests and hawk).
+        # Normally we could create the virtualenv as an action, but due to some
+        # odd dependencies with query_build_env() being called from build(),
+        # which is necessary before the virtualenv can be created.
+        self.create_virtualenv()
+        self.activate_virtualenv()
+
+        tc = Taskcluster(self.branch,
+                         self.stage_platform,
+                         self.query_revision(),
+                         client_id,
+                         access_token,
+                         self.log_obj,
+                         )
+
+        task = tc.create_task()
+        tc.claim_task(task)
+
+        # Some trees may not be setting uploadFiles, so default to []. Normally
+        # we'd only expect to get here if the build completes successfully,
+        # which means we should have uploadFiles.
+        files = self.query_buildbot_property('uploadFiles') or []
+        if not files:
+            self.warning('No files to upload to S3: uploadFiles property is missing or empty.')
+        for upload_file in files:
+            tc.create_artifact(task, upload_file)
+        tc.report_completed(task)
+
     def _set_file_properties(self, file_name, find_dir, prop_type,
                              error_level=ERROR):
         c = self.config
@@ -1402,6 +1444,16 @@ or run without that action (ie: --no-{action})"
         c = self.config
         self.generate_build_props(console_output=console_output,
                                   halt_on_failure=True)
+
+        # TODO: Bug 1135756
+        # We ignore all exceptions from upload_files while the TC queue re-write
+        # is ongoing, but we need to remove that before switching testers to
+        # pull from S3.
+        try:
+            self.upload_files()
+        except:
+            self.warning('Temporarily ignoring S3 upload exception:')
+            self.exception(level=WARNING)
 
         if c.get('enable_talos_sendchange'):
             self._do_sendchange('talos')

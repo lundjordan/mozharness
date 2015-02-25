@@ -282,6 +282,7 @@ class BuildOptionParser(object):
         'stat-and-debug': 'builds/releng_sub_%s_configs/%s_stat_and_debug.py',
         'mulet': 'builds/releng_sub_%s_configs/%s_mulet.py',
         'code-coverage': 'builds/releng_sub_%s_configs/%s_code_coverage.py',
+        'graphene': 'builds/releng_sub_%s_configs/%s_graphene.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -1288,7 +1289,13 @@ or run without that action (ie: --no-{action})"
         task = tc.create_task()
         tc.claim_task(task)
 
-        for upload_file in self.query_buildbot_property('uploadFiles'):
+        # Some trees may not be setting uploadFiles, so default to []. Normally
+        # we'd only expect to get here if the build completes successfully,
+        # which means we should have uploadFiles.
+        files = self.query_buildbot_property('uploadFiles') or []
+        if not files:
+            self.warning('No files to upload to S3: uploadFiles property is missing or empty.')
+        for upload_file in files:
             tc.create_artifact(task, upload_file)
         tc.report_completed(task)
 
@@ -1438,7 +1445,15 @@ or run without that action (ie: --no-{action})"
         self.generate_build_props(console_output=console_output,
                                   halt_on_failure=True)
 
-        self.upload_files()
+        # TODO: Bug 1135756
+        # We ignore all exceptions from upload_files while the TC queue re-write
+        # is ongoing, but we need to remove that before switching testers to
+        # pull from S3.
+        try:
+            self.upload_files()
+        except:
+            self.warning('Temporarily ignoring S3 upload exception:')
+            self.exception(level=WARNING)
 
         if c.get('enable_talos_sendchange'):
             self._do_sendchange('talos')

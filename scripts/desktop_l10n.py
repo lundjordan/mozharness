@@ -57,7 +57,8 @@ configuration_tokens = ('branch',
                         'platform',
                         'en_us_binary_url',
                         'update_platform',
-                        'update_channel')
+                        'update_channel',
+                        'ssh_key_dir')
 # some other values such as "%(version)s", "%(buildid)s", ...
 # are defined at run time and they cannot be enforced in the _pre_config_lock
 # phase
@@ -565,6 +566,8 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         #  TODO do this through VCSMixin instead of hardcoding hg
         #  self.update(dest=dirs["abs_mozilla_dir"], revision=revision)
         hg = self.query_exe("hg")
+        self.info(" testing a fix for relative path in make installers, hardcoding revision to default")
+        revision = "default"
         self.run_command([hg, "update", "-r", revision],
                          cwd=dirs["abs_mozilla_dir"],
                          env=self.query_bootstrap_env(),

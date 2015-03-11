@@ -4,37 +4,34 @@ config = {
     'default_actions': [
         'clobber',
         'clone-tools',
-        'setup-mock',
         'build',
         'update',  # may or may not happen based on query_is_nightly()
     ],
-    'stage_platform': 'linux64',
+    'stage_platform': 'win64',
     'stage_product': 'b2g',
     'enable_signing': False,
     'enable_talos_sendchange': False,
     'enable_unittest_sendchange': False,
     'enable_count_ctors': False,
     'objdir': 'obj-graphene',
-    #### 64 bit build specific #####
     'env': {
+        'BINSCOPE': 'C:/Program Files (x86)/Microsoft/SDL BinScope/BinScope.exe',
+        'HG_SHARE_BASE_DIR': 'C:/builds/hg-shared',
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
-        'HG_SHARE_BASE_DIR': '/builds/hg-shared',
+        'MOZ_CRASHREPORTER_NO_REPORT': '1',
         'MOZ_OBJDIR': 'obj-graphene',
+        'PATH': 'C:/mozilla-build/nsis-3.0a2;C:/mozilla-build/nsis-2.46u;C:/mozilla-build/python27;'
+                'C:/mozilla-build/buildbotve/scripts;'
+                '%s' % (os.environ.get('path')),
+        'PROPERTIES_FILE': os.path.join(os.getcwd(), 'buildprops.json'),
         'TINDERBOX_OUTPUT': '1',
-        'CCACHE_DIR': '/builds/ccache',
-        'CCACHE_COMPRESS': '1',
-        'CCACHE_UMASK': '002',
-        'LC_ALL': 'C',
-        ## 64 bit specific
-        'PATH': '/tools/buildbot/bin:/usr/local/bin:/usr/lib64/ccache:/bin:\
-/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/tools/git/bin:/tools/python27/bin:\
-/tools/python27-mercurial/bin:/home/cltbld/bin',
+        'XPCOM_DEBUG_BREAK': 'stack-and-abort',
         "SYMBOL_SERVER_HOST": "%(symbol_server_host)s",
-        "SYMBOL_SERVER_SSH_KEY": "/home/mock_mozilla/.ssh/ffxbld_rsa",
+        "SYMBOL_SERVER_SSH_KEY": "/c/Users/cltbld/.ssh/ffxbld_rsa",
         "SYMBOL_SERVER_USER": "ffxbld",
         "SYMBOL_SERVER_PATH": "/mnt/netapp/breakpad/symbols_ffx",
     },
-    'src_mozconfig': 'b2g/graphene/config/mozconfigs/linux64/nightly',
+    'src_mozconfig': 'b2g/graphene/config/mozconfigs/win64/nightly',
     #######################
 }

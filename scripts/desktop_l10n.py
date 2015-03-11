@@ -26,7 +26,6 @@ from mozharness.mozilla.building.buildbase import MakeUploadOutputParser
 from mozharness.mozilla.l10n.locales import LocalesMixin
 from mozharness.mozilla.mar import MarMixin
 from mozharness.mozilla.mock import MockMixin
-from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.release import ReleaseMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.updates.balrog import BalrogMixin
@@ -67,8 +66,8 @@ runtime_config_tokens = ('buildid', 'version', 'locale', 'from_buildid',
 
 
 # DesktopSingleLocale {{{1
-class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
-                          BuildbotMixin, VCSMixin, SigningMixin, BaseScript,
+class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, BuildbotMixin,
+                          VCSMixin, SigningMixin, BaseScript,
                           BalrogMixin, MarMixin):
     """Manages desktop repacks"""
     config_options = [[
@@ -154,7 +153,6 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
                 "list-locales",
                 "setup",
                 "repack",
-                "upload-repacks",
                 "submit-to-balrog",
                 "summary",
             ],
@@ -463,10 +461,6 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
             self.version = self._query_make_variable("MOZ_APP_VERSION")
         return self.version
 
-    def upload_repacks(self):
-        """iterates through the list of locales and calls make upload"""
-        self.summarize(self.make_upload, self.query_locales())
-
     def summarize(self, func, items):
         """runs func for any item in items, calls the add_failure() for each
            error. It assumes that function returns 0 when successful.
@@ -512,10 +506,10 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
     def clobber(self):
         """clobber"""
         dirs = self.query_abs_dirs()
-        config = self.config
-        objdir = os.path.join(dirs['abs_work_dir'], config['mozilla_dir'],
-                              config['objdir'])
-        PurgeMixin.clobber(self, always_clobber_dirs=[objdir])
+        clobber_dirs = (dirs['abs_objdir'], dirs['abs_compare_locales_dir'],
+                        dirs['abs_upload_dir'])
+        for directory in clobber_dirs:
+            self.rmtree(directory)
 
     def pull(self):
         """pulls source code"""
@@ -566,8 +560,6 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         #  TODO do this through VCSMixin instead of hardcoding hg
         #  self.update(dest=dirs["abs_mozilla_dir"], revision=revision)
         hg = self.query_exe("hg")
-        self.info(" testing a fix for relative path in make installers, hardcoding revision to default")
-        revision = "default"
         self.run_command([hg, "update", "-r", revision],
                          cwd=dirs["abs_mozilla_dir"],
                          env=self.query_bootstrap_env(),
@@ -801,7 +793,7 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
 
         # compare locale succeded, let's run make installers
         if self.make_installers(locale) != SUCCESS:
-            self.fatal("make installers-%s failed" % (locale))
+            self.error("make installers-%s failed" % (locale))
             return FAILURE
 
         if self._requires_generate_mar('complete', locale):
@@ -810,13 +802,17 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
                 return FAILURE
         # copy the complete mar file where generate_partial_updates expects it
         if self._copy_complete_mar(locale) != SUCCESS:
-            self.fatal('copy_complete_mar failed!')
+            self.error("copy_complete_mar failed!")
+            return FAILURE
 
         if self._requires_generate_mar('partial', locale):
             if self.generate_partial_updates(locale) != 0:
                 self.error("generate partials %s failed" % (locale))
                 return FAILURE
-
+        # now try to upload the artifacts
+        if self.make_upload(locale):
+            self.error("make upload for locale %s failed!" % (locale))
+            return FAILURE
         return SUCCESS
 
     def _requires_generate_mar(self, mar_type, locale):
@@ -892,7 +888,7 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         self.rmtree(current_marfile)
         # partial filename
         previous_mar_buildid = self.get_buildid_from_mar_dir(previous_mar_dir)
-        partial_filename = self._partial_filename(locale)
+        partial_filename = self._query_partial_mar_filename(locale)
         if locale not in self.package_urls:
             self.package_urls[locale] = {}
         self.package_urls[locale]['partial_filename'] = partial_filename
@@ -979,6 +975,11 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
 
     def submit_repack_to_balrog(self, locale):
         """submit a single locale to balrog"""
+        # check if locale has been uploaded, if not just return a FAILURE
+        if locale not in self.package_urls:
+            self.error("%s is not present in package_urls. Did you run make upload?" % locale)
+            return FAILURE
+
         if not self.query_is_nightly():
             # remove this check when we extend this script to non-nightly builds
             self.fatal("Not a nightly build")

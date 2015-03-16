@@ -88,6 +88,7 @@ config = {
         'stage_username': 'trybld',
         'stage_ssh_key': 'trybld_dsa',
         'branch_supports_uploadsymbols': False,
+        'use_clobberer': False,
     },
 
     ### project branches

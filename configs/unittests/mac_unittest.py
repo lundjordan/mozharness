@@ -12,6 +12,7 @@ config = {
     "exes": {
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+        'tooltool.py': "/tools/tooltool.py",
     },
     "find_links": [
         "http://pypi.pvt.build.mozilla.org/pub",
@@ -60,7 +61,7 @@ config = {
         "browser-chrome-2": ["--browser-chrome", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=2"],
         "browser-chrome-3": ["--browser-chrome", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=3"],
         "browser-chrome-chunked": ["--browser-chrome", "--chunk-by-dir=5"],
-        "mochitest-gl": ["--manifest=tests/mochitest/tests/dom/canvas/test/mochitest-subsuite-webgl.ini"],
+        "mochitest-gl": ["--subsuite=webgl"],
         "mochitest-devtools-chrome": ["--browser-chrome", "--subsuite=devtools"],
         "mochitest-devtools-chrome-1": ["--browser-chrome", "--subsuite=devtools", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=1"],
         "mochitest-devtools-chrome-2": ["--browser-chrome", "--subsuite=devtools", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=2"],
@@ -129,13 +130,16 @@ config = {
             "enabled": ADJUST_MOUSE_AND_SCREEN
         },
     ],
-    "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
     "vcs_output_timeout": 1000,
-    "minidump_stackwalk_path": "%(abs_work_dir)s/tools/breakpad/osx64/minidump_stackwalk",
     "minidump_save_path": "%(abs_work_dir)s/../minidumps",
     "buildbot_max_log_size": 52428800,
     "default_blob_upload_servers": [
         "https://blobupload.elasticbeanstalk.com",
     ],
     "blob_uploader_auth_file": os.path.join(os.getcwd(), "oauth.txt"),
+    "download_minidump_stackwalk": True,
+    "minidump_stackwalk_path": "macosx64-minidump_stackwalk",
+    "minidump_tooltool_manifest_path": "config/tooltool-manifests/macosx64/releng.manifest",
+    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
+    "tooltool_cache": "/builds/tooltool_cache",
 }

@@ -25,10 +25,8 @@ from mozharness.mozilla.testing.errors import LogcatErrorList
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import TestSummaryOutputParserHelper
 from mozharness.mozilla.structuredlog import StructuredOutputParser
-from mozharness.mozilla.tooltool import TooltoolMixin
 
-class MarionetteTest(TestingMixin, TooltoolMixin,
-                     MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
+class MarionetteTest(TestingMixin, MercurialScript, BlobUploadMixin, TransferMixin, GaiaMixin):
     config_options = [[
         ["--application"],
         {"action": "store",
@@ -321,9 +319,6 @@ class MarionetteTest(TestingMixin, TooltoolMixin,
                              error_list=TarErrorList,
                              halt_on_failure=True, fatal_exit_code=3)
 
-        if self.config.get('download_minidump_stackwalk'):
-            self.install_minidump_stackwalk()
-
     def install(self):
         if self.config.get('emulator'):
             self.info("Emulator tests; skipping.")
@@ -359,6 +354,8 @@ class MarionetteTest(TestingMixin, TooltoolMixin,
             'address': self.config.get('marionette_address'),
             'raw_log_file': raw_log_file,
             'gecko_log': dirs["abs_blob_upload_dir"],
+            'this_chunk': self.config.get('this_chunk', 1),
+            'total_chunks': self.config.get('total_chunks', 1)
         }
 
         # build the marionette command arguments
@@ -404,14 +401,6 @@ class MarionetteTest(TestingMixin, TooltoolMixin,
                 else:
                     # if b2g-bin cannot be found we must use just b2g
                     config_fmt_args['binary'] = os.path.join(binary_path, 'b2g')
-
-            if self.config.get('this_chunk') and self.config.get('total_chunks'):
-                config_fmt_args['this_chunk'] = self.config.get('this_chunk')
-                config_fmt_args['total_chunks'] = self.config.get('total_chunks')
-            else:
-                # pass 1 as default so that the config option is honoured
-                config_fmt_args['this_chunk'] = 1
-                config_fmt_args['total_chunks'] = 1
 
             # Bug 1046694
             # using a different manifest if a specific gip-suite is specified

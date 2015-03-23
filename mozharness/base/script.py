@@ -433,7 +433,7 @@ class ScriptMixin(object):
             parent_dir = os.path.dirname(file_path)
             self.mkdir_p(parent_dir, error_level=error_level)
         try:
-            fh = open(file_path, open_mode)
+            fh = open(file_path, open_mode, encoding='utf-8')
             fh.write(contents)
             fh.close()
             return file_path

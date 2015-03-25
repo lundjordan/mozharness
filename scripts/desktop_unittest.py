@@ -21,14 +21,15 @@ import glob
 sys.path.insert(1, os.path.dirname(sys.path[0]))
 
 from mozharness.base.errors import BaseErrorList
-from mozharness.base.log import INFO, ERROR
+from mozharness.base.log import INFO, ERROR, WARNING
 from mozharness.base.script import PreScriptAction
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.blob_upload import BlobUploadMixin, blobupload_config_options
 from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
+from mozharness.mozilla.buildbot import TBPL_WARNING
 
-SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell', 'mozbase']
+SUITE_CATEGORIES = ['cppunittest', 'jittest', 'mochitest', 'reftest', 'xpcshell', 'mozbase', 'mozmill']
 
 
 # DesktopUnittest {{{1
@@ -90,6 +91,14 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                     "Suites are defined in the config file\n."
                     "Examples: 'mozbase'"}
          ],
+        [['--mozmill-suite', ], {
+            "action": "extend",
+            "dest": "specified_mozmill_suites",
+            "type": "string",
+            "help": "Specify which mozmill suite to run. "
+                    "Suites are defined in the config file\n."
+                    "Examples: 'mozmill'"}
+         ],
         [['--run-all-suites', ], {
             "action": "store_true",
             "dest": "run_all_suites",
@@ -139,7 +148,6 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                 'read-buildbot-config',
                 'download-and-extract',
                 'create-virtualenv',
-                'pull',
                 'install',
                 'run-tests',
             ],
@@ -197,6 +205,7 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         dirs['abs_blob_upload_dir'] = os.path.join(abs_dirs['abs_work_dir'], 'blobber_upload_dir')
         dirs['abs_jittest_dir'] = os.path.join(dirs['abs_test_install_dir'], "jit-test", "jit-test")
         dirs['abs_mozbase_dir'] = os.path.join(dirs['abs_test_install_dir'], "mozbase")
+        dirs['abs_mozmill_dir'] = os.path.join(dirs['abs_test_install_dir'], "mozmill")
 
         if os.path.isabs(c['virtualenv_path']):
             dirs['abs_virtualenv_dir'] = c['virtualenv_path']
@@ -434,6 +443,8 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                                   preflight_run_method=self.preflight_cppunittest)
         self._run_category_suites('jittest')
         self._run_category_suites('mozbase')
+        self._run_category_suites('mozmill',
+                                  preflight_run_method=self.preflight_mozmill)
 
     def preflight_xpcshell(self, suites):
         c = self.config
@@ -482,6 +493,27 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
         for f in files:
             self.move(f, abs_res_dir)
 
+    def preflight_mozmill(self, suites):
+        c = self.config
+        dirs = self.query_abs_dirs()
+        abs_app_dir = self.query_abs_app_dir()
+        abs_app_plugins_dir = os.path.join(abs_app_dir, 'plugins')
+        abs_app_extensions_dir = os.path.join(abs_app_dir, 'extensions')
+        if suites:  # there are mozmill suites to run
+            self.mkdir_p(abs_app_plugins_dir)
+            self.copytree(dirs['abs_test_bin_plugins_dir'],
+                          abs_app_plugins_dir,
+                          overwrite='overwrite_if_exists')
+            if os.path.isdir(dirs['abs_test_extensions_dir']):
+                self.copytree(dirs['abs_test_extensions_dir'],
+                              abs_app_extensions_dir,
+                              overwrite='overwrite_if_exists')
+            modules = ['jsbridge', 'mozmill']
+            for module in modules:
+                self.install_module(module=os.path.join(dirs['abs_mozmill_dir'],
+                                                        'resources',
+                                                        module))
+
     def _run_category_suites(self, suite_category, preflight_run_method=None):
         """run suite(s) to a specific category"""
         c = self.config
@@ -525,8 +557,9 @@ class DesktopUnittest(TestingMixin, MercurialScript, BlobUploadMixin, MozbaseMix
                                                      config=self.config,
                                                      error_list=error_list,
                                                      log_obj=self.log_obj)
-                if c.get('minidump_stackwalk_path'):
-                    env['MINIDUMP_STACKWALK'] = c['minidump_stackwalk_path']
+
+                if self.query_minidump_stackwalk():
+                    env['MINIDUMP_STACKWALK'] = self.minidump_stackwalk_path
                 env['MOZ_UPLOAD_DIR'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 env['MINIDUMP_SAVE_PATH'] = self.query_abs_dirs()['abs_blob_upload_dir']
                 if not os.path.isdir(env['MOZ_UPLOAD_DIR']):

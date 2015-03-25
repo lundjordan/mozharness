@@ -38,7 +38,11 @@ config = {
             os.path.join(
                 os.getcwd(), 'build', 'src', 'build', 'pymake', 'make.py'
             )
-        ]
+        ],
+        'virtualenv': [
+            sys.executable,
+            'c:/mozilla-build/buildbotve/virtualenv.py'
+        ],
     },
     'app_ini_path': '%(obj_dir)s/dist/bin/application.ini',
     # decides whether we want to use moz_sign_cmd in env
@@ -63,7 +67,7 @@ config = {
     'base_name': 'WINNT_6.1_x86-64_%(branch)s',
     'platform': 'win64',
     'stage_platform': 'win64',
-    'enable_max_vsize': True,
+    'enable_max_vsize': False,
     'env': {
         'MOZ_SYMBOLS_EXTRA_BUILDID': 'win64',
         'MOZ_AUTOMATION': '1',

@@ -10,18 +10,28 @@ config = {
     "tooltool_manifest_path": "testing/config/tooltool-manifests/androidarm/releng.manifest",
     "tooltool_cache": "/builds/tooltool_cache",
     "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
+    "emulator_manifest": """
+        [
+        {
+        "size": 193383673,
+        "digest": "6609e8b95db59c6a3ad60fc3dcfc358b2c8ec8b4dda4c2780eb439e1c5dcc5d550f2e47ce56ba14309363070078d09b5287e372f6e95686110ff8a2ef1838221",
+        "algorithm": "sha512",
+        "filename": "android-sdk18_0.r18moz1.orig.tar.gz",
+        "unpack": "True"
+        }
+        ] """,
     "emulator_process_name": "emulator64-arm",
     "emulator_extra_args": "-debug init,console,gles,memcheck,adbserver,adbclient,adb,avd_config,socket -qemu -m 1024 -cpu cortex-a9",
     "device_manager": "sut",
     "exes": {
-        'adb': '/tools/android-sdk18/platform-tools/adb',
+        'adb': '%(abs_work_dir)s/android-sdk18/platform-tools/adb',
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
         'tooltool.py': "/tools/tooltool.py",
     },
     "env": {
         "DISPLAY": ":0.0",
-        "PATH": "%(PATH)s:/tools/android-sdk18/tools:/tools/android-sdk18/platform-tools",
+        "PATH": "%(PATH)s:%(abs_work_dir)s/android-sdk18/tools:%(abs_work_dir)s/android-sdk18/platform-tools",
         "MINIDUMP_SAVEPATH": "%(abs_work_dir)s/../minidumps"
     },
     "default_actions": [
@@ -100,67 +110,67 @@ config = {
         },
         "mochitest-1": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=1", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=1"],
         },
         "mochitest-2": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=2", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=2"],
         },
         "mochitest-3": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=3", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=3"],
         },
         "mochitest-4": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=4", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=4"],
         },
         "mochitest-5": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=5", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=5"],
         },
         "mochitest-6": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=6", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=6"],
         },
         "mochitest-7": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=7", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=7"],
         },
         "mochitest-8": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=8", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=8"],
         },
         "mochitest-9": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=9", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=9"],
         },
         "mochitest-10": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=10", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=10"],
         },
         "mochitest-11": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=11", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=11"],
         },
         "mochitest-12": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=12", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=12"],
         },
         "mochitest-13": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=13", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=13"],
         },
         "mochitest-14": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=14", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=14"],
         },
         "mochitest-15": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=15", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=15"],
         },
         "mochitest-16": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=16", "--this-chunk=16", "--run-only-tests=android23.json"],
+            "extra_args": ["--total-chunks=16", "--this-chunk=16"],
         },
         "mochitest-gl-1": {
             "category": "mochitest-gl",
@@ -169,6 +179,14 @@ config = {
         "mochitest-gl-2": {
             "category": "mochitest-gl",
             "extra_args": ["--this-chunk=2"],
+        },
+        "mochitest-gl-3": {
+            "category": "mochitest-gl",
+            "extra_args": ["--this-chunk=3"],
+        },
+        "mochitest-gl-4": {
+            "category": "mochitest-gl",
+            "extra_args": ["--this-chunk=4"],
         },
         "reftest-1": {
             "category": "reftest",

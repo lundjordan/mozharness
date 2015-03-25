@@ -1,23 +1,20 @@
 import os
 
-MOZ_OBJDIR = 'obj-firefox'
-
 config = {
     'default_actions': [
         'clobber',
         'clone-tools',
         'setup-mock',
         'build',
-        # 'generate-build-stats',
-        'update',  # decided by query_is_nightly()
     ],
     'stage_platform': 'linux64-mulet',
-    'tooltool_manifest_src': "browser/config/tooltool-manifests/linux64/\
-asan.manifest",
+    'stage_product': 'b2g',
+    'tooltool_manifest_src': "b2g/dev/config/tooltool-manifests/linux64/releng.manifest",
     'platform_supports_post_upload_to_latest': False,
     'enable_signing': False,
     'enable_talos_sendchange': False,
     'enable_count_ctors': False,
+    'enable_check_test': False,
     #### 64 bit build specific #####
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),

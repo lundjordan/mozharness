@@ -99,8 +99,6 @@ class WebPlatformTest(TestingMixin, MercurialScript, BlobUploadMixin):
         self.register_virtualenv_module(requirements=[requirements],
                                         two_pass=True)
 
-        self.register_virtualenv_module(name='fxos_appgen')
-
     def _query_cmd(self):
         if not self.binary_path:
             self.fatal("Binary path could not be determined")
@@ -149,7 +147,6 @@ class WebPlatformTest(TestingMixin, MercurialScript, BlobUploadMixin):
         return base_cmd + opt_cmd
 
     def download_and_extract(self):
-        self.install_minidump_stackwalk()
         super(WebPlatformTest, self).download_and_extract(
             target_unzip_dirs=["bin/*",
                                "config/*",

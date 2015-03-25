@@ -140,6 +140,13 @@ class ScriptMixin(object):
         if sys.platform.startswith("linux"):
             return True
 
+    def _is_64_bit(self):
+        if self._is_darwin():
+            # osx is a special snowflake and to ensure the arch, it is better to use the following
+            return sys.maxsize > 2**32  # context: https://docs.python.org/2/library/platform.html
+        else:
+            return '64' in platform.architecture()[0]  # architecture() returns (bits, linkage)
+
     def query_msys_path(self, path):
         if not isinstance(path, basestring):
             return path
@@ -427,7 +434,10 @@ class ScriptMixin(object):
             self.mkdir_p(parent_dir, error_level=error_level)
         try:
             fh = open(file_path, open_mode)
-            fh.write(contents)
+            try:
+                fh.write(contents)
+            except UnicodeEncodeError:
+                fh.write(contents.encode('utf-8', 'replace'))
             fh.close()
             return file_path
         except IOError:
@@ -556,6 +566,7 @@ class ScriptMixin(object):
             except retry_exceptions, e:
                 retry = True
                 error_message = "%s\nCaught exception: %s" % (error_message, str(e))
+                self.log('retry: attempt #%d caught exception: %s' % (n, str(e)), level=INFO)
 
             if not retry:
                 return status
@@ -1362,8 +1373,6 @@ class BaseScript(ScriptMixin, LogMixin, object):
             "append_to_log": False,
         }
         log_type = self.config.get("log_type", "multi")
-        if log_type == "multi":
-            log_config['logger_name'] = 'Multi'
         for key in log_config.keys():
             value = self.config.get(key, None)
             if value is not None:

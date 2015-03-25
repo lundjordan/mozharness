@@ -28,12 +28,11 @@ from mozharness.mozilla.mozbase import MozbaseMixin
 from mozharness.mozilla.buildbot import TBPL_WORST_LEVEL_TUPLE
 from mozharness.mozilla.testing.testbase import TestingMixin, testing_config_options
 from mozharness.mozilla.testing.unittest import EmulatorMixin
-from mozharness.mozilla.tooltool import TooltoolMixin
 
 from mozharness.mozilla.testing.device import ADBDeviceHandler
 
 
-class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, EmulatorMixin, VCSMixin, BaseScript, MozbaseMixin):
+class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin, BaseScript, MozbaseMixin):
     config_options = [[
         ["--robocop-url"],
         {"action": "store",
@@ -106,7 +105,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         # these are necessary since self.config is read only
         c = self.config
         abs_dirs = self.query_abs_dirs()
-        self.adb_path = c.get('adb_path', self._query_adb())
+        self.adb_path = self.query_exe('adb')
         self.installer_url = c.get('installer_url')
         self.installer_path = c.get('installer_path')
         self.test_url = c.get('test_url')
@@ -453,9 +452,6 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
 
         return cmd
 
-    def _query_adb(self):
-        return self.which('adb') or os.getenv('ADB_PATH')
-
     def preflight_run_tests(self):
         super(AndroidEmulatorTest, self).preflight_run_tests()
 
@@ -569,7 +565,7 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         assert len(self.test_suites) <= len(self.emulators), \
             "We can't run more tests that the number of emulators we start"
 
-        if 'emulator_url' in self.config or 'emulator_manifest' in self.config:
+        if 'emulator_url' in self.config or 'emulator_manifest' in self.config or 'tools_manifest' in self.config:
             self.install_emulator()
 
         if not self.config.get("developer_mode"):
@@ -667,14 +663,11 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
         # This will download and extract the fennec.apk and tests.zip
         super(AndroidEmulatorTest, self).download_and_extract()
         dirs = self.query_abs_dirs()
-        # XXX: Why is it called "download" since we don't download it?
-        if self.config.get('download_minidump_stackwalk'):
-            # XXX: install_minidump_stackwalk will clone tools regardless if
-            # I already have a stackwalk_path on the machine
-            # Does it make sense?
-            self.install_minidump_stackwalk()
 
-        self._download_robocop_apk()
+        for suite_name in self.test_suites:
+            if suite_name.startswith('robocop'):
+                self._download_robocop_apk()
+                break
 
         self.mkdir_p(dirs['abs_xre_dir'])
         self._download_unzip(self.host_utils_url, dirs['abs_xre_dir'])
@@ -696,8 +689,22 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, TooltoolMixin, Emulator
             config = dict(config.items() + self.config.items())
 
             self.info("Creating ADBDevicHandler for %s with config %s" % (emulator["name"], config))
-            dh = ADBDeviceHandler(config=config, log_obj=self.log_obj)
+            dh = ADBDeviceHandler(config=config, log_obj=self.log_obj, script_obj=self)
             dh.device_id = emulator['device_id']
+
+            # Wait for Android to finish booting
+            completed = None
+            retries = 0
+            while retries < 30:
+                completed = self.get_output_from_command([self.adb_path,
+                    "-s", emulator['device_id'], "shell",
+                    "getprop", "sys.boot_completed"])
+                if completed == '1':
+                    break
+                time.sleep(10)
+                retries = retries + 1
+            if completed != '1':
+                self.warning('Retries exhausted waiting for Android boot.')
 
             # Install Fennec
             self.info("Installing Fennec for %s" % emulator["name"])

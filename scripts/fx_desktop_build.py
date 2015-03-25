@@ -41,7 +41,7 @@ class FxDesktopBuild(BuildScript, object):
                 'is_automation': True,
                 "pgo_build": False,
                 "debug_build": False,
-                "pgo_platforms": ['linux', 'linux64', 'win32'],
+                "pgo_platforms": ['linux', 'linux64', 'win32', 'win64'],
                 # nightly stuff
                 "nightly_build": False,
                 'balrog_credentials_file': 'oauth.txt',
@@ -79,7 +79,7 @@ class FxDesktopBuild(BuildScript, object):
                 'virtualenv_modules': [
                     'requests==2.2.1',
                     'PyHawk-with-a-single-extra-commit==0.1.5',
-                    'taskcluster==0.0.7',
+                    'taskcluster==0.0.14',
                 ],
                 'virtualenv_path': 'venv',
                 #

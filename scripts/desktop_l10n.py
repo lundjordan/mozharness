@@ -26,11 +26,11 @@ from mozharness.mozilla.building.buildbase import MakeUploadOutputParser
 from mozharness.mozilla.l10n.locales import LocalesMixin
 from mozharness.mozilla.mar import MarMixin
 from mozharness.mozilla.mock import MockMixin
-from mozharness.mozilla.purge import PurgeMixin
 from mozharness.mozilla.release import ReleaseMixin
 from mozharness.mozilla.signing import SigningMixin
 from mozharness.mozilla.updates.balrog import BalrogMixin
 from mozharness.mozilla.mock import ERROR_MSGS
+from mozharness.base.log import FATAL
 
 try:
     import simplejson as json
@@ -57,7 +57,8 @@ configuration_tokens = ('branch',
                         'platform',
                         'en_us_binary_url',
                         'update_platform',
-                        'update_channel')
+                        'update_channel',
+                        'ssh_key_dir')
 # some other values such as "%(version)s", "%(buildid)s", ...
 # are defined at run time and they cannot be enforced in the _pre_config_lock
 # phase
@@ -66,8 +67,8 @@ runtime_config_tokens = ('buildid', 'version', 'locale', 'from_buildid',
 
 
 # DesktopSingleLocale {{{1
-class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
-                          BuildbotMixin, VCSMixin, SigningMixin, BaseScript,
+class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, BuildbotMixin,
+                          VCSMixin, SigningMixin, BaseScript,
                           BalrogMixin, MarMixin):
     """Manages desktop repacks"""
     config_options = [[
@@ -142,6 +143,12 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
          "dest": "total_locale_chunks",
          "type": "int",
          "help": "Specify the total number of chunks of locales"}
+    ], [
+        ['--en-us-binary-url', ],
+        {"action": "store",
+         "dest": "en_us_binary_url",
+         "type": "string",
+         "help": "Specify the url of the en-us binary"}
     ]]
 
     def __init__(self, require_config_file=True):
@@ -153,7 +160,6 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
                 "list-locales",
                 "setup",
                 "repack",
-                "upload-repacks",
                 "submit-to-balrog",
                 "summary",
             ],
@@ -462,10 +468,6 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
             self.version = self._query_make_variable("MOZ_APP_VERSION")
         return self.version
 
-    def upload_repacks(self):
-        """iterates through the list of locales and calls make upload"""
-        self.summarize(self.make_upload, self.query_locales())
-
     def summarize(self, func, items):
         """runs func for any item in items, calls the add_failure() for each
            error. It assumes that function returns 0 when successful.
@@ -511,10 +513,10 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
     def clobber(self):
         """clobber"""
         dirs = self.query_abs_dirs()
-        config = self.config
-        objdir = os.path.join(dirs['abs_work_dir'], config['mozilla_dir'],
-                              config['objdir'])
-        PurgeMixin.clobber(self, always_clobber_dirs=[objdir])
+        clobber_dirs = (dirs['abs_objdir'], dirs['abs_compare_locales_dir'],
+                        dirs['abs_upload_dir'])
+        for directory in clobber_dirs:
+            self.rmtree(directory)
 
     def pull(self):
         """pulls source code"""
@@ -700,6 +702,15 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         env = self.query_bootstrap_env()
         dirs = self.query_abs_dirs()
         cwd = dirs['abs_locales_dir']
+        binary_file = env['EN_US_BINARY_URL']
+        if binary_file.endswith(('tar.bz2', 'dmg', 'zip')):
+            # specified EN_US_BINARY url is an installer file...
+            dst_filename = binary_file.split('/')[-1].strip()
+            dst_filename = os.path.join(dirs['abs_objdir'], 'dist', dst_filename)
+            self.info('Specified binary url, %s, appears to be an installer file' % (binary_file))
+            return self._retry_download_file(binary_file, dst_filename, error_level=FATAL)
+
+        # binary url is not an installer, use make wget-en-US to download it
         return self._make(target=["wget-en-US"], cwd=cwd, env=env)
 
     def make_upload(self, locale):
@@ -723,13 +734,14 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         if locale not in self.package_urls:
             self.package_urls[locale] = {}
         self.package_urls[locale].update(parser.matches)
+        self.package_urls[locale]['partialInfo'] = self._get_partial_info(
+            self.package_urls[locale]['partialMarUrl'])
         if retval == SUCCESS:
             self.info('Upload successful (%s)' % (locale))
             ret = SUCCESS
         else:
             self.error('failed to upload %s' % (locale))
             ret = FAILURE
-            self.fatal('failed to upload -- REMOVEME')
         return ret
 
     def make_installers(self, locale):
@@ -798,7 +810,7 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
 
         # compare locale succeded, let's run make installers
         if self.make_installers(locale) != SUCCESS:
-            self.fatal("make installers-%s failed" % (locale))
+            self.error("make installers-%s failed" % (locale))
             return FAILURE
 
         if self._requires_generate_mar('complete', locale):
@@ -807,16 +819,25 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
                 return FAILURE
         # copy the complete mar file where generate_partial_updates expects it
         if self._copy_complete_mar(locale) != SUCCESS:
-            self.fatal('copy_complete_mar failed!')
+            self.error("copy_complete_mar failed!")
+            return FAILURE
 
         if self._requires_generate_mar('partial', locale):
             if self.generate_partial_updates(locale) != 0:
                 self.error("generate partials %s failed" % (locale))
                 return FAILURE
-
+        # now try to upload the artifacts
+        if self.make_upload(locale):
+            self.error("make upload for locale %s failed!" % (locale))
+            return FAILURE
         return SUCCESS
 
     def _requires_generate_mar(self, mar_type, locale):
+        # Bug 1136750 - Partial mar is generated but not uploaded
+        # do not use mozharness for complete/partial updates, testing
+        # a full cycle of intree only updates generation
+        return False
+
         generate = True
         if mar_type == 'complete':
             complete_filename = self.localized_marfile(locale)
@@ -830,7 +851,7 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
                 self.info('partials are disabled: enable_partials == False')
                 generate = False
             else:
-                partial_filename = self._previous_mar_filename(locale)
+                partial_filename = self._query_partial_mar_filename(locale)
                 if os.path.exists(partial_filename):
                     self.info('partial mar, already exists: %s' % (partial_filename))
                     generate = False
@@ -866,30 +887,23 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         self.info('creating partial update for locale: %s' % (locale))
         # and recreate current/ previous/
         self._create_mar_dirs()
-        # download mar and mbsdiff executables
+        # download mar and mbsdiff executables, we need them later...
         self.download_mar_tools()
-        # get the previous mar file
-        previous_marfile = self._get_previous_mar(locale)
-        # and unpack it
-        previous_mar_dir = self._previous_mar_dir()
-        result = self._unpack_mar(previous_marfile, previous_mar_dir)
-        if result != 0:
-            self.error('failed to unpack %s to %s' % (previous_marfile,
-                                                      previous_mar_dir))
-            return result
 
+        # unpack current mar file
         current_marfile = self._current_mar_filename(locale)
         current_mar_dir = self._current_mar_dir()
         result = self._unpack_mar(current_marfile, current_mar_dir)
-        if result != 0:
+        if result != SUCCESS:
             self.error('failed to unpack %s to %s' % (current_marfile,
                                                       current_mar_dir))
             return result
         # current mar file unpacked, remove it
         self.rmtree(current_marfile)
         # partial filename
+        previous_mar_dir = self._previous_mar_dir()
         previous_mar_buildid = self.get_buildid_from_mar_dir(previous_mar_dir)
-        partial_filename = self._partial_filename(locale)
+        partial_filename = self._query_partial_mar_filename(locale)
         if locale not in self.package_urls:
             self.package_urls[locale] = {}
         self.package_urls[locale]['partial_filename'] = partial_filename
@@ -919,7 +933,19 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
     def _partial_filename(self, locale):
         config = self.config
         version = self.query_version()
+        # download the previous partial, if needed
+        self._create_mar_dirs()
+        # download mar and mbsdiff executables
+        self.download_mar_tools()
+        # get the previous mar file
+        previous_marfile = self._get_previous_mar(locale)
+        # and unpack it
         previous_mar_dir = self._previous_mar_dir()
+        result = self._unpack_mar(previous_marfile, previous_mar_dir)
+        if result != SUCCESS:
+            self.error('failed to unpack %s to %s' % (previous_marfile,
+                                                      previous_mar_dir))
+            return result
         previous_mar_buildid = self.get_buildid_from_mar_dir(previous_mar_dir)
         current_mar_buildid = self._query_buildid()
         return config['partial_mar'] % {'version': version,
@@ -946,10 +972,33 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         self.abs_dirs = abs_dirs
         return self.abs_dirs
 
+    def _get_partial_info(self, partial_url):
+        """takes a partial url and returns a partial info dictionary"""
+        partial_file = partial_url.split('/')[-1]
+        # now get from_build...
+        # firefox-39.0a1.ar.win32.partial.20150320030211-20150320075143.mar
+        # partial file ^                  ^            ^
+        #                                 |            |
+        # we need ------------------------+------------+
+        from_buildid = partial_file.partition('partial.')[2]
+        from_buildid = from_buildid.partition('-')[0]
+        self.info('from buildid: {0}'.format(from_buildid))
+
+        dirs = self.query_abs_dirs()
+        abs_partial_file = os.path.join(dirs['abs_objdir'], 'dist',
+                                        'update', partial_file)
+
+        size = self.query_filesize(abs_partial_file)
+        hash_ = self.query_sha512sum(abs_partial_file)
+        return [{'from_buildid': from_buildid,
+                 'hash': hash_,
+                 'size': size,
+                 'url': partial_url}]
+
     def submit_to_balrog(self):
         """submit to barlog"""
-        if not self.config.get("balrog_api_root"):
-            self.info("balrog_api_root not set; skipping balrog submission.")
+        if not self.config.get("balrog_servers"):
+            self.info("balrog_servers not set; skipping balrog submission.")
             return
         self.info("Reading buildbot build properties...")
         self.read_buildbot_config()
@@ -976,6 +1025,11 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
 
     def submit_repack_to_balrog(self, locale):
         """submit a single locale to balrog"""
+        # check if locale has been uploaded, if not just return a FAILURE
+        if locale not in self.package_urls:
+            self.error("%s is not present in package_urls. Did you run make upload?" % locale)
+            return FAILURE
+
         if not self.query_is_nightly():
             # remove this check when we extend this script to non-nightly builds
             self.fatal("Not a nightly build")
@@ -995,8 +1049,8 @@ class DesktopSingleLocale(LocalesMixin, ReleaseMixin, MockMixin, PurgeMixin,
         self.set_buildbot_property("completeMarHash", self.query_sha512sum(c_marfile))
         self.set_buildbot_property("completeMarUrl", c_mar_url)
         self.set_buildbot_property("locale", locale)
-        self.set_buildbot_property("partialInfo", self._get_partialInfo(locale))
-
+        self.set_buildbot_property("partialInfo",
+                                   self.package_urls[locale]["partialInfo"])
         ret = FAILURE
         try:
             result = self.submit_balrog_updates()

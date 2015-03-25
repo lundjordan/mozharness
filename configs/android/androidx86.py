@@ -10,18 +10,28 @@ config = {
     "tooltool_manifest_path": "testing/config/tooltool-manifests/androidx86/releng.manifest",
     "tooltool_cache": "/builds/tooltool_cache",
     "tooltool_servers": ["http://tooltool.pvt.build.mozilla.org/build/"],
+    "emulator_manifest": """
+        [
+        {
+        "size": 193383673,
+        "digest": "6609e8b95db59c6a3ad60fc3dcfc358b2c8ec8b4dda4c2780eb439e1c5dcc5d550f2e47ce56ba14309363070078d09b5287e372f6e95686110ff8a2ef1838221",
+        "algorithm": "sha512",
+        "filename": "android-sdk18_0.r18moz1.orig.tar.gz",
+        "unpack": "True"
+        }
+        ] """,
     "emulator_process_name": "emulator64-x86",
     "emulator_extra_args": "-debug init,console,gles,memcheck,adbserver,adbclient,adb,avd_config,socket -qemu -m 1024 -enable-kvm",
     "device_manager": "sut",
     "exes": {
-        'adb': '/tools/android-sdk18/platform-tools/adb',
+        'adb': '%(abs_work_dir)s/android-sdk18/platform-tools/adb',
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
         'tooltool.py': "/tools/tooltool.py",
     },
     "env": {
         "DISPLAY": ":0.0",
-        "PATH": "%(PATH)s:/tools/android-sdk18/tools:/tools/android-sdk18/platform-tools",
+        "PATH": "%(PATH)s:%(abs_work_dir)s/android-sdk18/tools:%(abs_work_dir)s/android-sdk18/platform-tools",
     },
     "default_actions": [
         'clobber',
@@ -80,15 +90,15 @@ config = {
         },
         "mochitest-1": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=1", "--run-only-tests=androidx86.json"],
+            "extra_args": ["--total-chunks=2", "--this-chunk=1"],
         },
         "mochitest-2": {
             "category": "mochitest",
-            "extra_args": ["--total-chunks=2", "--this-chunk=2", "--run-only-tests=androidx86.json"],
+            "extra_args": ["--total-chunks=2", "--this-chunk=2"],
         },
         "mochitest-gl": {
             "category": "mochitest",
-            "extra_args": ["--test-manifest=gl.json"],
+            "extra_args": ["--subsuite=webgl"],
         },
         "reftest-1": {
             "category": "reftest",
@@ -114,21 +124,6 @@ config = {
             # XXX --manifest is superceded by testing/config/mozharness/android_x86_config.py.
             # Remove when Gecko 35 no longer in tbpl.
             "extra_args": ["--manifest=tests/xpcshell_android.ini"]
-        },
-        "robocop-1": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=3", "--this-chunk=1", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
-        },
-        "robocop-2": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=3", "--this-chunk=2", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
-        },
-        "robocop-3": {
-            "category": "mochitest",
-            "extra_args": ["--total-chunks=3", "--this-chunk=3", "--robocop-path=../..",
-                "--robocop-ids=fennec_ids.txt", "--robocop=robocop.ini"],
         },
     }, # end of "test_definitions"
     # test harness options are located in the gecko tree

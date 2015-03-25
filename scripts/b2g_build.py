@@ -12,6 +12,7 @@ import re
 import tempfile
 from datetime import datetime
 import urlparse
+import multiprocessing
 import xml.dom.minidom
 
 try:
@@ -545,6 +546,11 @@ class B2GBuild(LocalesMixin, PurgeMixin,
             # Workaround bug 984061
             if target == 'package-tests':
                 cmd.append('-j1')
+            else:
+                # Ensure we always utilize the correct number of cores
+                # regardless of the configuration which may be set by repo
+                # config changes...
+                cmd.append('-j{0}'.format(multiprocessing.cpu_count()))
             cmd.append(target)
         return cmd
 
@@ -1070,8 +1076,8 @@ class B2GBuild(LocalesMixin, PurgeMixin,
             self.info("Not a nightly build, skipping balrog submission.")
             return
 
-        if not self.config.get("balrog_api_root"):
-            self.info("balrog_api_root not set; skipping balrog submission.")
+        if not self.config.get("balrog_servers"):
+            self.info("balrog_servers not set; skipping balrog submission.")
             return
 
         self.checkout_tools()

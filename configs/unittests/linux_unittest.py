@@ -10,9 +10,11 @@ EXE_SUFFIX = ''
 DISABLE_SCREEN_SAVER = True
 ADJUST_MOUSE_AND_SCREEN = False
 if platform.architecture()[0] == '64bit':
-    MINIDUMP_STACKWALK_PATH = "%(abs_work_dir)s/tools/breakpad/linux64/minidump_stackwalk"
+    TOOLTOOL_MANIFEST_PATH = "config/tooltool-manifests/linux64/releng.manifest"
+    MINIDUMP_STACKWALK_PATH = "linux64-minidump_stackwalk"
 else:
-    MINIDUMP_STACKWALK_PATH = "%(abs_work_dir)s/tools/breakpad/linux/minidump_stackwalk"
+    TOOLTOOL_MANIFEST_PATH = "config/tooltool-manifests/linux32/releng.manifest"
+    MINIDUMP_STACKWALK_PATH = "linux32-minidump_stackwalk"
 
 #####
 config = {
@@ -20,6 +22,7 @@ config = {
     "exes": {
         'python': '/tools/buildbot/bin/python',
         'virtualenv': ['/tools/buildbot/bin/python', '/tools/misc-python/virtualenv.py'],
+        'tooltool.py': "/tools/tooltool.py",
     },
     "find_links": [
         "http://pypi.pvt.build.mozilla.org/pub",
@@ -38,7 +41,8 @@ config = {
         "xpcshell": "runxpcshelltests.py",
         "cppunittest": "runcppunittests.py",
         "jittest": "jit_test.py",
-        "mozbase": "test.py"
+        "mozbase": "test.py",
+        "mozmill": "runtestlist.py",
     },
     "minimum_tests_zip_dirs": ["bin/*", "certs/*", "modules/*", "mozbase/*", "config/*"],
     "specific_tests_zip_dirs": {
@@ -48,7 +52,8 @@ config = {
         "xpcshell": ["xpcshell/*"],
         "cppunittest": ["cppunittests/*"],
         "jittest": ["jit-test/*"],
-        "mozbase": ["mozbase/*"]
+        "mozbase": ["mozbase/*"],
+        "mozmill": ["mozmill/*"],
     },
     # test harness options are located in the gecko tree
     "in_tree_config": "config/mozharness/linux_config.py",
@@ -67,7 +72,7 @@ config = {
         "browser-chrome-2": ["--browser-chrome", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=2"],
         "browser-chrome-3": ["--browser-chrome", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=3"],
         "browser-chrome-chunked": ["--browser-chrome", "--chunk-by-dir=5"],
-        "mochitest-gl": ["--manifest=tests/mochitest/tests/dom/canvas/test/mochitest-subsuite-webgl.ini"],
+        "mochitest-gl": ["--subsuite=webgl"],
         "mochitest-devtools-chrome": ["--browser-chrome", "--subsuite=devtools"],
         "mochitest-devtools-chrome-1": ["--browser-chrome", "--subsuite=devtools", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=1"],
         "mochitest-devtools-chrome-2": ["--browser-chrome", "--subsuite=devtools", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=2"],
@@ -147,13 +152,16 @@ config = {
             "enabled": ADJUST_MOUSE_AND_SCREEN
         },
     ],
-    "repos": [{"repo": "https://hg.mozilla.org/build/tools"}],
     "vcs_output_timeout": 1000,
-    "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
     "minidump_save_path": "%(abs_work_dir)s/../minidumps",
     "buildbot_max_log_size": 52428800,
     "default_blob_upload_servers": [
         "https://blobupload.elasticbeanstalk.com",
     ],
     "blob_uploader_auth_file": os.path.join(os.getcwd(), "oauth.txt"),
+    "download_minidump_stackwalk": True,
+    "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
+    "minidump_tooltool_manifest_path": TOOLTOOL_MANIFEST_PATH,
+    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
+    "tooltool_cache": "/builds/tooltool_cache",
 }

@@ -26,6 +26,19 @@ DEBUG, INFO, WARNING, ERROR, CRITICAL, FATAL, IGNORE = (
     'debug', 'info', 'warning', 'error', 'critical', 'fatal', 'ignore')
 
 
+LOG_LEVELS = {
+    DEBUG: logging.DEBUG,
+    INFO: logging.INFO,
+    WARNING: logging.WARNING,
+    ERROR: logging.ERROR,
+    CRITICAL: logging.CRITICAL,
+    FATAL: FATAL_LEVEL
+}
+
+# mozharness root logger
+ROOT_LOGGER = logging.getLogger()
+
+
 # LogMixin {{{1
 class LogMixin(object):
     """This is a mixin for any object to access similar logging
@@ -206,14 +219,7 @@ class BaseLogger(object):
     error,critical,fatal messages for us to count up at the end (aiming
     for 0).
     """
-    LEVELS = {
-        DEBUG: logging.DEBUG,
-        INFO: logging.INFO,
-        WARNING: logging.WARNING,
-        ERROR: logging.ERROR,
-        CRITICAL: logging.CRITICAL,
-        FATAL: FATAL_LEVEL
-    }
+    LEVELS = LOG_LEVELS
 
     def __init__(
         self, log_level=INFO,
@@ -257,7 +263,7 @@ class BaseLogger(object):
             name = self.__class__.__name__
         self.log_message("%s online at %s in %s" %
                          (name, datetime.now().strftime("%Y%m%d %H:%M:%S"),
-                         os.getcwd()))
+                          os.getcwd()))
 
     def get_logger_level(self, level=None):
         if not level:
@@ -271,11 +277,11 @@ class BaseLogger(object):
             date_format = self.log_date_format
         return logging.Formatter(log_format, date_format)
 
-    def new_logger(self, logger_name):
+    def new_logger(self):
         """Create a new logger.
         By default there are no handlers.
         """
-        self.logger = logging.getLogger(logger_name)
+        self.logger = ROOT_LOGGER
         self.logger.setLevel(self.get_logger_level())
         self._clear_handlers()
         if self.log_to_console:
@@ -303,7 +309,6 @@ class BaseLogger(object):
     def add_console_handler(self, log_level=None, log_format=None,
                             date_format=None):
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(self.get_logger_level(log_level))
         console_handler.setFormatter(self.get_log_formatter(log_format=log_format,
                                                             date_format=date_format))
         self.logger.addHandler(console_handler)
@@ -350,11 +355,11 @@ class SimpleFileLogger(BaseLogger):
                  logger_name='Simple', log_dir='logs', **kwargs):
         BaseLogger.__init__(self, logger_name=logger_name, log_format=log_format,
                             log_dir=log_dir, **kwargs)
-        self.new_logger(self.logger_name)
+        self.new_logger()
         self.init_message()
 
-    def new_logger(self, logger_name):
-        BaseLogger.new_logger(self, logger_name)
+    def new_logger(self):
+        BaseLogger.new_logger(self)
         self.log_path = os.path.join(self.abs_log_dir, '%s.log' % self.log_name)
         self.log_files['default'] = self.log_path
         self.add_file_handler(self.log_path)
@@ -373,11 +378,11 @@ class MultiFileLogger(BaseLogger):
                             log_to_raw=log_to_raw, log_dir=log_dir,
                             **kwargs)
 
-        self.new_logger(self.logger_name)
+        self.new_logger()
         self.init_message()
 
-    def new_logger(self, logger_name):
-        BaseLogger.new_logger(self, logger_name)
+    def new_logger(self):
+        BaseLogger.new_logger(self)
         min_logger_level = self.get_logger_level(self.log_level)
         for level in self.LEVELS.keys():
             if self.get_logger_level(level) >= min_logger_level:
@@ -387,6 +392,13 @@ class MultiFileLogger(BaseLogger):
                                                    self.log_files[level]),
                                       log_level=level)
 
+
+def numeric_log_level(level):
+    """Converts a mozharness log level (string) to the corresponding logger
+       level (number). This function makes possible to set the log level
+       in functions that do not inherit from LogMixin
+    """
+    return LOG_LEVELS[level]
 
 # __main__ {{{1
 if __name__ == '__main__':

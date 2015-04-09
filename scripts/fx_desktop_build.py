@@ -32,6 +32,7 @@ class FxDesktopBuild(BuildScript, object):
                 'clone-tools',
                 'setup-mock',
                 'build',
+                'package-source',
                 'generate-build-stats',
                 'update',
             ],
@@ -79,7 +80,7 @@ class FxDesktopBuild(BuildScript, object):
                 'virtualenv_modules': [
                     'requests==2.2.1',
                     'PyHawk-with-a-single-extra-commit==0.1.5',
-                    'taskcluster==0.0.14',
+                    'taskcluster==0.0.15',
                 ],
                 'virtualenv_path': 'venv',
                 #

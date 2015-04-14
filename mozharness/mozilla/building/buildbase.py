@@ -24,8 +24,9 @@ from itertools import chain
 
 # import the power of mozharness ;)
 import sys
-from datetime import datetime
 import re
+from datetime import datetime
+from datetime import timedelta
 from mozharness.base.config import BaseConfig, parse_config_file
 from mozharness.base.log import ERROR, OutputParser, FATAL, WARNING
 from mozharness.base.script import PostScriptRun
@@ -1298,7 +1299,7 @@ or run without that action (ie: --no-{action})"
                          )
 
         task = tc.create_task()
-        tc.claim_task(task)
+        expiration = datetime.strptime(tc.claim_task(task)['takenUntil'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
         property_conditions = [
             # key: property name, value: condition
@@ -1343,11 +1344,22 @@ or run without that action (ie: --no-{action})"
         # Also upload our mozharness log files
         files.extend([os.path.join(self.log_obj.abs_log_dir, x) for x in self.log_obj.log_files.values()])
 
+        # how many times we can extend the expiration of the task
+        expiration_bumps_left = 1
         for upload_file in files:
             # Create an S3 artifact for each file that gets uploaded. We also
             # check the uploaded file against the property conditions so that we
             # can set the buildbot config with the correct URLs for package
             # locations.
+
+            # check if we have gone past the expiration time of this task
+            expired = datetime.utcnow() > expiration
+            if expired and expiration_bumps_left:
+                # all of the files combined have taken too long
+                # let's extend the task expiration
+                expiration_bumps_left -= 1
+                expiration = datetime.strptime(tc.reclaim_task(task)['takenUntil'],
+                                               '%Y-%m-%dT%H:%M:%S.%fZ')
             tc.create_artifact(task, upload_file)
             if upload_file.endswith(valid_extensions):
                 for prop, condition in property_conditions:

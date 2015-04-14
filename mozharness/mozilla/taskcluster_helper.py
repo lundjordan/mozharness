@@ -62,13 +62,24 @@ class Taskcluster(LogMixin):
         return task
 
     def claim_task(self, task):
-        self.taskcluster_queue.claimTask(
+        return self.taskcluster_queue.claimTask(
             task['status']['taskId'],
             task['status']['runs'][0]['runId'],
             {
                 "workerGroup": self.buildbot,
                 "workerId": self.buildbot,
-            })
+            }
+        )
+
+    def reclaim_task(self, task):
+        self.info("Reclaiming task: %s" % task['status']['taskId'])
+        return self.taskcluster_queue.claimTask(
+            task['status']['taskId'],
+            task['status']['runs'][0]['runId'],
+            {
+                "workerId": self.buildbot,
+            }
+        )
 
     def create_artifact(self, task, filename):
         mime_types = {

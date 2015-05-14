@@ -24,6 +24,7 @@ from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_WARNING
 from mozharness.mozilla.proxxy import Proxxy
 from mozharness.mozilla.structuredlog import StructuredOutputParser
 from mozharness.mozilla.testing.unittest import DesktopUnittestOutputParser
+from mozharness.mozilla.testing.try_tools import TryToolsMixin
 from mozharness.mozilla.tooltool import TooltoolMixin
 
 from mozharness.lib.python.authentication import get_credentials
@@ -78,7 +79,8 @@ testing_config_options = [
 
 
 # TestingMixin {{{1
-class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin, TooltoolMixin):
+class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin, TooltoolMixin,
+                   TryToolsMixin):
     """
     The steps to identify + download the proper bits for [browser] unit
     tests and Talos.
@@ -284,7 +286,7 @@ class TestingMixin(VirtualenvMixin, BuildbotMixin, ResourceMonitoringMixin, Tool
                     elif f['name'].endswith('crashreporter-symbols.zip'):  # yuk
                         self.symbols_url = str(f['name'])
                         self.info("Found symbols url %s." % self.symbols_url)
-                    else:
+                    elif not any(f['name'].endswith(s) for s in ('code-coverage-gcno.zip',)):
                         if not self.installer_url:
                             self.installer_url = str(f['name'])
                             self.info("Found installer url %s." % self.installer_url)
@@ -404,6 +406,19 @@ You can set this by:
 
             self.dump_config(file_path=os.path.join(dirs['abs_log_dir'], 'treeconfig.json'),
                              config=self.tree_config)
+
+        if (self.buildbot_config and 'properties' in self.buildbot_config and
+            self.buildbot_config['properties'].get('branch') == 'try'):
+            try_config_path = os.path.join(test_install_dir, 'config', 'mozharness',
+                                           'try_arguments.py')
+            known_try_arguments = parse_config_file(try_config_path)
+            comments = self.buildbot_config['sourcestamp']['changes'][-1]['comments']
+            if not comments and 'try_syntax' in self.buildbot_config['properties']:
+                # If we don't find try syntax in the usual place, check for it in an
+                # alternate property available to tools using self-serve.
+                comments = self.buildbot_config['properties']['try_syntax']
+            self.parse_extra_try_arguments(comments, known_try_arguments)
+
         self.tree_config.lock()
 
     def structured_output(self, suite_category):
@@ -586,7 +601,7 @@ Did you run with --create-virtualenv? Is mozinstall in virtualenv_modules?""")
                     cache=c.get('tooltool_cache')
                 )
             except KeyError:
-                self.error('missing a required key. is "tooltool_servers" in self.config?')
+                self.error('missing a required key.')
 
             abs_minidump_path = os.path.join(dirs['abs_work_dir'],
                                              minidump_stackwalk_path)

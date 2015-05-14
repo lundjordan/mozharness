@@ -1,8 +1,5 @@
 import os
 
-STAGE_USERNAME = 'ffxbld'
-STAGE_SSH_KEY = 'ffxbld_rsa'
-
 config = {
     #########################################################################
     ######## LINUX GENERIC CONFIG KEYS/VAlUES
@@ -14,6 +11,7 @@ config = {
     'default_actions': [
         'clobber',
         'clone-tools',
+        'checkout-sources',
         'setup-mock',
         'build',
         'generate-build-stats',
@@ -39,9 +37,11 @@ config = {
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/home/cltbld/.boto', '/builds/.boto'),
         ('/builds/gapi.data', '/builds/gapi.data'),
+        ('/builds/relengapi.tok', '/builds/relengapi.tok'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
         ('/builds/mozilla-desktop-geoloc-api.key', '/builds/mozilla-desktop-geoloc-api.key'),
         ('/builds/crash-stats-api.token', '/builds/crash-stats-api.token'),
+        ('/builds/adjust-sdk.token', '/builds/adjust-sdk.token'),
     ],
     'enable_ccache': True,
     'enable_check_test': True,
@@ -60,7 +60,6 @@ config = {
     'base_name': 'Linux_%(branch)s',
     'platform': 'linux',
     'stage_platform': 'linux',
-    'enable_max_vsize': False,
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',

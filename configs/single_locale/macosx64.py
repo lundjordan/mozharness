@@ -1,3 +1,5 @@
+import os
+
 config = {
     # mozconfig file to use, it depends on branch and platform names
     "platform": "macosx64",
@@ -29,7 +31,7 @@ config = {
     },
 
     # tooltool
-    'tooltool_url': 'http://tooltool.pvt.build.mozilla.org/build/',
+    'tooltool_url': 'https://api.pub.build.mozilla.org/tooltool/',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
     'tooltool_manifest_src': 'browser/config/tooltool-manifests/macosx64/releng.manifest',
@@ -68,4 +70,9 @@ config = {
     "localized_mar": "firefox-%(version)s.%(locale)s.mac.complete.mar",
     "partial_mar": "firefox-%(version)s.%(locale)s.mac.partial.%(from_buildid)s-%(to_buildid)s.mar",
     'installer_file': "firefox-%(version)s.en-US.mac.dmg",
+    'exes': {
+        'hgtool.py': os.path.join(
+            os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
+        ),
+    },
 }

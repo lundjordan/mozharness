@@ -58,10 +58,6 @@ config = {
             'ignore_groups': ['darwin'],
             'manifest_file': 'emulator.xml',
         },
-        'flame': {
-            'ignore_projects': ['gecko'],
-            'ignore_groups': ['darwin'],
-        },
         'flame-kk': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
@@ -73,6 +69,11 @@ config = {
         'nexus-5-l': {
             'ignore_projects': ['gecko'],
             'ignore_groups': ['darwin'],
+        },
+        'aries': {
+            'ignore_projects': ['gecko'],
+            'ignore_groups': ['darwin'],
+            'manifest_file': 'shinano.xml',
         },
     },
     'repo_remote_mappings': {

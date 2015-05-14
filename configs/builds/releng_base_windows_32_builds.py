@@ -1,9 +1,6 @@
 import os
 import sys
 
-STAGE_USERNAME = 'ffxbld'
-STAGE_SSH_KEY = 'ffxbld_rsa'
-
 config = {
     #########################################################################
     ######## WINDOWS GENERIC CONFIG KEYS/VAlUES
@@ -15,6 +12,7 @@ config = {
     'default_actions': [
         'clobber',
         'clone-tools',
+        'checkout-sources',
         # 'setup-mock', windows do not use mock
         'build',
         'generate-build-stats',
@@ -68,7 +66,6 @@ config = {
     'base_name': 'WINNT_5.2_%(branch)s',
     'platform': 'win32',
     'stage_platform': 'win32',
-    'enable_max_vsize': True,
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),
         'MOZ_AUTOMATION': '1',
@@ -76,7 +73,7 @@ config = {
         'HG_SHARE_BASE_DIR': 'C:/builds/hg-shared',
         'MOZ_CRASHREPORTER_NO_REPORT': '1',
         'MOZ_OBJDIR': 'obj-firefox',
-        'PATH': 'C:/mozilla-build/nsis-3.0a2;C:/mozilla-build/nsis-2.46u;C:/mozilla-build/python27;'
+        'PATH': 'C:/mozilla-build/nsis-3.0b1;C:/mozilla-build/nsis-2.46u;C:/mozilla-build/python27;'
                 'C:/mozilla-build/buildbotve/scripts;'
                 '%s' % (os.environ.get('path')),
         'PDBSTR_PATH': '/c/Program Files (x86)/Windows Kits/8.0/Debuggers/x64/srcsrv/pdbstr.exe',

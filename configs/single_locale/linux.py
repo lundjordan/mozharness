@@ -1,3 +1,5 @@
+import os
+
 config = {
     "platform": "linux",
     "update_platform": "Linux_x86-gcc3",
@@ -20,7 +22,7 @@ config = {
     "vcs_share_base": "/builds/hg-shared",
 
     # tooltool
-    'tooltool_url': 'http://tooltool.pvt.build.mozilla.org/build/',
+    'tooltool_url': 'https://api.pub.build.mozilla.org/tooltool/',
     'tooltool_script': ["/builds/tooltool.py"],
     'tooltool_bootstrap': "setup.sh",
     'tooltool_manifest_src': 'browser/config/tooltool-manifests/linux32/releng.manifest',
@@ -113,6 +115,12 @@ config = {
         ('/home/cltbld/.hgrc', '/builds/.hgrc'),
         ('/home/cltbld/.boto', '/builds/.boto'),
         ('/builds/gapi.data', '/builds/gapi.data'),
+        ('/builds/relengapi.tok', '/builds/relengapi.tok'),
         ('/tools/tooltool.py', '/builds/tooltool.py'),
     ],
+    'exes': {
+        'hgtool.py': os.path.join(
+            os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
+        ),
+    },
 }

@@ -27,8 +27,9 @@ import sys
 from datetime import datetime
 import re
 from mozharness.base.config import BaseConfig, parse_config_file
-from mozharness.base.log import ERROR, OutputParser, FATAL, WARNING
+from mozharness.base.log import ERROR, OutputParser, FATAL
 from mozharness.base.script import PostScriptRun
+from mozharness.base.transfer import TransferMixin
 from mozharness.base.vcs.vcsbase import MercurialScript
 from mozharness.mozilla.buildbot import BuildbotMixin, TBPL_STATUS_DICT, \
     TBPL_EXCEPTION, TBPL_RETRY, EXIT_STATUS_DICT, TBPL_WARNING, TBPL_SUCCESS, \
@@ -42,6 +43,7 @@ from mozharness.mozilla.testing.unittest import tbox_print_summary
 from mozharness.mozilla.updates.balrog import BalrogMixin
 from mozharness.mozilla.taskcluster_helper import Taskcluster
 from mozharness.base.python import VirtualenvMixin
+from mozharness.base.python import InfluxRecordingMixin
 
 AUTOMATION_EXIT_CODES = EXIT_STATUS_DICT.values()
 AUTOMATION_EXIT_CODES.sort()
@@ -95,6 +97,7 @@ class MakeUploadOutputParser(OutputParser):
         ('jsshellUrl', "'jsshell-' in m and m.endswith('.zip')"),
         ('partialMarUrl', "m.endswith('.mar') and '.partial.' in m"),
         ('completeMarUrl', "m.endswith('.mar')"),
+        ('codeCoverageUrl', "m.endswith('code-coverage-gcno.zip')"),
     ]
 
     def __init__(self, **kwargs):
@@ -286,6 +289,11 @@ class BuildOptionParser(object):
         'code-coverage': 'builds/releng_sub_%s_configs/%s_code_coverage.py',
         'graphene': 'builds/releng_sub_%s_configs/%s_graphene.py',
         'source': 'builds/releng_sub_%s_configs/%s_source.py',
+        'api-9': 'builds/releng_sub_%s_configs/%s_api_9.py',
+        'api-11': 'builds/releng_sub_%s_configs/%s_api_11.py',
+        'api-9-debug': 'builds/releng_sub_%s_configs/%s_api_9_debug.py',
+        'api-11-debug': 'builds/releng_sub_%s_configs/%s_api_11_debug.py',
+        'x86': 'builds/releng_sub_%s_configs/%s_x86.py',
     }
     build_pools = {
         'staging': 'builds/build_pool_specifics.py',
@@ -335,9 +343,12 @@ class BuildOptionParser(object):
                 if 'linux' in cfg_file_name:
                     cls.platform = 'linux'
                     break
+                if 'android' in cfg_file_name:
+                    cls.platform = 'android'
+                    break
             else:
                 sys.exit(error_msg % (target_option, 'platform', '--platform',
-                                      '"linux", "windows", or "mac"'))
+                                      '"linux", "windows", "mac", or "android"'))
         return cls.bits, cls.platform
 
     @classmethod
@@ -483,6 +494,11 @@ BUILD_BASE_CONFIG_OPTIONS = [
         "dest": "who",
         "default": '',
         "help": "stores who made the created the buildbot change."}],
+    [["--disable-mock"], {
+        "dest": "disable_mock",
+        "action": "store_true",
+        "help": "do not run under mock despite what gecko-config says",
+    }],
 
 ]
 
@@ -496,7 +512,8 @@ def generate_build_UID():
 
 
 class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
-                  SigningMixin, VirtualenvMixin, MercurialScript):
+                  SigningMixin, VirtualenvMixin, MercurialScript,
+                  TransferMixin, InfluxRecordingMixin):
     def __init__(self, **kwargs):
         # objdir is referenced in _query_abs_dirs() so let's make sure we
         # have that attribute before calling BaseScript.__init__
@@ -521,9 +538,18 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
         self.repo_path = None
         self.buildid = None
         self.builduid = None
+        self.pushdate = None
         self.query_buildid()  # sets self.buildid
         self.query_builduid()  # sets self.builduid
         self.generated_build_props = False
+
+        # Call this before creating the virtualenv so that we have things like
+        # symbol_server_host in the config
+        self.query_build_env()
+
+        # We need to create the virtualenv directly (without using an action) in
+        # order to use python modules in PreScriptRun/Action listeners
+        self.create_virtualenv()
 
     def _pre_config_lock(self, rw_config):
         c = self.config
@@ -539,7 +565,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
         build_pool_cfg = BuildOptionParser.build_pools.get(build_pool)
         branch_cfg = BuildOptionParser.branch_cfg_file
 
-        cfg_match_msg = "Script was ran with '%(option)s %(type)s' and \
+        cfg_match_msg = "Script was run with '%(option)s %(type)s' and \
 '%(type)s' matches a key in '%(type_config_file)s'. Updating self.config with \
 items from that key's value."
         pf_override_msg = "The branch '%(branch)s' has custom behavior for the \
@@ -690,6 +716,39 @@ or run without that action (ie: --no-{action})"
         self.buildid = buildid
         return self.buildid
 
+    def query_pushdate(self):
+        if self.pushdate:
+            return self.pushdate
+
+        try:
+            url = '%s/json-pushes?changeset=%s' % (
+                self._query_repo(),
+                self.query_revision(),
+            )
+            self.info('Pushdate URL is: %s' % url)
+            contents = self.retry(self.load_json_from_url, args=(url,))
+
+            # The contents should be something like:
+            # {
+            #   "28537": {
+            #    "changesets": [
+            #     "1d0a914ae676cc5ed203cdc05c16d8e0c22af7e5",
+            #    ],
+            #    "date": 1428072488,
+            #    "user": "user@mozilla.com"
+            #   }
+            # }
+            #
+            # So we grab the first element ("28537" in this case) and then pull
+            # out the 'date' field.
+            self.pushdate = contents.itervalues().next()['date']
+            self.info('Pushdate is: %s' % self.pushdate)
+        except Exception:
+            self.exception("Failed to get pushdate from hg.mozilla.org")
+            raise
+
+        return self.pushdate
+
     def _query_objdir(self):
         if self.objdir:
             return self.objdir
@@ -754,12 +813,15 @@ or run without that action (ie: --no-{action})"
             env['MOZ_PGO'] = '1'
 
         if c.get('enable_signing'):
-            moz_sign_cmd = subprocess.list2cmdline(
-                self.query_moz_sign_cmd(formats=None)
-            )
-            # windows fix. This is passed to mach build env and we call that
-            # with python, not with bash so we need to fix the slashes here
-            env['MOZ_SIGN_CMD'] = moz_sign_cmd.replace('\\', '\\\\\\\\')
+            if os.environ.get('MOZ_SIGNING_SERVERS'):
+                moz_sign_cmd = subprocess.list2cmdline(
+                    self.query_moz_sign_cmd(formats=None)
+                )
+                # windows fix. This is passed to mach build env and we call that
+                # with python, not with bash so we need to fix the slashes here
+                env['MOZ_SIGN_CMD'] = moz_sign_cmd.replace('\\', '\\\\\\\\')
+            else:
+                self.warning("signing disabled because MOZ_SIGNING_SERVERS is not set")
 
         # to activate the right behaviour in mozonfigs while we transition
         if c.get('enable_release_promotion'):
@@ -769,8 +831,10 @@ or run without that action (ie: --no-{action})"
         # every call for reasons like MOZ_SIGN_CMD
         return env
 
-    def query_mach_build_env(self):
+    def query_mach_build_env(self, multiLocale=None):
         c = self.config
+        if multiLocale is None:
+            multiLocale = c.get('multi_locale', False)
         mach_env = {}
         if c.get('upload_env'):
             mach_env.update(c['upload_env'])
@@ -791,7 +855,7 @@ or run without that action (ie: --no-{action})"
 
         # _query_post_upload_cmd returns a list (a cmd list), for env sake here
         # let's make it a string
-        pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd()])
+        pst_up_cmd = ' '.join([str(i) for i in self._query_post_upload_cmd(multiLocale)])
         mach_env['POST_UPLOAD_CMD'] = pst_up_cmd
 
         return mach_env
@@ -865,7 +929,7 @@ or run without that action (ie: --no-{action})"
                 pass
         return _who
 
-    def _query_post_upload_cmd(self):
+    def _query_post_upload_cmd(self, multiLocale):
         c = self.config
         post_upload_cmd = ["post_upload.py"]
         buildid = self.query_buildid()
@@ -895,6 +959,14 @@ or run without that action (ie: --no-{action})"
             post_upload_cmd.extend(
                 ["--builddir", "%s-%s" % (self.branch, platform)]
             )
+        elif multiLocale:
+            # Android builds with multilocale enabled upload the en-US builds
+            # to an en-US subdirectory, and the multilocale builds to the
+            # top-level directory.
+            post_upload_cmd.extend(
+                ["--builddir", "en-US"]
+            )
+
         post_upload_cmd.extend(["--tinderbox-builds-dir", tinderbox_build_dir])
         post_upload_cmd.extend(["-p", c['stage_product']])
         post_upload_cmd.extend(['-i', buildid])
@@ -969,7 +1041,18 @@ or run without that action (ie: --no-{action})"
                        "tree to use use. Please provide the path in your "
                        "config via 'src_mozconfig'")
 
-    # TODO add this or merge to ToolToolMixin
+    # TODO: replace with ToolToolMixin
+    def _get_tooltool_auth_file(self):
+        # set the default authentication file based on platform; this
+        # corresponds to where puppet puts the token
+        if 'tooltool_authentication_file' in self.config:
+            return self.config['tooltool_authentication_file']
+
+        if self._is_windows():
+            return r'c:\builds\relengapi.tok'
+        else:
+            return '/builds/relengapi.tok'
+
     def _run_tooltool(self):
         self._assert_cfg_valid_for_action(
             ['tooltool_script', 'tooltool_bootstrap', 'tooltool_url'],
@@ -991,6 +1074,7 @@ or run without that action (ie: --no-{action})"
             c['tooltool_bootstrap'],
         ]
         cmd.extend(c['tooltool_script'])
+        cmd.extend(['--authentication-file', self._get_tooltool_auth_file()])
         self.info(str(cmd))
         self.run_command(cmd, cwd=dirs['abs_src_dir'], halt_on_failure=True)
 
@@ -1075,20 +1159,6 @@ or run without that action (ie: --no-{action})"
         self.set_buildbot_property('num_ctors',
                                    num_ctors,
                                    write_to_file=True)
-        self.set_buildbot_property('testresults',
-                                   testresults,
-                                   write_to_file=True)
-
-    def _count_vsize(self):
-        """gets linker vsize and sets it to testresults."""
-        dirs = self.query_abs_dirs()
-        vsize_path = os.path.join(
-            dirs['abs_obj_dir'], 'toolkit', 'library', 'linker-vsize'
-        )
-        cmd = ['cat', vsize_path]
-        vsize = self.get_output_from_command(cmd, cwd=dirs['abs_src_dir'])
-        testresults = [('libxul_link', 'libxul_link', int(vsize), str(vsize))]
-        self.set_buildbot_property('vsize', vsize, write_to_file=True)
         self.set_buildbot_property('testresults',
                                    testresults,
                                    write_to_file=True)
@@ -1292,6 +1362,7 @@ or run without that action (ie: --no-{action})"
         tc = Taskcluster(self.branch,
                          self.stage_platform,
                          self.query_revision(),
+                         self.query_pushdate(),
                          client_id,
                          access_token,
                          self.log_obj,
@@ -1445,6 +1516,9 @@ or run without that action (ie: --no-{action})"
             self.warning("mozbuild_path could not be determined. skipping "
                          "creating it.")
 
+    def checkout_sources(self):
+        self._checkout_source()
+
     def preflight_build(self):
         """set up machine state for a complete build."""
         c = self.config
@@ -1455,7 +1529,6 @@ or run without that action (ie: --no-{action})"
             # this for nighties since we clobber the whole work_dir in
             # clobber()
             self._rm_old_package()
-        self._checkout_source()
         self._get_mozconfig()
         self._run_tooltool()
         self._create_mozbuild_dir()
@@ -1495,6 +1568,54 @@ or run without that action (ie: --no-{action})"
             )
             self.fatal("'mach build' did not run successfully. Please check "
                        "log for errors.")
+
+    def _checkout_compare_locales(self):
+        dirs = self.query_abs_dirs()
+        dest = dirs['compare_locales_dir']
+        repo = self.config['compare_locales_repo']
+        rev = self.config['compare_locales_rev']
+        vcs = self.config['compare_locales_vcs']
+        abs_rev = self.vcs_checkout(repo=repo, dest=dest, revision=rev, vcs=vcs)
+        self.set_buildbot_property('compare_locales_revision', abs_rev, write_to_file=True)
+
+    def multi_l10n(self):
+        if not self.query_is_nightly():
+            self.info("Not a nightly build, skipping multi l10n.")
+            return
+
+        self._checkout_compare_locales()
+        dirs = self.query_abs_dirs()
+        base_work_dir = dirs['base_work_dir']
+        objdir = dirs['abs_obj_dir']
+        branch = self.buildbot_config['properties']['branch']
+
+        # Some android versions share the same .json config - if
+        # multi_locale_config_platform is set, use that the .json name;
+        # otherwise, use the buildbot platform.
+        multi_config_pf = self.config.get('multi_locale_config_platform',
+                                          self.buildbot_config['properties']['platform'])
+
+        cmd = [
+            self.query_exe('python'),
+            '%s/scripts/scripts/multil10n.py' % base_work_dir,
+            '--config-file',
+            'multi_locale/%s_%s.json' % (branch, multi_config_pf),
+            '--config-file',
+            'multi_locale/android-mozharness-build.json',
+            '--merge-locales',
+            '--pull-locale-source',
+            '--add-locales',
+            '--package-multi',
+            '--summary',
+        ]
+
+        self.run_command_m(cmd, env=self.query_build_env(), cwd=base_work_dir,
+                           halt_on_failure=True)
+
+        upload_cmd = ['make', 'upload', 'AB_CD=multi']
+        self.run_command_m(upload_cmd,
+                           env=self.query_mach_build_env(multiLocale=False),
+                           cwd=objdir, halt_on_failure=True)
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
@@ -1580,8 +1701,8 @@ or run without that action (ie: --no-{action})"
     def generate_build_stats(self):
         """grab build stats following a compile.
 
-        This action handles all statitics from a build: 'count_ctors' and
-        'vsize' and then posts to graph server the results.
+        This action handles all statistics from a build: 'count_ctors'
+        and then posts to graph server the results.
         We only post to graph server for non nightly build
         """
         c = self.config
@@ -1590,27 +1711,19 @@ or run without that action (ie: --no-{action})"
         self.generate_build_props(console_output=False,
                                   halt_on_failure=False)
 
-        # enable_max_vsize will be True for builds like pgo win32 builds
-        # but not for nightlies (nightlies are pgo builds too so the
-        # check is needed).
-        enable_max_vsize = c.get('enable_max_vsize') and c.get('pgo_build')
-
-        if enable_max_vsize or c.get('enable_count_ctors'):
+        if c.get('enable_count_ctors'):
             if c.get('enable_count_ctors'):
                 self.info("counting ctors...")
                 self._count_ctors()
                 num_ctors = self.buildbot_properties.get('num_ctors', 'unknown')
                 self.info("TinderboxPrint: num_ctors: %s" % (num_ctors,))
-            if enable_max_vsize:
-                self.info("getting vsize...")
-                self._count_vsize()
             if not self.query_is_nightly():
                 self._graph_server_post()
             else:
                 self.info("We are not posting to graph server as this is a "
                           "nightly build.")
         else:
-            self.info("Nothing to do for this action since ctors and vsize "
+            self.info("Nothing to do for this action since ctors "
                       "counts are disabled for this build.")
 
     def _do_sendchange(self, test_type):

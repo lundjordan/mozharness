@@ -132,7 +132,6 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
             require_config_file=require_config_file,
             config={
                 'require_test_zip': True,
-                'emulator': 'arm',
                 # This is a special IP that has meaning to the emulator
                 'remote_webserver': '10.0.2.2',
             }
@@ -261,17 +260,18 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
 
         raw_log_file = os.path.join(dirs['abs_blob_upload_dir'],
                                     '%s_raw.log' % suite)
+        emulator_type = 'x86' if os.path.isdir(os.path.join(dirs['abs_b2g-distro_dir'],
+                        'out', 'target', 'product', 'generic_x86')) else 'arm'
+        self.info("The emulator type: %s" % emulator_type)
+
         str_format_values = {
             'adbpath': self.adb_path,
             'b2gpath': dirs['abs_b2g-distro_dir'],
-            'emulator': self.config['emulator'],
+            'emulator': emulator_type,
             'logcat_dir': dirs['abs_work_dir'],
             'modules_dir': dirs['abs_modules_dir'],
             'remote_webserver': self.config['remote_webserver'],
             'xre_path': os.path.join(dirs['abs_xre_dir'], 'bin'),
-            # XXX test_manifest is no longer used by the in-tree config.
-            # Remove it when Gecko 35 is no longer in tbpl.
-            'test_manifest': self.test_manifest,
             'symbols_path': self.symbols_path,
             'busybox': self.busybox_path,
             'total_chunks': self.config.get('total_chunks'),
@@ -280,20 +280,6 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
             'certificate_path': dirs['abs_certs_dir'],
             'raw_log_file': raw_log_file,
         }
-
-        # Bug 978233 - hack to get around multiple mochitest manifest arguments
-        if suite == 'mochitest':
-            if os.path.isfile(os.path.join(dirs['abs_mochitest_dir'], self.test_manifest)):
-                if self.test_manifest.endswith('.ini'):
-                    manifest_param = '--manifest'
-                else:
-                    manifest_param = '--test-manifest'
-                manifest_param = '%s=%s' % (manifest_param, self.test_manifest)
-            else:
-                self.log('Ignoring non-existent manifest \'%s\'.' % self.test_manifest,
-                         level=WARNING)
-                manifest_param = ''
-            str_format_values['test_manifest'] = manifest_param
 
         missing_key = True
         if "suite_definitions" in self.tree_config: # new structure
@@ -329,12 +315,7 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
         suite = self.config['test_suite']
         # set default test manifest by suite if none specified
         if not self.test_manifest:
-            if suite == 'mochitest':
-                self.test_manifest = 'b2g.json'
-                if self.buildbot_config:
-                    if 'debug' in self.buildbot_config['properties']['buildername']:
-                        self.test_manifest = 'b2g-debug.json'
-            elif suite == 'reftest':
+            if suite == 'reftest':
                 self.test_manifest = os.path.join('tests', 'layout',
                                                   'reftests', 'reftest.list')
             elif suite == 'xpcshell':
@@ -345,8 +326,6 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
             elif suite == 'jsreftest':
                 self.test_manifest = os.path.join('jsreftest', 'tests',
                                                   'jstests.list')
-            elif suite == 'cppunittest':
-                self.test_manifest = None
 
         if not os.path.isfile(self.adb_path):
             self.fatal("The adb binary '%s' is not a valid file!" % self.adb_path)
@@ -358,18 +337,10 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
         pass
 
     def _get_success_codes(self, suite_name):
-        chunk = int(self.config.get('this_chunk', 0))
-        branch = self.buildbot_config['properties'].get('branch')
-        platform = self.buildbot_config['properties'].get('stage_platform')
-
         success_codes = None
         if suite_name == 'xpcshell':
             # bug 773703
             success_codes = [0, 1]
-        elif suite_name == 'mochitest' and platform == 'emulator':
-            if chunk == 11 or (chunk == 12 and branch in ('mozilla-b2g32_v2_0', 'mozilla-b2g34_v2_1')):
-                # bug 1120580
-                success_codes = [0, 247]
         return success_codes
 
     def run_tests(self):
@@ -387,6 +358,7 @@ class B2GEmulatorTest(TestingMixin, VCSMixin, BaseScript, BlobUploadMixin):
 
         cmd = self._query_abs_base_cmd(suite)
         cwd = dirs['abs_%s_dir' % suite]
+        cmd = self.append_harness_extra_args(cmd)
 
         # TODO we probably have to move some of the code in
         # scripts/desktop_unittest.py and scripts/marionette.py to

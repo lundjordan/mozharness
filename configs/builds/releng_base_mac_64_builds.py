@@ -1,9 +1,6 @@
 import os
 import sys
 
-STAGE_USERNAME = 'ffxbld'
-STAGE_SSH_KEY = 'ffxbld_rsa'
-
 config = {
     #########################################################################
     ######## MACOSX GENERIC CONFIG KEYS/VAlUES
@@ -12,6 +9,7 @@ config = {
         'clobber',
         'clone-tools',
         # 'setup-mock',
+        'checkout-sources',
         'build',
         'generate-build-stats',
         'update',  # decided by query_is_nightly()
@@ -46,7 +44,6 @@ config = {
     'base_name': 'OS X 10.7 %(branch)s',
     'platform': 'macosx64',
     'stage_platform': 'macosx64',
-    'enable_max_vsize': False,
     'use_platform_in_symbols_extra_buildid': True,
     'env': {
         'MOZBUILD_STATE_PATH': os.path.join(os.getcwd(), '.mozbuild'),

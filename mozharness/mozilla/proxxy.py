@@ -31,17 +31,18 @@ class Proxxy(ScriptMixin, LogMixin):
             ('https://ftp.mozilla.org', 'ftp.mozilla.org'),
             ('https://ftp-ssl.mozilla.org', 'ftp.mozilla.org'),
             ('http://pvtbuilds.pvt.build.mozilla.org', 'pvtbuilds.mozilla.org'),
-            # tooltool
-            ('http://tooltool.pvt.build.mozilla.org', 'tooltool.pvt.build.mozilla.org'),
             # pypi
             ('http://pypi.pvt.build.mozilla.org', 'pypi.pvt.build.mozilla.org'),
             ('http://pypi.pub.build.mozilla.org', 'pypi.pub.build.mozilla.org'),
+            # taskcluster stuff
+            ('https://queue.taskcluster.net', 'queue.taskcluster.net'),
         ],
         "instances": [
             'proxxy1.srv.releng.use1.mozilla.com',
             'proxxy1.srv.releng.usw2.mozilla.com',
+            'proxxy1.srv.releng.scl3.mozilla.com',
         ],
-        "regions": [".use1.", ".usw2."],
+        "regions": [".use1.", ".usw2.", ".scl3"],
     }
 
     def __init__(self, config, log_obj):

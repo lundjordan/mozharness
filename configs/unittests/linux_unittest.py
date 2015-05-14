@@ -66,6 +66,7 @@ config = {
         "plain5": ["--total-chunks=5", "--this-chunk=5", "--chunk-by-dir=4"],
         "plain": [],
         "plain-chunked": ["--chunk-by-dir=4"],
+        "mochitest-push": ["--subsuite=push"],
         "chrome": ["--chrome"],
         "browser-chrome": ["--browser-chrome"],
         "browser-chrome-1": ["--browser-chrome", "--chunk-by-dir=5", "--total-chunks=3", "--this-chunk=1"],
@@ -162,6 +163,5 @@ config = {
     "download_minidump_stackwalk": True,
     "minidump_stackwalk_path": MINIDUMP_STACKWALK_PATH,
     "minidump_tooltool_manifest_path": TOOLTOOL_MANIFEST_PATH,
-    "tooltool_servers": ["http://runtime-binaries.pvt.build.mozilla.org/tooltool/"],
     "tooltool_cache": "/builds/tooltool_cache",
 }

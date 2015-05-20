@@ -576,7 +576,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
         python = self.query_python_path()
         self.run_command([python, "--version"])
         # run talos tests
-        talos = os.path.join(self.config['webroot'], 'talos', 'PerfConfigurator.py')
+        talos = os.path.join(self.talos_path, 'talos', 'PerfConfigurator.py')
         command = [talos] + options
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
@@ -594,7 +594,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
                                             output_parser=parser,
                                             env=env)
         # Call run_tests on generated talos.yml
-        run_tests = os.path.join(self.config['webroot'], 'talos', 'run_tests.py')
+        run_tests = os.path.join(self.talos_path, 'talos', 'run_tests.py')
         options = "talos.yml"
         command = [run_tests, '--noisy', '--debug'] + [options]
         self.return_code = self.run_command(command, cwd=self.workdir,

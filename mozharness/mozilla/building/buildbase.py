@@ -557,7 +557,7 @@ class BuildScript(BuildbotMixin, PurgeMixin, MockMixin, BalrogMixin,
                 BuildOptionParser.platform,
                 BuildOptionParser.bits
             )
-        build_pool_cfg = BuildOptionParser.build_pools.get(build_pool)
+        build_pool_cfg = BuildOptionParser.build_pool_cfg_file
         branch_cfg = BuildOptionParser.branch_cfg_file
 
         cfg_match_msg = "Script was run with '%(option)s %(type)s' and \
@@ -581,9 +581,7 @@ platform '%(platform)s'. Updating self.config with the following from \
                     cfg_match_msg % {
                         'option': '--build-pool',
                         'type': build_pool,
-                        'type_config_file': BuildOptionParser.build_pools[
-                            build_pool
-                        ]
+                        'type_config_file': build_pool_cfg,
                     }
                 )
             if variant_cfg and variant_cfg in target_file:
@@ -828,7 +826,7 @@ or run without that action (ie: --no-{action})"
 
     def query_mach_build_env(self, multiLocale=None):
         c = self.config
-        if multiLocale is None:
+        if multiLocale is None and self.query_is_nightly():
             multiLocale = c.get('multi_locale', False)
         mach_env = {}
         if c.get('upload_env'):
@@ -973,7 +971,10 @@ or run without that action (ie: --no-{action})"
         if c.get('release_to_try_builds'):
             post_upload_cmd.append('--release-to-try-builds')
         if self.query_is_nightly():
-            post_upload_cmd.extend(['-b', self.branch])
+            if c.get('post_upload_include_platform'):
+                post_upload_cmd.extend(['-b', '%s-%s' % (self.branch, platform)])
+            else:
+                post_upload_cmd.extend(['-b', self.branch])
             post_upload_cmd.append('--release-to-dated')
             if c['platform_supports_post_upload_to_latest']:
                 post_upload_cmd.append('--release-to-latest')
@@ -1363,6 +1364,7 @@ or run without that action (ie: --no-{action})"
                          self.query_pushdate(),
                          client_id,
                          access_token,
+                         self.config.get('taskcluster_index', 'index'),
                          self.log_obj,
                          )
 

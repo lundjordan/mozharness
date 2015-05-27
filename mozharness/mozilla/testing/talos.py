@@ -159,9 +159,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
                                               'run-tests',
                                               ])
         kwargs.setdefault('config', {})
-        kwargs['config'].setdefault('virtualenv_modules', ["mozinstall", "mozdevice", "pyyaml",
-                                                           "mozversion", "datazilla", "mozcrash",
-                                                           "mozhttpd", "mozprofile", "mozprocess"])
+        kwargs['config'].setdefault('virtualenv_modules', ["mozinstall", "mozdevice", "pyyaml", "mozversion", "datazilla", "mozcrash", "mozhttpd", "mozprofile"])
         super(Talos, self).__init__(**kwargs)
 
         self.workdir = self.query_abs_dirs()['abs_work_dir']  # convenience
@@ -579,7 +577,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
         self.run_command([python, "--version"])
         # run talos tests
         talos = os.path.join(self.talos_path, 'talos', 'PerfConfigurator.py')
-        command = [talos] + options
+        command = [python, talos] + options
         parser = TalosOutputParser(config=self.config, log_obj=self.log_obj,
                                    error_list=TalosErrorList)
         env = {}
@@ -598,7 +596,7 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
         # Call run_tests on generated talos.yml
         run_tests = os.path.join(self.talos_path, 'talos', 'run_tests.py')
         options = "talos.yml"
-        command = [run_tests, '--noisy', '--debug'] + [options]
+        command = [python, run_tests, '--noisy', '--debug'] + [options]
         self.return_code = self.run_command(command, cwd=self.workdir,
                                             output_timeout=output_timeout,
                                             output_parser=parser,

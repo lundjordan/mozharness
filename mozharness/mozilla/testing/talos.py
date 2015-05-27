@@ -159,7 +159,9 @@ class Talos(TestingMixin, MercurialScript, BlobUploadMixin):
                                               'run-tests',
                                               ])
         kwargs.setdefault('config', {})
-        kwargs['config'].setdefault('virtualenv_modules', ["mozinstall", "mozdevice", "pyyaml", "mozversion", "datazilla", "mozcrash", "mozhttpd", "mozprofile"])
+        kwargs['config'].setdefault('virtualenv_modules', ["mozinstall", "mozdevice", "pyyaml",
+                                                           "mozversion", "datazilla", "mozcrash",
+                                                           "mozhttpd", "mozprofile", "mozprocess"])
         super(Talos, self).__init__(**kwargs)
 
         self.workdir = self.query_abs_dirs()['abs_work_dir']  # convenience

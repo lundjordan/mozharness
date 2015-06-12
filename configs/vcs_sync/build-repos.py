@@ -86,7 +86,7 @@ config = {
 
     "default_notify_from": "vcs2vcs@%s" % hostname,
     "notify_config": [{
-        "to": "release+vcs2vcs@mozilla.com",
+        "to": "releng-ops-trial@mozilla.com",
         "failure_only": False,
         "skip_empty_messages": True,
     }],
@@ -110,7 +110,6 @@ config = {
         'publish-to-mapper',
         'push',
         'combine-mapfiles',
-        'upload',
         'notify',
     ],
 }

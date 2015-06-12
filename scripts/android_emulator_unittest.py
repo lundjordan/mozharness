@@ -570,7 +570,8 @@ class AndroidEmulatorTest(BlobUploadMixin, TestingMixin, EmulatorMixin, VCSMixin
         """
         Download and extract fennec APK, tests.zip, host utils, and robocop (if required).
         """
-        super(AndroidEmulatorTest, self).download_and_extract()
+        suite_category = self.test_suite_definitions[self.test_suite]['category']
+        super(AndroidEmulatorTest, self).download_and_extract(suite_categories=[suite_category])
         dirs = self.query_abs_dirs()
         if self.test_suite.startswith('robocop'):
             robocop_url = self.installer_url[:self.installer_url.rfind('/')] + '/robocop.apk'

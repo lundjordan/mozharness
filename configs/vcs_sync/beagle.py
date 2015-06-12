@@ -77,6 +77,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g26_v1_2",
         "revision": "default",
@@ -105,6 +109,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g26_v1_2f",
@@ -135,6 +143,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g28_v1_3",
         "revision": "default",
@@ -163,6 +175,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g28_v1_3t",
@@ -193,6 +209,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g30_v1_4",
         "revision": "default",
@@ -222,6 +242,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g34_v2_1",
         "revision": "default",
@@ -245,6 +269,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g37_v2_2",
@@ -270,6 +298,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g32_v2_0",
         "revision": "default",
@@ -293,6 +325,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g32_v2_0m",
@@ -318,6 +354,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g18_v1_1_0_hd",
         "revision": "default",
@@ -341,6 +381,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g18_v1_0_1",
@@ -366,6 +410,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-b2g18_v1_0_0",
         "revision": "default",
@@ -390,6 +438,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-aurora",
         "revision": "default",
@@ -413,6 +465,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-beta",
@@ -442,6 +498,10 @@ config = {
                 "^(B2G|RELEASE_BASE)_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-release",
         "revision": "default",
@@ -470,6 +530,10 @@ config = {
                 "^(B2G|RELEASE_BASE)_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-esr17",
         "revision": "default",
@@ -493,6 +557,10 @@ config = {
             "tag_regexes": [
                 "^B2G_",
             ],
+        },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
         },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-esr31",
@@ -521,6 +589,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/releases/mozilla-esr38",
         "revision": "default",
@@ -548,6 +620,10 @@ config = {
                 "^B2G_",
             ],
         },
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/integration/mozilla-inbound",
         "revision": "default",
@@ -568,6 +644,10 @@ config = {
             },
         },
         "tag_config": {},
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/integration/b2g-inbound",
         "revision": "default",
@@ -588,6 +668,10 @@ config = {
             },
         },
         "tag_config": {},
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }, {
         "repo": "https://hg.mozilla.org/integration/fx-team",
         "revision": "default",
@@ -608,6 +692,10 @@ config = {
             },
         },
         "tag_config": {},
+        "mapper": {
+            "url": "https://api.pub.build.mozilla.org/mapper",
+            "project": "gecko-dev"
+        },
     }],
     "remote_targets": {
         "github-beagle": {
@@ -642,6 +730,7 @@ config = {
         "mozfile==0.9",
         "mozinfo==0.5",
         "mozprocess==0.11",
+        "requests==2.2.1",
     ],
     "find_links": [
         "http://pypi.pvt.build.mozilla.org/pub",
@@ -649,16 +738,9 @@ config = {
     ],
     "pip_index": False,
 
-    "upload_config": [{
-        "ssh_key": "~/.ssh/vcs-sync_rsa",
-        "ssh_user": "pmoore",
-        "remote_host": "people.mozilla.org",
-        "remote_path": "/home/pmoore/public_html/vcs2vcs/gecko-dev",
-    }],
-
     "default_notify_from": "vcs2vcs@%s" % hostname,
     "notify_config": [{
-        "to": "release+vcs2vcs@mozilla.com",
+        "to": "releng-ops-trial@mozilla.com",
         "failure_only": False,
         "skip_empty_messages": True,
     }],
@@ -666,4 +748,14 @@ config = {
     # Disallow sharing, since we want pristine .hg and .git directories.
     "vcs_share_base": None,
     "hg_share_base": None,
+    "default_actions": [
+        'list-repos',
+        'create-virtualenv',
+        'update-stage-mirror',
+        'update-work-mirror',
+        'publish-to-mapper',
+        'push',
+        'combine-mapfiles',
+        'notify',
+    ],
 }

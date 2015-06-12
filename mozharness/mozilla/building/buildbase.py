@@ -100,10 +100,11 @@ class MakeUploadOutputParser(OutputParser):
         ('codeCoverageUrl', "m.endswith('code-coverage-gcno.zip')"),
     ]
 
-    def __init__(self, **kwargs):
+    def __init__(self, use_package_as_marfile=False, **kwargs):
         super(MakeUploadOutputParser, self).__init__(**kwargs)
         self.matches = {}
         self.tbpl_status = TBPL_SUCCESS
+        self.use_package_as_marfile = use_package_as_marfile
 
     def parse_single_line(self, line):
         prop_assigned = False
@@ -120,6 +121,26 @@ class MakeUploadOutputParser(OutputParser):
                 # if we found a match but haven't identified the prop then this
                 # is the packageURL. Let's consider this the else block
                 self.matches['packageUrl'] = m
+
+                # For android builds, the package is also used as the mar file.
+                # Grab the first one, since that is the one in the
+                # nightly/YYYY/MM directory
+                if self.use_package_as_marfile and 'completeMarUrl' not in self.matches:
+                    self.info("Using package as mar file: %s" % m)
+                    self.matches['completeMarUrl'] = m
+
+        if self.use_package_as_marfile:
+            pat = r'''^Uploading (.*\.(tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+            m = re.compile(pat).match(line)
+            if m:
+                m = m.group(1)
+                isPackage = True
+                for prop, condition in self.property_conditions:
+                    if eval(condition):
+                        isPackage = False
+                        break
+                if isPackage:
+                    self.matches['packageFilename'] = m
 
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
@@ -1371,8 +1392,33 @@ or run without that action (ie: --no-{action})"
         task = tc.create_task()
         tc.claim_task(task)
 
+        # Some trees may not be setting uploadFiles, so default to []. Normally
+        # we'd only expect to get here if the build completes successfully,
+        # which means we should have uploadFiles.
+        files = self.query_buildbot_property('uploadFiles') or []
+        if not files:
+            self.warning('No files from the build system to upload to S3: uploadFiles property is missing or empty.')
+
         packageName = self.query_buildbot_property('packageFilename')
         self.info('packageFilename is: %s' % packageName)
+
+        if self.config.get('use_package_as_marfile'):
+            self.info('Using packageUrl for the MAR file')
+            self.set_buildbot_property('completeMarUrl',
+                                       self.query_buildbot_property('packageUrl'),
+                                       write_to_file=True)
+
+            # Find the full path to the package in uploadFiles so we can
+            # get the size/hash of the mar
+            for upload_file in files:
+                if upload_file.endswith(packageName):
+                    self.set_buildbot_property('completeMarSize',
+                                               self.query_filesize(upload_file),
+                                               write_to_file=True)
+                    self.set_buildbot_property('completeMarHash',
+                                               self.query_sha512sum(upload_file),
+                                               write_to_file=True)
+                    break
 
         property_conditions = [
             # key: property name, value: condition
@@ -1391,6 +1437,7 @@ or run without that action (ie: --no-{action})"
             ('partialMarUrlTC', lambda m: m.endswith('.mar') and '.partial.' in m),
             ('codeCoverageURL', lambda m: m.endswith('code-coverage-gcno.zip')),
             ('sdkUrl', lambda m: m.endswith(('sdk.tar.bz2', 'sdk.zip'))),
+            ('testPackagesUrl', lambda m: m.endswith('test_packages.json')),
             ('packageUrl', lambda m: m.endswith(packageName)),
         ]
 
@@ -1404,14 +1451,8 @@ or run without that action (ie: --no-{action})"
             '.tar.bz2',
             '.tar.gz',
             '.zip',
+            '.json',
         )
-
-        # Some trees may not be setting uploadFiles, so default to []. Normally
-        # we'd only expect to get here if the build completes successfully,
-        # which means we should have uploadFiles.
-        files = self.query_buildbot_property('uploadFiles') or []
-        if not files:
-            self.warning('No files from the build system to upload to S3: uploadFiles property is missing or empty.')
 
         # Also upload our mozharness log files
         files.extend([os.path.join(self.log_obj.abs_log_dir, x) for x in self.log_obj.log_files.values()])
@@ -1614,28 +1655,32 @@ or run without that action (ie: --no-{action})"
         self.run_command_m(cmd, env=self.query_build_env(), cwd=base_work_dir,
                            halt_on_failure=True)
 
+        parser = MakeUploadOutputParser(config=self.config,
+                                        log_obj=self.log_obj,
+                                        use_package_as_marfile=self.config.get('use_package_as_marfile'))
         upload_cmd = ['make', 'upload', 'AB_CD=multi']
         self.run_command_m(upload_cmd,
                            env=self.query_mach_build_env(multiLocale=False),
-                           cwd=objdir, halt_on_failure=True)
+                           cwd=objdir, halt_on_failure=True,
+                           output_parser=parser)
+        for prop in parser.matches:
+            self.set_buildbot_property(prop,
+                                       parser.matches[prop],
+                                       write_to_file=True)
+            if prop == 'packageFilename':
+                filename = parser.matches[prop]
+                self.info("Setting mar properties to match package: %s" % filename)
+                self.set_buildbot_property('completeMarSize',
+                                           self.query_filesize(filename),
+                                           write_to_file=True)
+                self.set_buildbot_property('completeMarHash',
+                                           self.query_sha512sum(filename),
+                                           write_to_file=True)
 
     def postflight_build(self, console_output=True):
         """grabs properties from post build and calls ccache -s"""
-        c = self.config
         self.generate_build_props(console_output=console_output,
                                   halt_on_failure=True)
-
-        self.upload_files()
-
-        if c.get('enable_talos_sendchange'):
-            self._do_sendchange('talos')
-
-        if c.get('enable_unittest_sendchange'):
-            self._do_sendchange('unittest')
-
-        if self.config.get('enable_check_test'):
-            self._check_test()
-
         if self.config.get('enable_ccache'):
             self._ccache_s()
 
@@ -1670,7 +1715,11 @@ or run without that action (ie: --no-{action})"
             self.fatal("make did not run successfully. Please check "
                        "log for errors.")
 
-    def _check_test(self):
+    def check_test(self):
+        if not self.config.get('enable_check_test'):
+            self.info("'enable_check_test' is false; skipping")
+            return
+
         c = self.config
         dirs = self.query_abs_dirs()
 
@@ -1728,6 +1777,17 @@ or run without that action (ie: --no-{action})"
             self.info("Nothing to do for this action since ctors "
                       "counts are disabled for this build.")
 
+    def sendchange(self):
+        if self.config.get('enable_talos_sendchange'):
+            self._do_sendchange('talos')
+        else:
+            self.info("'enable_talos_sendchange' is false; skipping")
+
+        if self.config.get('enable_unittest_sendchange'):
+            self._do_sendchange('unittest')
+        else:
+            self.info("'enable_unittest_sendchange' is false; skipping")
+
     def _do_sendchange(self, test_type):
         c = self.config
 
@@ -1746,6 +1806,12 @@ or run without that action (ie: --no-{action})"
             self.return_code = 1
             return
         tests_url = self.query_buildbot_property('testsUrl')
+        # Contains the url to a manifest describing the test packages required
+        # for each unittest harness.
+        # For the moment this property is only set on desktop builds. Android
+        # and b2g builds find the packages manifest based on the upload
+        # directory of the installer.
+        test_packages_url = self.query_buildbot_property('testPackagesUrl')
         pgo_build = c.get('pgo_build', False) or self._compile_against_pgo()
 
         # these cmds are sent to mach through env vars. We won't know the
@@ -1767,7 +1833,7 @@ or run without that action (ie: --no-{action})"
                                            self.stage_platform,
                                            build_type,
                                            'talos')
-            self.sendchange(downloadables=[installer_url],
+            self.invoke_sendchange(downloadables=[installer_url],
                             branch=talos_branch,
                             username='sendchange',
                             sendchange_props=sendchange_props)
@@ -1789,9 +1855,16 @@ or run without that action (ie: --no-{action})"
             unittest_branch = "%s-%s-%s" % (self.branch,
                                             platform_and_build_type,
                                             'unittest')
-            self.sendchange(downloadables=[installer_url, tests_url],
-                            branch=unittest_branch,
-                            sendchange_props=sendchange_props)
+
+            downloadables = [installer_url]
+            if test_packages_url:
+                downloadables.append(test_packages_url)
+            else:
+                downloadables.append(tests_url)
+
+            self.invoke_sendchange(downloadables=downloadables,
+                                   branch=unittest_branch,
+                                   sendchange_props=sendchange_props)
         else:
             self.fatal('type: "%s" is unknown for sendchange type. valid '
                        'strings are "unittest" or "talos"' % test_type)

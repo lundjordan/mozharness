@@ -33,6 +33,9 @@ class FxDesktopBuild(BuildScript, object):
                 'checkout-sources',
                 'setup-mock',
                 'build',
+                'upload-files',  # upload from BB to TC
+                'sendchange',
+                'check-test',
                 'package-source',
                 'multi-l10n',
                 'generate-build-stats',
@@ -72,6 +75,7 @@ class FxDesktopBuild(BuildScript, object):
                 'compare_locales_rev': 'RELEASE_AUTOMATION',
                 'compare_locales_vcs': 'hgtool',
                 'influx_credentials_file': 'oauth.txt',
+                'build_resources_path': '%(abs_src_dir)s/obj-firefox/.mozbuild/build_resources.json',
 
                 # try will overwrite these
                 'clone_with_purge': False,

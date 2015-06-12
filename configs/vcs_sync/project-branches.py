@@ -101,19 +101,10 @@ config = {
     "pip_index": False,
 
     "combined_mapfile": "combined_gecko_mapfile",
-    "external_mapfile_urls": [
-        "http://people.mozilla.org/~pmoore/vcs2vcs/gecko-dev/gecko-mapfile",
-    ],
-    "upload_config": [{
-        "ssh_key": "~/.ssh/vcs-sync_rsa",
-        "ssh_user": "pmoore",
-        "remote_host": "people.mozilla.org",
-        "remote_path": "/home/pmoore/public_html/vcs2vcs/gecko-projects",
-    }],
 
     "default_notify_from": "vcs2vcs@%s" % hostname,
     "notify_config": [{
-        "to": "release+vcs2vcs@mozilla.com",
+        "to": "releng-ops-trial@mozilla.com",
         "failure_only": False,
         "skip_empty_messages": True,
     }],

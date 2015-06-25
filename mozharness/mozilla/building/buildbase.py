@@ -105,6 +105,7 @@ class MakeUploadOutputParser(OutputParser):
         self.matches = {}
         self.tbpl_status = TBPL_SUCCESS
         self.use_package_as_marfile = use_package_as_marfile
+        self.package_filename = None
 
     def parse_single_line(self, line):
         prop_assigned = False
@@ -128,19 +129,14 @@ class MakeUploadOutputParser(OutputParser):
                 if self.use_package_as_marfile and 'completeMarUrl' not in self.matches:
                     self.info("Using package as mar file: %s" % m)
                     self.matches['completeMarUrl'] = m
+                    u, self.package_filename = os.path.split(m)
 
-        if self.use_package_as_marfile:
-            pat = r'''^Uploading (.*\.(tar\.bz2|dmg|zip|apk|rpm|mar|tar\.gz))$'''
+        if self.use_package_as_marfile and self.package_filename:
+            pat = r'''^Uploading (.*/%s)$''' % self.package_filename
             m = re.compile(pat).match(line)
             if m:
                 m = m.group(1)
-                isPackage = True
-                for prop, condition in self.property_conditions:
-                    if eval(condition):
-                        isPackage = False
-                        break
-                if isPackage:
-                    self.matches['packageFilename'] = m
+                self.matches['packageFilename'] = m
 
         # now let's check for retry errors which will give log levels:
         # tbpl status as RETRY and mozharness status as WARNING
@@ -313,6 +309,7 @@ class BuildOptionParser(object):
         'mulet': 'builds/releng_sub_%s_configs/%s_mulet.py',
         'code-coverage': 'builds/releng_sub_%s_configs/%s_code_coverage.py',
         'graphene': 'builds/releng_sub_%s_configs/%s_graphene.py',
+        'horizon': 'builds/releng_sub_%s_configs/%s_horizon.py',
         'source': 'builds/releng_sub_%s_configs/%s_source.py',
         'api-9': 'builds/releng_sub_%s_configs/%s_api_9.py',
         'api-11': 'builds/releng_sub_%s_configs/%s_api_11.py',
@@ -1380,16 +1377,19 @@ or run without that action (ie: --no-{action})"
         logging.getLogger('taskcluster').setLevel(logging.DEBUG)
 
         tc = Taskcluster(self.branch,
-                         self.stage_platform,
-                         self.query_revision(),
-                         self.query_pushdate(),
+                         self.query_pushdate(), # Use pushdate as the rank
                          client_id,
                          access_token,
-                         self.config.get('taskcluster_index', 'index'),
                          self.log_obj,
                          )
 
-        task = tc.create_task()
+        index = self.config.get('taskcluster_index', 'index.garbage.staging')
+        # TODO: Bug 1165980 - these should be in tree
+        routes = [
+            "%s.buildbot.branches.%s.%s" % (index, self.branch, self.stage_platform),
+            "%s.buildbot.revisions.%s.%s.%s" % (index, self.query_revision(), self.branch, self.stage_platform),
+        ]
+        task = tc.create_task(routes)
         tc.claim_task(task)
 
         # Some trees may not be setting uploadFiles, so default to []. Normally
@@ -1716,10 +1716,6 @@ or run without that action (ie: --no-{action})"
                        "log for errors.")
 
     def check_test(self):
-        if not self.config.get('enable_check_test'):
-            self.info("'enable_check_test' is false; skipping")
-            return
-
         c = self.config
         dirs = self.query_abs_dirs()
 

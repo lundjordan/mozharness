@@ -51,7 +51,6 @@ for repo in build_repos:
 #               "^.*$"
 #           ]
 #       },
-        "generate_git_notes": True, # False by default
     })
     remote_targets["build-%s-github" % repo] = {
         "repo": "git@github.com:mozilla/build-%s.git" % repo,
@@ -84,7 +83,7 @@ config = {
     ],
     "pip_index": False,
 
-    "default_notify_from": "vcs2vcs@%s" % hostname,
+    "default_notify_from": "developer-services@mozilla.org",
     "notify_config": [{
         "to": "releng-ops-trial@mozilla.com",
         "failure_only": False,
@@ -106,7 +105,6 @@ config = {
         'create-virtualenv',
         'update-stage-mirror',
         'update-work-mirror',
-        'create-git-notes',
         'publish-to-mapper',
         'push',
         'combine-mapfiles',

@@ -36,7 +36,6 @@ config = {
     "l10n_dir": "l10n",
     "locales_file": "%(branch)s/browser/locales/all-locales",
     "locales_dir": "browser/locales",
-    "hg_l10n_base": "https://hg.mozilla.org/l10n-central",
     "hg_l10n_tag": "default",
     "merge_locales": True,
 
@@ -72,6 +71,10 @@ config = {
             os.path.join(
                 os.getcwd(), 'build', 'tools', 'buildfarm', 'utils', 'hgtool.py'
             )
+        ],
+        'virtualenv': [
+            sys.executable,
+            'c:/mozilla-build/buildbotve/virtualenv.py'
         ],
     }
 }

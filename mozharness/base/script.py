@@ -945,6 +945,19 @@ class ScriptMixin(PlatformMixin):
             # allow for 'make': '%(abs_work_dir)s/...' etc.
             dirs = self.script_obj.query_abs_dirs()
             repl_dict.update(dirs)
+        if isinstance(exe, dict):
+            # allow for searchable paths of the buildbot exe
+            for name, path in exe.iteritems():
+                if isinstance(path, list):
+                    path = os.path.join(*path)
+                if os.path.exists(path):
+                    self.log('found %s in %s location at %s' % (exe_name, name, path), level=INFO)
+                    exe = path
+                    break
+            else:
+                self.log("query_exe was a searchable dict but an existing path could not be"
+                         "determined. Tried searching in paths: %s" % (str(exe)), level=error_level)
+                return None
         if isinstance(exe, list) or isinstance(exe, tuple):
             exe = [x % repl_dict for x in exe]
         elif isinstance(exe, str):
